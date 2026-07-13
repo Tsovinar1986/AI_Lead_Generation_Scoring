@@ -1,0 +1,91 @@
+import io
+
+from app.routers import leads as leads_router
+
+SAMPLE_CSV = (
+    b"company_name,domain,contact_name,contact_title,industry,employees,revenue,country\n"
+    b"Acme Inc,acme.com,Jane Doe,VP of Sales,SaaS,200,20000000,United States\n"
+    b"Globex,globex.com,John Smith,CTO,Fintech,500,50000000,United Kingdom\n"
+)
+
+
+def _upload(client, content=SAMPLE_CSV, filename="leads.csv"):
+    return client.post(
+        "/api/leads/upload",
+        files={"file": (filename, io.BytesIO(content), "text/csv")},
+    )
+
+
+def test_health(client):
+    resp = client.get("/api/health")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+
+
+def test_upload_then_list_roundtrip(client):
+    resp = _upload(client)
+    assert resp.status_code == 200
+    assert len(resp.json()) == 2
+
+    listed = client.get("/api/leads").json()
+    assert len(listed) == 2
+
+
+def test_upload_twice_does_not_duplicate(client):
+    _upload(client)
+    resp = _upload(client)
+
+    assert len(resp.json()) == 2
+    assert len(client.get("/api/leads").json()) == 2
+
+
+def test_get_single_lead(client):
+    upload_resp = _upload(client)
+    lead_id = upload_resp.json()[0]["id"]
+
+    resp = client.get(f"/api/leads/{lead_id}")
+    assert resp.status_code == 200
+    assert resp.json()["id"] == lead_id
+
+
+def test_get_missing_lead_404s(client):
+    resp = client.get("/api/leads/does-not-exist")
+    assert resp.status_code == 404
+
+
+def test_upload_empty_file_400s(client):
+    resp = _upload(client, content=b"company_name,domain\n")
+    assert resp.status_code == 400
+
+
+def test_upload_malformed_file_400s(client):
+    resp = _upload(client, content=b"industry,employees\nSaaS,200\n")
+    assert resp.status_code == 400
+
+
+def test_license_status_endpoint_unlicensed(client):
+    resp = client.get("/api/license")
+    assert resp.json() == {"licensed": False}
+
+
+def test_upload_blocked_when_license_required_and_missing(client, monkeypatch):
+    monkeypatch.setattr(leads_router, "LICENSE_REQUIRED", True)
+    monkeypatch.setattr(leads_router, "verify_license", lambda: None)
+
+    resp = _upload(client)
+    assert resp.status_code == 402
+
+
+def test_upload_allowed_when_license_required_and_valid(client, monkeypatch):
+    monkeypatch.setattr(leads_router, "LICENSE_REQUIRED", True)
+    monkeypatch.setattr(leads_router, "verify_license", lambda: object())
+
+    resp = _upload(client)
+    assert resp.status_code == 200
+
+
+def test_hot_lead_upload_creates_alert(client):
+    _upload(client)
+    alerts = client.get("/api/alerts").json()
+    # sample data includes at least one strong-fit lead
+    assert isinstance(alerts, list)

@@ -34,11 +34,11 @@ their own infra. Stripe handles payment; a webhook mints the key.
 
 Stripe fires `checkout.session.completed` → the webhook signs a license
 (`{customer_email, plan, issued_at, expires_at}`) with `LICENSE_PRIVATE_KEY`
-→ appends it to `licensing/issued_licenses.jsonl` and logs it. **Email
-delivery isn't wired up** (out of scope here) — for now, tail that file or
-your logs and send the key to the buyer by hand; wiring SendGrid/SES into
-the webhook handler once volume justifies it is a ~20-line addition to
-`backend/app/routers/billing.py`.
+→ appends it to `licensing/issued_licenses.jsonl` and emails it to the buyer
+(`backend/app/services/license_email.py`, SendGrid if `SENDGRID_API_KEY` is
+set, else plain SMTP if `SMTP_HOST` is set). With neither configured, it's
+still issued and logged/appended to that file — tail it and send the key by
+hand.
 
 Need a comp/manual license (a pilot customer, a partner)? Skip Stripe:
 ```

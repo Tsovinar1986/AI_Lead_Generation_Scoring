@@ -6,6 +6,12 @@ model, and acts on the top-ranked leads (outreach drafts, CRM sync, alerts).
 
 ## Running it
 
+`./run.sh` (or `run.bat` on Windows) starts backend + frontend as two dev
+servers with hot reload; `./run-prod.sh` (`run-prod.bat`) builds the
+frontend once and runs a single merged process on one port — see the root
+[README.md](README.md#running-it-two-modes) for both, and how to tell it's
+actually working versus just "a server started."
+
 ```
 # backend (from repo root)
 python3 -m venv .venv && source .venv/bin/activate
@@ -87,13 +93,17 @@ current without manual re-triggering.
   scoring (`services/scoring.py`), outreach drafting (`services/outreach.py`),
   and CRM/Slack integrations (`services/crm.py`, `services/alerts.py`) are
   each isolated behind a single function that auto-switches between the live
-  API and a mock based on which keys are present in `.env`. Leads are held
-  in-memory (`storage.py`) for this first version — swap for a real DB
-  before using with persistent data.
+  API and a mock based on which keys are present in `.env`. Leads/alerts
+  persist to SQLite (`storage.py`, path set by `DATABASE_PATH`) — single-file,
+  single-tenant, fine for one self-hosted buyer, not a multi-user setup.
+  `backend/tests/` has the pytest suite (`pytest -q` from `backend/`).
 - **frontend/** — React + Vite + TypeScript SPA. Upload panel, a ranked/
   filterable leads table, a detail drawer (firmographics, score breakdown,
-  LLM rationale, outreach draft generation, CRM push button), and a live
-  Slack-alerts panel.
+  LLM rationale, outreach draft generation, CRM push button), a live
+  Slack-alerts panel, and a license/billing banner. `npm test` runs the
+  Vitest suite.
+- **`.github/workflows/ci.yml`** — runs both suites (and the frontend build)
+  on every push/PR.
 
 ## Selling this
 

@@ -10,3 +10,5 @@ frontend/dist/
 gravity-ai/dist/
 
 licensing/issued_licenses.jsonl
+
+*.db

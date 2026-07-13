@@ -12,7 +12,17 @@ call, leave it unset and it runs on deterministic mock data — so the whole
 thing works end to end with zero API keys for local eval, and flips to
 live behavior with zero code changes once keys are added.
 
-## Quickstart
+## Running it: two modes
+
+**Dev mode** — backend and frontend as two separate servers with hot reload.
+This is what you want while making changes.
+
+```
+./run.sh          # macOS/Linux — installs deps, starts both, Ctrl+C stops both
+run.bat           # Windows    — same, opens two windows
+```
+
+or by hand:
 
 ```
 python3 -m venv .venv && source .venv/bin/activate
@@ -23,8 +33,27 @@ cd backend && uvicorn app.main:app --reload --port 8000
 cd frontend && npm install && npm run dev
 ```
 
-Open http://localhost:5173, upload `backend/data/sample_leads.csv` (or your
-own CRM export), and ranked/scored leads appear immediately.
+Open **http://localhost:5173** (the Vite dev server; it proxies `/api/*`
+calls to the backend on :8000, see `frontend/vite.config.ts`).
+
+**Merged/production mode** — one process, one port. This is what a
+self-hosted buyer actually runs: FastAPI builds+serves the frontend itself
+(`backend/app/main.py`'s `FRONTEND_DIST` handling), so there's no separate
+frontend server at all.
+
+```
+./run-prod.sh      # macOS/Linux
+run-prod.bat       # Windows
+```
+
+Open **http://localhost:8000** — same origin serves both the UI and the API.
+
+**How to tell it's actually working**: hit `/api/health` (`{"status":"ok"}`)
+directly, then in the browser upload `backend/data/sample_leads.csv` and
+confirm ranked leads + Slack-alert cards appear — that exercises the full
+upload → enrich → score → store round trip, not just that a server is up.
+Leads/alerts persist to a local SQLite file (`DATABASE_PATH`, default
+`backend/data/app.db`) so they survive a restart in either mode.
 
 ## What's in here
 
@@ -39,10 +68,21 @@ own CRM export), and ranked/scored leads appear immediately.
   key, for selling this app directly as self-hosted software.
 
 See **[DESCRIPTION.md](DESCRIPTION.md)** for the full pipeline architecture
-and scoring model, **[TODO.md](TODO.md)** for what's verified vs. what still
-needs testing against live accounts before going to production, and
-**[licensing/README.md](licensing/README.md)** for the go-to-market
-sequencing across sale channels.
+and scoring model, and **[licensing/README.md](licensing/README.md)** for
+the go-to-market sequencing across sale channels.
+
+## Testing
+
+```
+pip install -r requirements-dev.txt
+cd backend && pytest -q
+
+cd frontend && npm test        # Vitest
+npm run build                  # tsc + production build
+```
+
+`.github/workflows/ci.yml` runs both suites plus the frontend build on every
+push/PR.
 
 ## Configuration
 

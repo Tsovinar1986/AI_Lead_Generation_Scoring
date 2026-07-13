@@ -4,6 +4,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# SQLite file leads/alerts persist to, relative to the backend/ working
+# directory by default. Single-file, single-tenant -- fine for one
+# self-hosted buyer's data, not a multi-user setup.
+DATABASE_PATH = os.getenv("DATABASE_PATH", "data/app.db")
+
+# "text" (human-readable, for local dev) or "json" (one JSON object per line
+# on stdout, for log aggregators like CloudWatch/Datadog/Loki when this runs
+# in a container).
+LOG_FORMAT = os.getenv("LOG_FORMAT", "text")
+
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5")
 
@@ -62,9 +72,14 @@ STRIPE_BILLING_MODE = os.getenv("STRIPE_BILLING_MODE", "subscription")
 LICENSE_VALIDITY_DAYS = int(os.getenv("LICENSE_VALIDITY_DAYS", "35"))
 
 # --- Email delivery (seller side) ---
-# Sends issued license keys to buyers automatically. Without these set, keys
-# are still issued and logged/appended to licensing/issued_licenses.jsonl --
-# just not emailed, so send them by hand.
+# Sends issued license keys to buyers automatically. Without either of these
+# set, keys are still issued and logged/appended to
+# licensing/issued_licenses.jsonl -- just not emailed, so send them by hand.
+# SendGrid is tried first if configured (better deliverability/analytics at
+# scale); SMTP is the zero-third-party-account fallback.
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
+SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "")
+
 SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")

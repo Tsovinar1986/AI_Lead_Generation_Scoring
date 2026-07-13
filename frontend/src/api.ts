@@ -1,6 +1,11 @@
 import type { Alert, LicenseStatus, ScoredLead } from "./types";
 
-const BASE = `${import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"}/api`;
+// Same-origin by default -- works unmodified both in merged production mode
+// (backend serves the built frontend, so "same origin" IS the backend) and
+// in dev mode (vite.config.ts proxies /api to localhost:8000). Only set
+// VITE_API_BASE_URL if the API genuinely lives on a different origin than
+// wherever this frontend is served from.
+const BASE = `${import.meta.env.VITE_API_BASE_URL ?? ""}/api`;
 
 export class LicenseRequiredError extends Error {}
 
