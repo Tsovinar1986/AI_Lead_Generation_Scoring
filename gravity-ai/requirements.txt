@@ -1,0 +1,13 @@
+# Trimmed to what score_leads.py's import chain (app/ingestion, app/enrichment,
+# app/scoring, app/outreach) actually needs. No fastapi/uvicorn/playwright/
+# apscheduler/hubspot/salesforce/slack-sdk here — this is a batch algorithm,
+# not the interactive backend service, and Gravity AI's build container
+# should stay as small/fast-building as possible.
+pandas>=2.2,<3.0
+openpyxl>=3.1,<4.0
+pydantic>=2.7,<3.0
+requests>=2.32,<3.0
+tenacity>=8.3,<9.0
+anthropic>=0.34,<1.0
+python-dotenv>=1.0,<2.0
+loguru>=0.7,<1.0
