@@ -62,8 +62,6 @@ Leads/alerts persist to a local SQLite file (`DATABASE_PATH`, default
 - **`frontend/`** — React SPA: upload panel, ranked/filterable leads table,
   a detail drawer (firmographics, score breakdown, LLM rationale, outreach
   draft, CRM push), a live Slack-alerts panel, and a license/billing banner.
-- **`gravity-ai/`** — packages the scoring pipeline as a batch algorithm for
-  the [Gravity AI](https://gravity-ai.com) marketplace.
 - **`licensing/`** — Stripe Checkout + an offline-verifiable Ed25519 license
   key, for selling this app directly as self-hosted software.
 

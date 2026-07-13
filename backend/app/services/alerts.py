@@ -61,7 +61,7 @@ def _post_to_slack(message: str) -> None:
     client.chat_postMessage(channel=SLACK_CHANNEL_ID, text=message)
 
 
-def maybe_alert(lead: ScoredLead) -> Alert | None:
+def maybe_alert(tenant_id: str, lead: ScoredLead) -> Alert | None:
     if lead.bucket != "hot":
         return None
 
@@ -85,5 +85,5 @@ def maybe_alert(lead: ScoredLead) -> Alert | None:
     else:
         logger.info("Slack alert (stub): {}", message)
 
-    storage.add_alert(alert)
+    storage.add_alert(tenant_id, alert)
     return alert

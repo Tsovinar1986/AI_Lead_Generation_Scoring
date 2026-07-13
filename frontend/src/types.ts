@@ -42,5 +42,5 @@ export interface Alert {
 }
 
 export type LicenseStatus =
-  | { licensed: false }
+  | { licensed: false; reason: "none" | "invalid" | "expired"; customer_email: string | null; plan: string | null }
   | { licensed: true; customer_email: string; plan: string; expires_at: number | null };

@@ -94,27 +94,28 @@ current without manual re-triggering.
   and CRM/Slack integrations (`services/crm.py`, `services/alerts.py`) are
   each isolated behind a single function that auto-switches between the live
   API and a mock based on which keys are present in `.env`. Leads/alerts
-  persist to SQLite (`storage.py`, path set by `DATABASE_PATH`) — single-file,
-  single-tenant, fine for one self-hosted buyer, not a multi-user setup.
-  `backend/tests/` has the pytest suite (`pytest -q` from `backend/`).
+  persist to SQLite (`storage.py`, path set by `DATABASE_PATH`), scoped by
+  tenant (`auth.py`) — a request with no `Authorization` header uses a
+  default tenant (zero-config, the common single-buyer case); a seller
+  running one shared instance for multiple customers provisions each one a
+  real tenant + API key (`scripts/create_tenant.py`) with fully isolated
+  data. `backend/tests/` has the pytest suite (`pytest -q` from `backend/`).
 - **frontend/** — React + Vite + TypeScript SPA. Upload panel, a ranked/
   filterable leads table, a detail drawer (firmographics, score breakdown,
   LLM rationale, outreach draft generation, CRM push button), a live
-  Slack-alerts panel, and a license/billing banner. `npm test` runs the
-  Vitest suite.
+  Slack-alerts panel, a license/billing banner, and a small workspace
+  switcher (top-right) for pasting a tenant API key — invisible/unused for
+  a single self-hosted buyer, since no key means the default tenant.
+  `npm test` runs the Vitest suite.
 - **`.github/workflows/ci.yml`** — runs both suites (and the frontend build)
   on every push/PR.
 
 ## Selling this
 
-Two sale paths are built out on top of the same pipeline:
-
-- **`gravity-ai/`** — packages the pipeline as a batch algorithm for the
-  Gravity AI marketplace (`gravity-ai/README.md`).
 - **`licensing/`** — Stripe checkout + an offline-verifiable Ed25519 license
   key, for selling this app directly as self-hosted software from your own
   site (`licensing/README.md`, which also has the go-to-market sequencing:
-  direct sale → RapidAPI → Gravity AI → HubSpot/Salesforce marketplaces →
+  direct sale → RapidAPI → HubSpot/Salesforce marketplaces →
   AWS Marketplace/AppSumo, roughly cheapest/fastest to most involved).
 
 ## Not in scope (v1)

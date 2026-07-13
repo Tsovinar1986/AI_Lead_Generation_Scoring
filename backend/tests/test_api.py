@@ -65,7 +65,9 @@ def test_upload_malformed_file_400s(client):
 
 def test_license_status_endpoint_unlicensed(client):
     resp = client.get("/api/license")
-    assert resp.json() == {"licensed": False}
+    body = resp.json()
+    assert body["licensed"] is False
+    assert body["reason"] == "none"
 
 
 def test_upload_blocked_when_license_required_and_missing(client, monkeypatch):

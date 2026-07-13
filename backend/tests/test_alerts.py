@@ -8,19 +8,22 @@ from app.services import alerts
 from .conftest import make_scored_lead
 
 
+TENANT = "tenant-a"
+
+
 def test_warm_or_cold_leads_never_alert():
-    assert alerts.maybe_alert(make_scored_lead(bucket="warm")) is None
-    assert alerts.maybe_alert(make_scored_lead(bucket="cold")) is None
+    assert alerts.maybe_alert(TENANT, make_scored_lead(bucket="warm")) is None
+    assert alerts.maybe_alert(TENANT, make_scored_lead(bucket="cold")) is None
 
 
 def test_hot_lead_without_slack_config_stores_locally(monkeypatch):
     monkeypatch.setattr(alerts, "SLACK_BOT_TOKEN", "")
     monkeypatch.setattr(alerts, "SLACK_CHANNEL_ID", "")
 
-    alert = alerts.maybe_alert(make_scored_lead(bucket="hot"))
+    alert = alerts.maybe_alert(TENANT, make_scored_lead(bucket="hot"))
 
     assert alert is not None
-    assert len(storage.list_alerts()) == 1
+    assert len(storage.list_alerts(TENANT)) == 1
 
 
 def test_hot_lead_slack_failure_still_stores_locally(monkeypatch):
@@ -34,10 +37,10 @@ def test_hot_lead_slack_failure_still_stores_locally(monkeypatch):
 
     monkeypatch.setattr(alerts, "_post_to_slack", raise_error)
 
-    alert = alerts.maybe_alert(make_scored_lead(bucket="hot"))
+    alert = alerts.maybe_alert(TENANT, make_scored_lead(bucket="hot"))
 
     assert alert is not None
-    assert len(storage.list_alerts()) == 1
+    assert len(storage.list_alerts(TENANT)) == 1
 
 
 def _fake_error(code: str) -> SlackApiError:

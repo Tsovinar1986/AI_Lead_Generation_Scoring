@@ -72,8 +72,10 @@ anyone who'd balk at uploading a CRM export to a third party).
 **Who buys this**: a solo RevOps/sales-ops person or small GTM team at a
 company with an existing CRM export and no in-house scoring model — the
 "I have 5,000 rows, a HubSpot account, and no data scientist" buyer. Not
-enterprise (no SSO/multi-tenant yet) and not hobbyists (real integrations,
-real setup).
+large enterprise (no SSO yet) and not hobbyists (real integrations, real
+setup) — though multi-tenancy (`scripts/create_tenant.py`) now makes it
+viable to run one shared instance for several customers if you're selling
+it that way rather than self-hosted-per-buyer.
 
 **Sequencing** (cheapest/fastest validation first):
 
@@ -84,17 +86,14 @@ real setup).
    backend already is the product surface — wrapping it with API-key/quota
    auth for a metered listing is the next-cheapest channel and reaches
    buyers who want to call it, not run it.
-3. **Gravity AI** (`gravity-ai/`, already packaged) — good for the batch/
-   one-off-enrichment use case and for reaching buyers who browse algorithm
-   marketplaces specifically, but has an approval process and less control
-   over pricing/positioning than your own storefront.
-4. **HubSpot App Marketplace / Salesforce AppExchange** — only worth it once
-   you have paying customers on #1-3 validating demand; these are
+3. **HubSpot App Marketplace / Salesforce AppExchange** — only worth it once
+   you have paying customers on #1-2 validating demand; these are
    multi-week review processes and require native (OAuth) integrations, not
    the static access-token calls this app makes today.
-5. **AWS Marketplace / AppSumo** — hold until you're ready to run this
-   multi-tenant (today's `storage.py` is in-memory, single-tenant); premature
-   before then.
+4. **AWS Marketplace / AppSumo** — `storage.py` now supports multiple
+   isolated tenants on one deployment (`backend/scripts/create_tenant.py`),
+   so the technical blocker is gone; still hold until #1-2 validate demand,
+   since both are their own multi-week registration/review processes.
 
 **Pricing anchor**: price against the labor it replaces (an SDR/RevOps
 hour spent manually qualifying+drafting per lead), not against per-seat SaaS

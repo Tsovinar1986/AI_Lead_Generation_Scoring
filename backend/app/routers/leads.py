@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
 from .. import storage
+from ..auth import get_current_tenant
 from ..config import LICENSE_REQUIRED
 from ..licensing import verify_license
 from ..models import ScoredLead
@@ -13,7 +14,7 @@ router = APIRouter(prefix="/api/leads", tags=["leads"])
 
 
 @router.post("/upload", response_model=list[ScoredLead])
-async def upload_leads(file: UploadFile):
+async def upload_leads(file: UploadFile, tenant: storage.Tenant = Depends(get_current_tenant)):
     if LICENSE_REQUIRED and verify_license() is None:
         raise HTTPException(
             status_code=402,
@@ -36,20 +37,20 @@ async def upload_leads(file: UploadFile):
         enriched = enrich_lead(lead)
         scored_lead = score_lead(enriched)
         scored.append(scored_lead)
-        maybe_alert(scored_lead)
+        maybe_alert(tenant.id, scored_lead)
 
-    storage.upsert_leads(scored)
-    return storage.list_leads()
+    storage.upsert_leads(tenant.id, scored)
+    return storage.list_leads(tenant.id)
 
 
 @router.get("", response_model=list[ScoredLead])
-def get_leads():
-    return storage.list_leads()
+def get_leads(tenant: storage.Tenant = Depends(get_current_tenant)):
+    return storage.list_leads(tenant.id)
 
 
 @router.get("/{lead_id}", response_model=ScoredLead)
-def get_lead(lead_id: str):
-    lead = storage.get_lead(lead_id)
+def get_lead(lead_id: str, tenant: storage.Tenant = Depends(get_current_tenant)):
+    lead = storage.get_lead(tenant.id, lead_id)
     if lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
     return lead

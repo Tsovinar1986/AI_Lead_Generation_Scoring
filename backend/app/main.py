@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from loguru import logger
 
 from .config import CORS_ALLOWED_ORIGINS
-from .licensing import verify_license
+from .licensing import LicenseState, check_license, verify_license
 from .logging_config import configure_logging
 from .routers import actions, billing, leads
 
@@ -52,14 +52,23 @@ def health():
 
 @app.get("/api/license")
 def license_status():
-    license_info = verify_license()
-    if license_info is None:
-        return {"licensed": False}
+    check = check_license()
+    if check.state == LicenseState.VALID:
+        return {
+            "licensed": True,
+            "customer_email": check.info.customer_email,
+            "plan": check.info.plan,
+            "expires_at": check.info.expires_at,
+        }
+    # INVALID/EXPIRED still carry customer_email/plan when the key at least
+    # parsed, so the frontend can say "your license for X expired" instead
+    # of generic trial messaging -- a buyer who already paid should never
+    # see the same "buy a license" copy as someone who never did.
     return {
-        "licensed": True,
-        "customer_email": license_info.customer_email,
-        "plan": license_info.plan,
-        "expires_at": license_info.expires_at,
+        "licensed": False,
+        "reason": check.state.value,
+        "customer_email": check.info.customer_email if check.info else None,
+        "plan": check.info.plan if check.info else None,
     }
 
 

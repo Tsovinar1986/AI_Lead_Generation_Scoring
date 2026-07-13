@@ -10,7 +10,7 @@ export function LicenseBanner() {
   useEffect(() => {
     fetchLicenseStatus()
       .then(setStatus)
-      .catch(() => setStatus({ licensed: false }));
+      .catch(() => setStatus({ licensed: false, reason: "none", customer_email: null, plan: null }));
   }, []);
 
   async function handleBuy() {
@@ -40,13 +40,37 @@ export function LicenseBanner() {
     );
   }
 
+  // A buyer who already paid but has a stale/expired key must never see the
+  // same "you're on a trial" copy as someone who's never purchased -- that
+  // reads as "your payment didn't go through" and risks a double-charge.
+  const { message, showBuyButton, buyLabel } =
+    status.reason === "expired"
+      ? {
+          message: `Your license${status.customer_email ? ` for ${status.customer_email}` : ""} has expired — renew to keep syncing to your CRM/Slack.`,
+          showBuyButton: true,
+          buyLabel: "Renew license",
+        }
+      : status.reason === "invalid"
+        ? {
+            message: "Your license key couldn't be verified — double-check LICENSE_KEY in your .env, or contact support if you believe this is a mistake.",
+            showBuyButton: false,
+            buyLabel: "",
+          }
+        : {
+            message: "Running in trial mode — full functionality for evaluation.",
+            showBuyButton: true,
+            buyLabel: "Buy a license",
+          };
+
   return (
-    <div className="panel license-banner license-banner-trial">
-      <span>Running in trial mode — full functionality, nothing saved beyond this session.</span>
+    <div className={`panel license-banner license-banner-${status.reason === "invalid" ? "error" : "trial"}`}>
+      <span>{message}</span>
       <div className="license-banner-actions">
-        <button className="primary" disabled={busy} onClick={handleBuy}>
-          {busy ? "Redirecting…" : "Buy a license"}
-        </button>
+        {showBuyButton && (
+          <button className="primary" disabled={busy} onClick={handleBuy}>
+            {busy ? "Redirecting…" : buyLabel}
+          </button>
+        )}
         {error && <span className="error">{error}</span>}
       </div>
     </div>

@@ -16,8 +16,10 @@ describe("LicenseBanner", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows a trial banner with a buy button when unlicensed", async () => {
-    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({ licensed: false });
+  it("shows trial messaging with a buy button when no license was ever set", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      licensed: false, reason: "none", customer_email: null, plan: null,
+    });
 
     render(<LicenseBanner />);
 
@@ -37,8 +39,35 @@ describe("LicenseBanner", () => {
     expect(screen.queryByRole("button", { name: /buy a license/i })).not.toBeInTheDocument();
   });
 
+  it("shows a renew CTA (not generic trial copy) when a paid license has expired", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      licensed: false, reason: "expired", customer_email: "buyer@example.com", plan: "pro",
+    });
+
+    render(<LicenseBanner />);
+
+    expect(await screen.findByText(/expired/i)).toBeInTheDocument();
+    expect(screen.getByText(/buyer@example.com/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /renew license/i })).toBeInTheDocument();
+    expect(screen.queryByText(/trial mode/i)).not.toBeInTheDocument();
+  });
+
+  it("shows a config-check message (no buy button) for an invalid key, not a trial/payment prompt", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      licensed: false, reason: "invalid", customer_email: null, plan: null,
+    });
+
+    render(<LicenseBanner />);
+
+    expect(await screen.findByText(/couldn't be verified/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /buy a license/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/trial mode/i)).not.toBeInTheDocument();
+  });
+
   it("redirects to the checkout url when buy is clicked", async () => {
-    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({ licensed: false });
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      licensed: false, reason: "none", customer_email: null, plan: null,
+    });
     vi.mocked(api.startCheckout).mockResolvedValue({ checkout_url: "https://checkout.stripe.com/xyz" });
 
     const originalLocation = window.location;

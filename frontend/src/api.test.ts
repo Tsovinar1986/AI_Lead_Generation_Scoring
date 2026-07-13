@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LicenseRequiredError, fetchLeads, startCheckout, uploadLeads } from "./api";
+import {
+  LicenseRequiredError,
+  TenantAuthError,
+  clearTenantApiKey,
+  fetchLeads,
+  setTenantApiKey,
+  startCheckout,
+  uploadLeads,
+} from "./api";
 
 function mockFetchOnce(status: number, body: unknown) {
   vi.stubGlobal(
@@ -15,6 +23,7 @@ function mockFetchOnce(status: number, body: unknown) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  clearTenantApiKey();
 });
 
 describe("api error handling", () => {
@@ -35,6 +44,31 @@ describe("api error handling", () => {
 
     const leads = await fetchLeads();
     expect(leads).toEqual([{ id: "1", company_name: "Acme" }]);
+  });
+
+  it("throws TenantAuthError on a 401 response", async () => {
+    mockFetchOnce(401, { detail: "Invalid API key" });
+
+    await expect(fetchLeads()).rejects.toBeInstanceOf(TenantAuthError);
+  });
+});
+
+describe("tenant auth header", () => {
+  it("sends no Authorization header when no workspace key is set", async () => {
+    mockFetchOnce(200, []);
+    await fetchLeads();
+
+    const [, options] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(options?.headers?.Authorization).toBeUndefined();
+  });
+
+  it("sends Bearer <key> once a workspace key is set", async () => {
+    setTenantApiKey("secret-key-123");
+    mockFetchOnce(200, []);
+    await fetchLeads();
+
+    const [, options] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(options?.headers?.Authorization).toBe("Bearer secret-key-123");
   });
 });
 

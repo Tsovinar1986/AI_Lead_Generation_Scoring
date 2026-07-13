@@ -73,6 +73,40 @@ p { margin: 0; }
   margin-bottom: 20px;
 }
 
+.app-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.tenant-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tenant-switcher input {
+  font: inherit;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-h);
+  min-width: 220px;
+}
+
+.tenant-switcher-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  text-decoration: underline;
+  padding: 0;
+  font-size: 13px;
+}
+
 .app-grid {
   display: grid;
   grid-template-columns: 1fr 280px;
@@ -141,6 +175,12 @@ p { margin: 0; }
   border-color: var(--warm);
   background: var(--warm-bg);
   color: var(--warm);
+}
+
+.license-banner-error {
+  border-color: var(--hot);
+  background: var(--hot-bg);
+  color: var(--hot);
 }
 
 .license-banner-active {
