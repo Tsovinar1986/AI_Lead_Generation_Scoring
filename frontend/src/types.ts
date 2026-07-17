@@ -52,3 +52,10 @@ export type LicenseStatus =
   | { licensed: true; customer_email: string; plan: string; expires_at: number | null };
 
 export type BillingInterval = "monthly" | "annual";
+
+export interface BillingConfig {
+  client_token: string | null;
+  environment: "sandbox" | "production";
+  price_id_monthly: string | null;
+  price_id_annual: string | null;
+}

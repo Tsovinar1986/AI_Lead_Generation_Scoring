@@ -3,9 +3,9 @@ import {
   LicenseRequiredError,
   TenantAuthError,
   clearTenantApiKey,
+  fetchBillingConfig,
   fetchLeads,
   setTenantApiKey,
-  startCheckout,
   uploadLeads,
 } from "./api";
 
@@ -90,14 +90,20 @@ describe("uploadLeads", () => {
   });
 });
 
-describe("startCheckout", () => {
-  it("posts to /billing/checkout with the selected interval and returns the checkout url", async () => {
-    mockFetchOnce(200, { checkout_url: "https://buyer.paddle.com/checkout/xyz" });
+describe("fetchBillingConfig", () => {
+  it("gets /billing/config and returns the parsed billing config", async () => {
+    const config = {
+      client_token: "test_token",
+      environment: "sandbox" as const,
+      price_id_monthly: "pri_monthly",
+      price_id_annual: "pri_annual",
+    };
+    mockFetchOnce(200, config);
 
-    const result = await startCheckout("annual");
-    expect(result.checkout_url).toBe("https://buyer.paddle.com/checkout/xyz");
+    const result = await fetchBillingConfig();
+    expect(result).toEqual(config);
 
     const [url] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toContain("/billing/checkout?interval=annual");
+    expect(url).toContain("/billing/config");
   });
 });

@@ -1,4 +1,4 @@
-import type { Alert, BillingInterval, LicenseStatus, ScoredLead } from "./types";
+import type { Alert, BillingConfig, LicenseStatus, ScoredLead } from "./types";
 
 // Same-origin by default -- works unmodified both in merged production mode
 // (backend serves the built frontend, so "same origin" IS the backend) and
@@ -92,7 +92,7 @@ export async function fetchLicenseStatus(): Promise<LicenseStatus> {
   return handle(res);
 }
 
-export async function startCheckout(interval: BillingInterval): Promise<{ checkout_url: string }> {
-  const res = await fetch(`${BASE}/billing/checkout?interval=${interval}`, { method: "POST" });
+export async function fetchBillingConfig(): Promise<BillingConfig> {
+  const res = await fetch(`${BASE}/billing/config`);
   return handle(res);
 }

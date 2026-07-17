@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { LicenseRequiredError, startCheckout, uploadLeads } from "../api";
+import { LicenseRequiredError, uploadLeads } from "../api";
+import { openPaddleCheckout } from "../paddle";
 import type { BillingInterval, ScoredLead } from "../types";
 
 interface Props {
@@ -35,10 +36,10 @@ export function UploadPanel({ onUploaded }: Props) {
   async function handleBuy(interval: BillingInterval) {
     setBusy(true);
     try {
-      const { checkout_url } = await startCheckout(interval);
-      window.location.href = checkout_url;
+      await openPaddleCheckout(interval);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start checkout");
+    } finally {
       setBusy(false);
     }
   }

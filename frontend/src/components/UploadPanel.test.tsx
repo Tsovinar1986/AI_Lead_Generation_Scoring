@@ -6,8 +6,10 @@ import * as api from "../api";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
-  return { ...actual, uploadLeads: vi.fn(), startCheckout: vi.fn() };
+  return { ...actual, uploadLeads: vi.fn() };
 });
+
+vi.mock("../paddle", () => ({ openPaddleCheckout: vi.fn() }));
 
 function selectFile() {
   const file = new File(["company_name,domain\nAcme,acme.com"], "leads.csv", { type: "text/csv" });

@@ -35,60 +35,33 @@ def _decode_license_payload(license_key: str) -> dict:
     return json.loads(base64.urlsafe_b64decode(padded))
 
 
-def test_checkout_without_paddle_config_returns_503(client, monkeypatch):
-    monkeypatch.setattr(billing, "PADDLE_API_KEY", "")
+def test_billing_config_exposes_non_secret_checkout_settings(client, monkeypatch):
+    monkeypatch.setattr(billing, "PADDLE_CLIENT_TOKEN", "live_abc123")
+    monkeypatch.setattr(billing, "PADDLE_ENVIRONMENT", "sandbox")
+    monkeypatch.setattr(billing, "PADDLE_PRICE_ID_MONTHLY", "pri_monthly")
+    monkeypatch.setattr(billing, "PADDLE_PRICE_ID_ANNUAL", "pri_annual")
+
+    resp = client.get("/api/billing/config")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "client_token": "live_abc123",
+        "environment": "sandbox",
+        "price_id_monthly": "pri_monthly",
+        "price_id_annual": "pri_annual",
+    }
+
+
+def test_billing_config_reports_unset_values_as_null(client, monkeypatch):
+    monkeypatch.setattr(billing, "PADDLE_CLIENT_TOKEN", "")
     monkeypatch.setattr(billing, "PADDLE_PRICE_ID_MONTHLY", "")
     monkeypatch.setattr(billing, "PADDLE_PRICE_ID_ANNUAL", "")
 
-    resp = client.post("/api/billing/checkout")
-    assert resp.status_code == 503
-
-
-def test_checkout_rejects_unknown_interval(client):
-    resp = client.post("/api/billing/checkout?interval=weekly")
-    assert resp.status_code == 400
-
-
-def test_checkout_annual_missing_price_returns_503_even_if_monthly_configured(client, monkeypatch):
-    monkeypatch.setattr(billing, "PADDLE_API_KEY", "pdl_test")
-    monkeypatch.setattr(billing, "PADDLE_PRICE_ID_MONTHLY", "pri_monthly")
-    monkeypatch.setattr(billing, "PADDLE_PRICE_ID_ANNUAL", "")
-
-    resp = client.post("/api/billing/checkout?interval=annual")
-    assert resp.status_code == 503
-
-
-def test_checkout_creates_transaction_and_returns_checkout_url(client, monkeypatch):
-    monkeypatch.setattr(billing, "PADDLE_API_KEY", "pdl_test")
-    monkeypatch.setattr(billing, "PADDLE_PRICE_ID_MONTHLY", "pri_monthly")
-
-    monkeypatch.setattr(
-        billing.requests,
-        "post",
-        lambda *a, **k: FakeResponse(201, {"data": {"checkout": {"url": "https://buyer.paddle.com/checkout/abc"}}}),
-    )
-
-    resp = client.post("/api/billing/checkout?interval=monthly")
+    resp = client.get("/api/billing/config")
     assert resp.status_code == 200
-    assert resp.json() == {"checkout_url": "https://buyer.paddle.com/checkout/abc"}
-
-
-def test_checkout_returns_502_when_paddle_request_fails(client, monkeypatch):
-    monkeypatch.setattr(billing, "PADDLE_API_KEY", "pdl_test")
-    monkeypatch.setattr(billing, "PADDLE_PRICE_ID_MONTHLY", "pri_monthly")
-    monkeypatch.setattr(billing.requests, "post", lambda *a, **k: FakeResponse(400, {}, "bad request"))
-
-    resp = client.post("/api/billing/checkout?interval=monthly")
-    assert resp.status_code == 502
-
-
-def test_checkout_returns_502_when_response_has_no_checkout_url(client, monkeypatch):
-    monkeypatch.setattr(billing, "PADDLE_API_KEY", "pdl_test")
-    monkeypatch.setattr(billing, "PADDLE_PRICE_ID_MONTHLY", "pri_monthly")
-    monkeypatch.setattr(billing.requests, "post", lambda *a, **k: FakeResponse(201, {"data": {}}))
-
-    resp = client.post("/api/billing/checkout?interval=monthly")
-    assert resp.status_code == 502
+    body = resp.json()
+    assert body["client_token"] is None
+    assert body["price_id_monthly"] is None
+    assert body["price_id_annual"] is None
 
 
 def test_webhook_without_secret_configured_returns_503(client, monkeypatch):

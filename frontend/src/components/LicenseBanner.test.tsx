@@ -3,11 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LicenseBanner } from "./LicenseBanner";
 import * as api from "../api";
+import * as paddle from "../paddle";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
-  return { ...actual, fetchLicenseStatus: vi.fn(), startCheckout: vi.fn() };
+  return { ...actual, fetchLicenseStatus: vi.fn() };
 });
+
+vi.mock("../paddle", () => ({ openPaddleCheckout: vi.fn() }));
 
 describe("LicenseBanner", () => {
   it("renders nothing until the license status has loaded", () => {
@@ -78,20 +81,27 @@ describe("LicenseBanner", () => {
     expect(screen.queryByText(/trial mode/i)).not.toBeInTheDocument();
   });
 
-  it("redirects to the checkout url for the selected interval when a buy button is clicked", async () => {
+  it("opens the Paddle checkout overlay for the selected interval when a buy button is clicked", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
       licensed: false, reason: "trial", customer_email: null, plan: null, trial_days_left: 3,
     });
-    vi.mocked(api.startCheckout).mockResolvedValue({ checkout_url: "https://buyer.paddle.com/checkout/xyz" });
-
-    const originalLocation = window.location;
-    Object.defineProperty(window, "location", { value: { href: "" }, writable: true });
+    vi.mocked(paddle.openPaddleCheckout).mockResolvedValue(undefined);
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /buy annual/i }));
 
-    await waitFor(() => expect(window.location.href).toBe("https://buyer.paddle.com/checkout/xyz"));
-    expect(api.startCheckout).toHaveBeenCalledWith("annual");
-    Object.defineProperty(window, "location", { value: originalLocation, writable: true });
+    await waitFor(() => expect(paddle.openPaddleCheckout).toHaveBeenCalledWith("annual"));
+  });
+
+  it("shows an error message when Paddle checkout fails to open", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      licensed: false, reason: "trial", customer_email: null, plan: null, trial_days_left: 3,
+    });
+    vi.mocked(paddle.openPaddleCheckout).mockRejectedValue(new Error("Paddle isn't configured on this deployment."));
+
+    render(<LicenseBanner />);
+    await userEvent.click(await screen.findByRole("button", { name: /\$30\/mo/i }));
+
+    expect(await screen.findByText("Paddle isn't configured on this deployment.")).toBeInTheDocument();
   });
 });

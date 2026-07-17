@@ -70,6 +70,12 @@ TRIAL_DAYS = int(os.getenv("TRIAL_DAYS", "3"))
 LICENSE_PRIVATE_KEY = os.getenv("LICENSE_PRIVATE_KEY", "")
 PADDLE_API_KEY = os.getenv("PADDLE_API_KEY", "")
 PADDLE_WEBHOOK_SECRET = os.getenv("PADDLE_WEBHOOK_SECRET", "")
+# Client-side token (Paddle dashboard: Developer Tools > Authentication >
+# Client-side tokens tab -- a different, non-secret credential from
+# PADDLE_API_KEY above). Only used to serve GET /api/billing/config, which
+# the frontend reads to initialize Paddle.js's overlay checkout. Safe to
+# expose to the browser; it can't create charges or read account data.
+PADDLE_CLIENT_TOKEN = os.getenv("PADDLE_CLIENT_TOKEN", "")
 # "sandbox" (default, for testing against a Paddle sandbox account -- a
 # completely separate account/API host from production) or "production".
 PADDLE_ENVIRONMENT = os.getenv("PADDLE_ENVIRONMENT", "sandbox")

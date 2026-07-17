@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { fetchLicenseStatus, startCheckout } from "../api";
+import { fetchLicenseStatus } from "../api";
+import { openPaddleCheckout } from "../paddle";
 import type { BillingInterval, LicenseStatus } from "../types";
 
 export function LicenseBanner() {
@@ -19,10 +20,10 @@ export function LicenseBanner() {
     setBusyInterval(interval);
     setError(null);
     try {
-      const { checkout_url } = await startCheckout(interval);
-      window.location.href = checkout_url;
+      await openPaddleCheckout(interval);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start checkout");
+    } finally {
       setBusyInterval(null);
     }
   }
@@ -80,10 +81,10 @@ export function LicenseBanner() {
         {showBuyButtons && (
           <>
             <button className="primary" disabled={busyInterval !== null} onClick={() => handleBuy("monthly")}>
-              {busyInterval === "monthly" ? "Redirecting…" : "$30/mo"}
+              {busyInterval === "monthly" ? "Opening checkout…" : "$30/mo"}
             </button>
             <button className="primary" disabled={busyInterval !== null} onClick={() => handleBuy("annual")}>
-              {busyInterval === "annual" ? "Redirecting…" : "Buy annual (save 2 months)"}
+              {busyInterval === "annual" ? "Opening checkout…" : "Buy annual (save 2 months)"}
             </button>
           </>
         )}

@@ -34,10 +34,11 @@ Checkout → Payment methods if it isn't already on.
    reads better than an arbitrary percentage off). In the Paddle dashboard:
    Catalog → Products → your product → Add price, once for each interval —
    each price ID looks like `pri_...`. Then set in your `.env`:
-   `PADDLE_API_KEY` (Developer Tools → Authentication), `PADDLE_PRICE_ID_MONTHLY`,
-   `PADDLE_PRICE_ID_ANNUAL`, and `PADDLE_ENVIRONMENT=sandbox` while testing.
-   `POST /api/billing/checkout?interval=monthly` (or `annual`) picks which
-   price a given "Buy" button uses and returns a hosted Paddle checkout URL.
+   `PADDLE_API_KEY` (Developer Tools → Authentication → **API keys** tab —
+   the secret key, server-side only), `PADDLE_CLIENT_TOKEN` (same page,
+   **Client-side tokens** tab — a different, non-secret credential safe to
+   expose to the browser), `PADDLE_PRICE_ID_MONTHLY`, `PADDLE_PRICE_ID_ANNUAL`,
+   and `PADDLE_ENVIRONMENT=sandbox` while testing.
 
 4. **Add a notification destination** in Paddle (Developer Tools →
    Notifications → + New destination) pointing at
@@ -46,14 +47,24 @@ Checkout → Payment methods if it isn't already on.
    `transaction.completed` (fires for both the first payment and every
    renewal — there's only one event to subscribe to, unlike Stripe's
    separate checkout/invoice events). Copy the destination's signing secret
-   into `PADDLE_WEBHOOK_SECRET`.
+   into `PADDLE_WEBHOOK_SECRET`. Since this needs a real HTTPS URL Paddle
+   can reach, it can't be set up against `localhost` — use a tunnel (e.g.
+   `ngrok http 8081`) for local testing, or wait until this is actually
+   deployed.
 
-5. Run this same app (`backend/`) as your storefront backend — it already
-   exposes `POST /api/billing/checkout` (returns a Paddle checkout URL) and
-   the webhook. A "Buy" button on your marketing site just POSTs to
-   `/api/billing/checkout?interval=monthly|annual` and redirects to the
-   returned URL. Once a full sandbox purchase works end-to-end, switch
-   `PADDLE_ENVIRONMENT=production` and swap in your live API key/prices.
+5. Run this same app (`backend/`) as your storefront backend. The frontend
+   (`frontend/src/paddle.ts`) fetches `GET /api/billing/config` (the
+   non-secret client token + price ids) and opens **Paddle's overlay
+   checkout** directly in the browser via `Paddle.js` — deliberately not a
+   backend-generated redirect link. Paddle's transaction-creation API
+   returns a checkout URL on *your account's "Default Payment Link" domain*,
+   which has to be a real HTTPS origin approved in Paddle's dashboard
+   (Checkout settings) — that breaks against a local dev backend serving
+   plain HTTP on `localhost`. The overlay has no such requirement: it opens
+   as an in-page modal regardless of what domain/protocol hosts the page,
+   so it works identically in local dev and production. Once a full
+   sandbox purchase works end-to-end, switch `PADDLE_ENVIRONMENT=production`
+   and swap in your live API key/client token/prices.
 
 ## What happens on a sale
 
@@ -134,6 +145,6 @@ than "add another monthly subscription."
 **Current pricing**: $30/mo, or an annual plan priced at roughly 2 months
 free (~$300/yr) to reward the lower-churn commitment — both set up as
 separate recurring Paddle prices (`PADDLE_PRICE_ID_MONTHLY`/`_ANNUAL`),
-selected via `/api/billing/checkout?interval=monthly|annual`. A 3-day
+opened via Paddle's overlay checkout (`frontend/src/paddle.ts`). A 3-day
 unlicensed trial (`TRIAL_DAYS`) runs automatically before either plan is
 required, so a prospect always gets a no-card-required look before buying.

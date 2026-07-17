@@ -2,9 +2,17 @@
 
 Only relevant to the seller's own storefront deployment -- buyers' self-
 hosted instances never call these endpoints, they just set LICENSE_KEY in
-their .env once they have one. Creates a Paddle transaction for one of two
-recurring prices (monthly/annual, see _VALID_INTERVALS) and returns its
-hosted checkout URL, and on a verified webhook signs a license key via
+their .env once they have one. GET /config exposes the (non-secret)
+client-side token and price ids the frontend needs to open Paddle's
+overlay checkout (Paddle.js, see frontend/src/paddle.ts) directly from the
+browser -- deliberately not a backend-generated checkout URL: Paddle's
+transaction API returns a redirect to your account's "Default Payment
+Link" domain, which has to be a real HTTPS origin approved in the Paddle
+dashboard, so it doesn't work against a local dev backend. The overlay
+checkout has no such requirement -- it opens as an in-page modal regardless
+of what domain/protocol hosts the page.
+
+On a verified webhook, signs a license key via
 ../../licensing/issue_license.py, appends it to
 licensing/issued_licenses.jsonl, and emails it (services/license_email.py).
 
@@ -14,7 +22,7 @@ every later renewal (Paddle represents each charge as its own transaction),
 so there's only one issuance path instead of separate
 checkout.session.completed / invoice.paid handlers. The plan (and its
 validity window) is determined from the completed transaction's line-item
-price id, same approach the old Stripe integration used for renewals.
+price id.
 
 subscription.canceled / transaction.payment_failed: logged only, no new key
 issued. An offline-verified key can't be actively revoked once issued, so
@@ -42,6 +50,7 @@ from ..config import (
     LICENSE_VALIDITY_DAYS_ANNUAL,
     LICENSE_VALIDITY_DAYS_MONTHLY,
     PADDLE_API_KEY,
+    PADDLE_CLIENT_TOKEN,
     PADDLE_ENVIRONMENT,
     PADDLE_PRICE_ID_ANNUAL,
     PADDLE_PRICE_ID_MONTHLY,
@@ -57,8 +66,6 @@ router = APIRouter(prefix="/api/billing", tags=["billing"])
 
 _ISSUED_LICENSES_LOG = _LICENSING_DIR / "issued_licenses.jsonl"
 
-_VALID_INTERVALS = ("monthly", "annual")
-
 # Signature tolerance: reject a webhook whose timestamp is further from now
 # than this, to bound how long a captured request could be replayed --
 # mirrors Stripe SDK's default 300s tolerance, which the old integration
@@ -68,12 +75,6 @@ _WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = 300
 
 def _paddle_api_base() -> str:
     return "https://sandbox-api.paddle.com" if PADDLE_ENVIRONMENT == "sandbox" else "https://api.paddle.com"
-
-
-def _price_id_for_interval(interval: str) -> str:
-    # Bare-global lookups rather than a dict built once at import time, so
-    # monkeypatching (tests) or a changed .env actually takes effect.
-    return PADDLE_PRICE_ID_ANNUAL if interval == "annual" else PADDLE_PRICE_ID_MONTHLY
 
 
 def _validity_days_for_interval(interval: str) -> int:
@@ -118,35 +119,14 @@ def _fetch_customer_email(customer_id: str) -> str | None:
     return resp.json().get("data", {}).get("email")
 
 
-@router.post("/checkout")
-def create_checkout_session(interval: str = "monthly"):
-    if interval not in _VALID_INTERVALS:
-        raise HTTPException(status_code=400, detail="interval must be 'monthly' or 'annual'.")
-
-    price_id = _price_id_for_interval(interval)
-    if not PADDLE_API_KEY or not price_id:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Paddle isn't configured for the {interval} plan on this deployment "
-            f"(PADDLE_API_KEY / PADDLE_PRICE_ID_{interval.upper()} missing).",
-        )
-
-    resp = requests.post(
-        f"{_paddle_api_base()}/transactions",
-        headers={"Authorization": f"Bearer {PADDLE_API_KEY}"},
-        json={"items": [{"price_id": price_id, "quantity": 1}]},
-        timeout=10,
-    )
-    if not resp.ok:
-        logger.error("Paddle transaction create failed: {} {}", resp.status_code, resp.text)
-        raise HTTPException(status_code=502, detail="Couldn't start checkout with Paddle.")
-
-    checkout_url = resp.json().get("data", {}).get("checkout", {}).get("url")
-    if not checkout_url:
-        logger.error("Paddle transaction response had no checkout.url: {}", resp.text)
-        raise HTTPException(status_code=502, detail="Paddle didn't return a checkout URL.")
-
-    return {"checkout_url": checkout_url}
+@router.get("/config")
+def billing_config():
+    return {
+        "client_token": PADDLE_CLIENT_TOKEN or None,
+        "environment": PADDLE_ENVIRONMENT,
+        "price_id_monthly": PADDLE_PRICE_ID_MONTHLY or None,
+        "price_id_annual": PADDLE_PRICE_ID_ANNUAL or None,
+    }
 
 
 def _verify_paddle_signature(raw_body: bytes, signature_header: str) -> bool:
