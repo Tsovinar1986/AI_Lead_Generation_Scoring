@@ -1,3 +1,4 @@
+import { downloadLeadsCsv } from "../csvExport";
 import type { ScoredLead } from "../types";
 
 interface Props {
@@ -47,6 +48,18 @@ export function LeadsTable({
               {b !== "all" ? ` (${counts[b] ?? 0})` : ""}
             </button>
           ))}
+          <button
+            className="chip"
+            disabled={filtered.length === 0}
+            onClick={() =>
+              downloadLeadsCsv(
+                filtered,
+                bucketFilter === "all" ? "scored-leads.csv" : `scored-leads-${bucketFilter}.csv`
+              )
+            }
+          >
+            Download CSV
+          </button>
         </div>
       </div>
 

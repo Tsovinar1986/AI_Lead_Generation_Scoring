@@ -267,6 +267,11 @@ button:disabled {
   color: var(--accent);
 }
 
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .table-scroll {
   overflow-x: auto;
   margin-top: 12px;

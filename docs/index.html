@@ -254,6 +254,7 @@
         <div class="cta-row" style="justify-content:flex-start; margin-bottom: 20px;">
           <button class="btn btn-secondary" id="try-choose-btn" onclick="document.getElementById('try-upload-input').click()">Choose file</button>
           <button class="btn btn-primary" id="try-score-btn" disabled onclick="handleTryUpload()">Score it</button>
+          <button class="btn btn-secondary" id="try-download-btn" style="display:none;" onclick="downloadTryResults()">Download CSV</button>
           <span id="try-upload-filename" class="caption"></span>
         </div>
         <p id="try-upload-status" class="caption" style="display:none;"></p>
@@ -372,6 +373,8 @@
 
     var bucketLabels = { hot: "Hot", warm: "Warm", cold: "Cold" };
     var selectedFile = null;
+    var lastResultType = null; // "leads" | "churn"
+    var lastResults = null;
 
     document.getElementById("try-upload-input").addEventListener("change", function (e) {
       var file = e.target.files[0];
@@ -396,6 +399,9 @@
     }
 
     function renderLeadsResults(leads) {
+      lastResultType = "leads";
+      lastResults = leads;
+      document.getElementById("try-download-btn").style.display = "";
       document.querySelector("#example-table thead").innerHTML = LEADS_TABLE_HEAD;
       document.getElementById("example-lede").textContent = "Your file, scored just now:";
       var tbody = document.querySelector("#example-table tbody");
@@ -417,6 +423,9 @@
     }
 
     function renderChurnResults(customers) {
+      lastResultType = "churn";
+      lastResults = customers;
+      document.getElementById("try-download-btn").style.display = "";
       document.querySelector("#example-table thead").innerHTML = CHURN_TABLE_HEAD;
       document.getElementById("example-lede").textContent =
         "That's a customer/subscriber file, not a lead list — here's churn-risk scoring on it instead:";
@@ -508,6 +517,53 @@
       var div = document.createElement("div");
       div.textContent = str == null ? "" : str;
       return div.innerHTML;
+    }
+
+    function csvEscape(value) {
+      var str = value == null ? "" : String(value);
+      if (/[",\n]/.test(str)) {
+        return "\"" + str.replace(/"/g, "\"\"") + "\"";
+      }
+      return str;
+    }
+
+    function toCsv(headers, rows) {
+      var lines = [headers.map(csvEscape).join(",")];
+      rows.forEach(function (row) {
+        lines.push(row.map(csvEscape).join(","));
+      });
+      return lines.join("\n");
+    }
+
+    function downloadTryResults() {
+      if (!lastResults || !lastResults.length) return;
+      var csv, filename;
+      if (lastResultType === "churn") {
+        csv = toCsv(
+          ["Contract", "Tenure (months)", "Monthly Charges", "Internet Service", "Tech Support", "Online Security", "Payment Method", "Risk Score", "Bucket"],
+          lastResults.map(function (c) {
+            return [c.contract, c.tenure_months, c.monthly_charges, c.internet_service, c.tech_support, c.online_security, c.payment_method, c.risk_score, c.bucket];
+          })
+        );
+        filename = "churn-risk-scores.csv";
+      } else {
+        csv = toCsv(
+          ["Company", "Domain", "Contact", "Title", "Industry", "Employees", "Revenue", "Geography", "Fit Score", "Conversion Likelihood", "Combined Score", "Bucket"],
+          lastResults.map(function (l) {
+            return [l.company_name, l.domain, l.contact_name, l.contact_title, l.industry, l.employee_count, l.revenue_usd, l.geography, l.fit_score, l.conversion_likelihood, l.combined_score, l.bucket];
+          })
+        );
+        filename = "scored-leads.csv";
+      }
+      var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
   </script>
 </body>
