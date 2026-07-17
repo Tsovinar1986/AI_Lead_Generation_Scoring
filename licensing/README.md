@@ -41,7 +41,8 @@ Checkout → Payment methods if it isn't already on.
 
 4. **Add a notification destination** in Paddle (Developer Tools →
    Notifications → + New destination) pointing at
-   `https://<your-domain>/api/billing/webhook`, subscribed to
+   `https://www.crmscoring.com/api/billing/webhook` (or wherever this
+   backend ends up hosted), subscribed to
    `transaction.completed` (fires for both the first payment and every
    renewal — there's only one event to subscribe to, unlike Stripe's
    separate checkout/invoice events). Copy the destination's signing secret
