@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CRM Scoring — AI Lead Scoring, Self-Hosted</title>
+<meta name="description" content="Hybrid rule + LLM lead scoring you self-host. Your CRM data never leaves your infrastructure." />
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-alt: #f6f7f9;
+    --text: #14171f;
+    --text-muted: #5b6270;
+    --border: #e4e6eb;
+    --accent: #5b4cf0;
+    --accent-dark: #4638d6;
+    --hot: #e0563f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161c;
+      --bg-alt: #1b1e26;
+      --text: #eceef2;
+      --text-muted: #9aa1b0;
+      --border: #2b2f3a;
+      --accent: #8b7bff;
+      --accent-dark: #a597ff;
+      --hot: #ff7a5c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161c;
+    --bg-alt: #1b1e26;
+    --text: #eceef2;
+    --text-muted: #9aa1b0;
+    --border: #2b2f3a;
+    --accent: #8b7bff;
+    --accent-dark: #a597ff;
+    --hot: #ff7a5c;
+  }
+  :root[data-theme="light"] {
+    --bg: #ffffff;
+    --bg-alt: #f6f7f9;
+    --text: #14171f;
+    --text-muted: #5b6270;
+    --border: #e4e6eb;
+    --accent: #5b4cf0;
+    --accent-dark: #4638d6;
+    --hot: #e0563f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+
+  header.nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
+  }
+  .logo { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; }
+  .logo span { color: var(--accent); }
+
+  .hero {
+    padding: 64px 0 48px;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin: 0 0 20px;
+  }
+  .hero p {
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    max-width: 640px;
+    margin: 0 auto 32px;
+  }
+  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-block;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 0.95rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-secondary { background: transparent; color: var(--text); border-color: var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); }
+
+  section.features {
+    padding: 48px 0;
+    border-top: 1px solid var(--border);
+  }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  @media (max-width: 720px) {
+    .feature-grid { grid-template-columns: 1fr; }
+  }
+  .feature h3 {
+    font-size: 1rem;
+    margin: 0 0 8px;
+  }
+  .feature p {
+    font-size: 0.92rem;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  section.pricing {
+    padding: 56px 0;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+  section.pricing h2 { font-size: 1.6rem; margin: 0 0 8px; }
+  section.pricing > .wrap > p { color: var(--text-muted); margin: 0 0 32px; }
+  .plans {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  @media (max-width: 640px) {
+    .plans { grid-template-columns: 1fr; }
+  }
+  .plan {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px 24px;
+    background: var(--bg-alt);
+    text-align: left;
+  }
+  .plan.featured { border-color: var(--accent); }
+  .plan .badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    padding: 3px 8px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .plan .price {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 4px 0;
+  }
+  .plan .price span { font-size: 0.95rem; font-weight: 400; color: var(--text-muted); }
+  .plan p.note { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 16px; }
+
+  footer {
+    padding: 32px 0 48px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+  footer a { color: var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="nav">
+      <div class="logo">CRM<span>Scoring</span></div>
+      <a class="btn btn-secondary" href="mailto:hello@crmscoring.com">Contact</a>
+    </header>
+  </div>
+
+  <div class="hero">
+    <div class="wrap">
+      <h1>Score your leads without<br />shipping your data anywhere.</h1>
+      <p>
+        A hybrid rule + LLM lead scorer you self-host. Upload a CRM export,
+        get every lead enriched, ranked Hot/Warm/Cold, and drafted for
+        outreach — all inside your own infrastructure.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="mailto:hello@crmscoring.com?subject=Early%20access">Get early access</a>
+        <a class="btn btn-secondary" href="#pricing">See pricing</a>
+      </div>
+    </div>
+  </div>
+
+  <section class="features">
+    <div class="wrap">
+      <div class="feature-grid">
+        <div class="feature">
+          <h3>Self-hosted, always</h3>
+          <p>Runs on your own infra. Your CRM export never touches a third-party server.</p>
+        </div>
+        <div class="feature">
+          <h3>Hybrid scoring</h3>
+          <p>Transparent rule-based fit score, plus an LLM rationale that catches what rules miss.</p>
+        </div>
+        <div class="feature">
+          <h3>Acts on the hot ones</h3>
+          <p>Drafted outreach, CRM push, and Slack alerts the moment a lead crosses your threshold.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing" id="pricing">
+    <div class="wrap">
+      <h2>Simple pricing</h2>
+      <p>One-time setup, then pick a cadence.</p>
+      <div class="plans">
+        <div class="plan">
+          <span class="badge">Monthly</span>
+          <div class="price">$30<span>/mo</span></div>
+          <p class="note">Billed monthly, cancel anytime.</p>
+          <a class="btn btn-secondary" href="mailto:hello@crmscoring.com?subject=Monthly%20plan" style="width:100%; text-align:center; display:block;">Get started</a>
+        </div>
+        <div class="plan featured">
+          <span class="badge">Annual — save 2 months</span>
+          <div class="price">$300<span>/yr</span></div>
+          <p class="note">Billed yearly. Equivalent to $25/mo.</p>
+          <a class="btn btn-primary" href="mailto:hello@crmscoring.com?subject=Annual%20plan" style="width:100%; text-align:center; display:block;">Get started</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      &copy; 2026 CRM Scoring. <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a>
+    </div>
+  </footer>
+</body>
+</html>
