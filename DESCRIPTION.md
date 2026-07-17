@@ -22,7 +22,7 @@ cd backend && uvicorn app.main:app --reload --port 8081
 cd frontend && npm install && npm run dev
 ```
 
-Open http://localhost:5173, upload `backend/data/sample_leads.csv` (or your
+Open http://localhost:5000, upload `backend/data/sample_leads.csv` (or your
 own CRM export), and the ranked/scored leads appear immediately — no API
 keys required. Enrichment (Apollo), CRM push (HubSpot/Salesforce), and Slack
 alerts each auto-detect their credentials at startup: with none set they run

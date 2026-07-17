@@ -33,7 +33,7 @@ cd backend && uvicorn app.main:app --reload --port 8081
 cd frontend && npm install && npm run dev
 ```
 
-Open **http://localhost:5173** (the Vite dev server; it proxies `/api/*`
+Open **http://localhost:5000** (the Vite dev server; it proxies `/api/*`
 calls to the backend on :8081, see `frontend/vite.config.ts`).
 
 **Merged/production mode** — one process, one port. This is what a

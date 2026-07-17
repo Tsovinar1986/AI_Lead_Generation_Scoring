@@ -32,7 +32,7 @@ SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID", "")
 # real frontend origin(s) or the browser will block every request with CORS.
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
-    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5000").split(",")
     if origin.strip()
 ]
 
