@@ -28,7 +28,8 @@ slack-sdk>=3.27,<4.0
 
 # --- Licensing & billing (self-hosted sale) ---
 pynacl>=1.5,<2.0            # Ed25519 offline license signing/verification
-stripe>=15.0,<16.0          # seller-side Checkout Session + webhook
+                             # seller-side Paddle checkout/webhook uses the
+                             # `requests` dependency above, no separate SDK
 sendgrid>=6.11,<7.0         # license-key email delivery (falls back to SMTP if unset)
 
 # --- Web backend (serves the React frontend's API) ---

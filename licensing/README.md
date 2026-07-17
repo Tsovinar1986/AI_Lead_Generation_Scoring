@@ -2,7 +2,15 @@
 
 Ed25519-signed license keys, verified offline by the app itself — no
 license server to run, no phone-home, works for a buyer who self-hosts on
-their own infra. Stripe handles payment; a webhook mints the key.
+their own infra. Paddle handles payment; a webhook mints the key.
+
+Paddle (not Stripe) is deliberate: Paddle is a merchant-of-record, so it
+also handles sales tax/VAT globally for you, and its seller-eligibility
+list is broader than Stripe's — notably it works for sellers in countries
+Stripe doesn't support directly. Card, PayPal, Apple Pay, and Google Pay all
+show up automatically on Paddle's hosted checkout for eligible buyers —
+PayPal specifically may need enabling once under Paddle dashboard →
+Checkout → Payment methods if it isn't already on.
 
 ## One-time setup (you, the seller)
 
@@ -16,38 +24,49 @@ their own infra. Stripe handles payment; a webhook mints the key.
    you've already sold). `LICENSE_PUBLIC_KEY` is safe to commit/ship; it can
    only verify signatures, not create them.
 
-2. **Create a Stripe product with two recurring prices** — monthly and
-   annual, e.g. $30/mo and ~$300/yr (a "2 months free" discount is a
-   standard anchor and reads better than an arbitrary percentage off). In
-   the Stripe dashboard: Product catalog → your product → Add price, once
-   for each interval. Then set in your `.env`: `STRIPE_SECRET_KEY`,
-   `STRIPE_PRICE_ID_MONTHLY`, `STRIPE_PRICE_ID_ANNUAL`, `STRIPE_SUCCESS_URL`,
-   `STRIPE_CANCEL_URL`. `POST /api/billing/checkout?interval=monthly` (or
-   `annual`) picks which one a given "Buy" button uses. Apple Pay/Google Pay
-   show up automatically as wallet options on Stripe's hosted Checkout page
-   for eligible buyers/browsers — no extra setup on your end for those.
+2. **Create a Paddle account** at paddle.com — you'll land in **Sandbox**
+   mode by default (a fully separate test account/API host, no real money),
+   which is what you want first. Production is a separate application/
+   approval step once you're ready to take real payments.
 
-3. **Add a webhook endpoint** in the Stripe dashboard pointing at
+3. **Create a product with two recurring prices** — monthly and annual, e.g.
+   $30/mo and ~$300/yr (a "2 months free" discount is a standard anchor and
+   reads better than an arbitrary percentage off). In the Paddle dashboard:
+   Catalog → Products → your product → Add price, once for each interval —
+   each price ID looks like `pri_...`. Then set in your `.env`:
+   `PADDLE_API_KEY` (Developer Tools → Authentication), `PADDLE_PRICE_ID_MONTHLY`,
+   `PADDLE_PRICE_ID_ANNUAL`, and `PADDLE_ENVIRONMENT=sandbox` while testing.
+   `POST /api/billing/checkout?interval=monthly` (or `annual`) picks which
+   price a given "Buy" button uses and returns a hosted Paddle checkout URL.
+
+4. **Add a notification destination** in Paddle (Developer Tools →
+   Notifications → + New destination) pointing at
    `https://<your-domain>/api/billing/webhook`, subscribed to
-   `checkout.session.completed`. Copy the signing secret into
-   `STRIPE_WEBHOOK_SECRET`.
+   `transaction.completed` (fires for both the first payment and every
+   renewal — there's only one event to subscribe to, unlike Stripe's
+   separate checkout/invoice events). Copy the destination's signing secret
+   into `PADDLE_WEBHOOK_SECRET`.
 
-4. Run this same app (`backend/`) as your storefront backend — it already
-   exposes `POST /api/billing/checkout` (returns a Stripe Checkout URL) and
+5. Run this same app (`backend/`) as your storefront backend — it already
+   exposes `POST /api/billing/checkout` (returns a Paddle checkout URL) and
    the webhook. A "Buy" button on your marketing site just POSTs to
-   `/api/billing/checkout` and redirects to the returned URL.
+   `/api/billing/checkout?interval=monthly|annual` and redirects to the
+   returned URL. Once a full sandbox purchase works end-to-end, switch
+   `PADDLE_ENVIRONMENT=production` and swap in your live API key/prices.
 
 ## What happens on a sale
 
-Stripe fires `checkout.session.completed` → the webhook signs a license
-(`{customer_email, plan, issued_at, expires_at}`) with `LICENSE_PRIVATE_KEY`
-→ appends it to `licensing/issued_licenses.jsonl` and emails it to the buyer
+Paddle fires `transaction.completed` → the webhook looks up the buyer's
+email via Paddle's customer API (the webhook payload only carries a
+`customer_id`), signs a license (`{customer_email, plan, issued_at,
+expires_at}`) with `LICENSE_PRIVATE_KEY` → appends it to
+`licensing/issued_licenses.jsonl` and emails it to the buyer
 (`backend/app/services/license_email.py`, SendGrid if `SENDGRID_API_KEY` is
 set, else plain SMTP if `SMTP_HOST` is set). With neither configured, it's
 still issued and logged/appended to that file — tail it and send the key by
 hand.
 
-Need a comp/manual license (a pilot customer, a partner)? Skip Stripe:
+Need a comp/manual license (a pilot customer, a partner)? Skip Paddle:
 ```
 LICENSE_PRIVATE_KEY=... python licensing/issue_license.py --email x@y.com --plan pro --days 365
 ```
@@ -89,7 +108,7 @@ it that way rather than self-hosted-per-buyer.
 
 **Sequencing** (cheapest/fastest validation first):
 
-1. **Direct sale via this Stripe flow, now.** Zero marketplace approval,
+1. **Direct sale via this Paddle flow, now.** Zero marketplace approval,
    fastest to first dollar. Use it to find out whether "self-hosted lead
    scorer" resonates at all before investing in channel-specific work.
 2. **RapidAPI**, once the direct-sale pitch is validated. The FastAPI
@@ -113,7 +132,7 @@ than "add another monthly subscription."
 
 **Current pricing**: $30/mo, or an annual plan priced at roughly 2 months
 free (~$300/yr) to reward the lower-churn commitment — both set up as
-separate recurring Stripe prices (`STRIPE_PRICE_ID_MONTHLY`/`_ANNUAL`),
+separate recurring Paddle prices (`PADDLE_PRICE_ID_MONTHLY`/`_ANNUAL`),
 selected via `/api/billing/checkout?interval=monthly|annual`. A 3-day
 unlicensed trial (`TRIAL_DAYS`) runs automatically before either plan is
 required, so a prospect always gets a no-card-required look before buying.

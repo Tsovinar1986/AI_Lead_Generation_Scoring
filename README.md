@@ -70,11 +70,11 @@ Leads/alerts persist to a local SQLite file (`DATABASE_PATH`, default
 ## What's in here
 
 - **`backend/`** — FastAPI app: ingestion, enrichment, hybrid scoring,
-  outreach drafting, CRM push, Slack alerts, and Stripe-based licensing.
+  outreach drafting, CRM push, Slack alerts, and Paddle-based licensing.
 - **`frontend/`** — React SPA: upload panel, ranked/filterable leads table,
   a detail drawer (firmographics, score breakdown, LLM rationale, outreach
   draft, CRM push), a live Slack-alerts panel, and a license/billing banner.
-- **`licensing/`** — Stripe Checkout + an offline-verifiable Ed25519 license
+- **`licensing/`** — Paddle Checkout + an offline-verifiable Ed25519 license
   key, for selling this app directly as self-hosted software.
 
 See **[DESCRIPTION.md](DESCRIPTION.md)** for the full pipeline architecture

@@ -82,7 +82,7 @@ describe("LicenseBanner", () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
       licensed: false, reason: "trial", customer_email: null, plan: null, trial_days_left: 3,
     });
-    vi.mocked(api.startCheckout).mockResolvedValue({ checkout_url: "https://checkout.stripe.com/xyz" });
+    vi.mocked(api.startCheckout).mockResolvedValue({ checkout_url: "https://buyer.paddle.com/checkout/xyz" });
 
     const originalLocation = window.location;
     Object.defineProperty(window, "location", { value: { href: "" }, writable: true });
@@ -90,7 +90,7 @@ describe("LicenseBanner", () => {
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /buy annual/i }));
 
-    await waitFor(() => expect(window.location.href).toBe("https://checkout.stripe.com/xyz"));
+    await waitFor(() => expect(window.location.href).toBe("https://buyer.paddle.com/checkout/xyz"));
     expect(api.startCheckout).toHaveBeenCalledWith("annual");
     Object.defineProperty(window, "location", { value: originalLocation, writable: true });
   });

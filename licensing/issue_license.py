@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Seller-side license issuance. Never shipped to buyers.
 
-Called by backend/app/routers/billing.py's Stripe webhook when a payment
+Called by backend/app/routers/billing.py's Paddle webhook when a payment
 succeeds; also runnable by hand for manual/comp licenses:
 
     LICENSE_PRIVATE_KEY=... python issue_license.py \\

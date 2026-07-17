@@ -60,30 +60,33 @@ TRIAL_DAYS = int(os.getenv("TRIAL_DAYS", "3"))
 # --- Licensing (seller side) ---
 # Only used by routers/billing.py, which the seller runs on their own
 # storefront deployment -- buyers' self-hosted instances never need these.
+# Paddle (not Stripe): Paddle is a merchant-of-record, so it also handles
+# global sales tax/VAT, and its seller-eligibility list is broader than
+# Stripe's -- notably it works for sellers Stripe doesn't support. Card,
+# PayPal, Apple Pay, and Google Pay all show up automatically on Paddle's
+# hosted checkout for eligible buyers; PayPal specifically may need enabling
+# once in Paddle's dashboard (Checkout > Payment methods) -- see
+# licensing/README.md.
 LICENSE_PRIVATE_KEY = os.getenv("LICENSE_PRIVATE_KEY", "")
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-# Two recurring Stripe Prices for the same product -- see licensing/README.md
-# for suggested amounts ($30/mo, discounted annual) and how to create them.
-STRIPE_PRICE_ID_MONTHLY = os.getenv("STRIPE_PRICE_ID_MONTHLY", "")
-STRIPE_PRICE_ID_ANNUAL = os.getenv("STRIPE_PRICE_ID_ANNUAL", "")
-STRIPE_SUCCESS_URL = os.getenv("STRIPE_SUCCESS_URL", "http://localhost:5173/purchase-complete")
-STRIPE_CANCEL_URL = os.getenv("STRIPE_CANCEL_URL", "http://localhost:5173/")
-# "subscription" (recurring price, license auto-renews via the invoice.paid
-# webhook each billing cycle) or "payment" (one-time price, perpetual license
-# issued once). Must match how the Stripe prices above were created in the
-# dashboard. Apple Pay/Google Pay show up automatically on Stripe Checkout's
-# "card" payment method for eligible browsers/devices -- nothing to configure
-# here for that.
-STRIPE_BILLING_MODE = os.getenv("STRIPE_BILLING_MODE", "subscription")
-# Subscription licenses are issued with an expiry this many days out, not a
-# perpetual one -- since an already-issued offline key can't be revoked if a
-# payment fails or a subscription is cancelled, this bounds how long a lapsed
-# subscriber keeps working. invoice.paid re-issues a fresh one every cycle,
-# so an active subscriber never notices; comfortably longer than one billing
-# period to tolerate Stripe retry/dunning delays. Separate windows for
-# monthly vs. annual since "comfortably longer than one billing period"
-# means something very different for each.
+PADDLE_API_KEY = os.getenv("PADDLE_API_KEY", "")
+PADDLE_WEBHOOK_SECRET = os.getenv("PADDLE_WEBHOOK_SECRET", "")
+# "sandbox" (default, for testing against a Paddle sandbox account -- a
+# completely separate account/API host from production) or "production".
+PADDLE_ENVIRONMENT = os.getenv("PADDLE_ENVIRONMENT", "sandbox")
+# Two recurring Paddle Prices (format pri_...) on the same product -- see
+# licensing/README.md for suggested amounts ($30/mo, discounted annual) and
+# how to create them.
+PADDLE_PRICE_ID_MONTHLY = os.getenv("PADDLE_PRICE_ID_MONTHLY", "")
+PADDLE_PRICE_ID_ANNUAL = os.getenv("PADDLE_PRICE_ID_ANNUAL", "")
+# Licenses are issued with an expiry this many days out, not a perpetual
+# one -- since an already-issued offline key can't be revoked if a payment
+# fails or a subscription is cancelled, this bounds how long a lapsed
+# subscriber keeps working. Every transaction.completed webhook (fired for
+# both the first payment and every renewal) re-issues a fresh one, so an
+# active subscriber never notices; comfortably longer than one billing
+# period to tolerate retry/dunning delays. Separate windows for monthly vs.
+# annual since "comfortably longer than one billing period" means something
+# very different for each.
 LICENSE_VALIDITY_DAYS_MONTHLY = int(os.getenv("LICENSE_VALIDITY_DAYS_MONTHLY", "35"))
 LICENSE_VALIDITY_DAYS_ANNUAL = int(os.getenv("LICENSE_VALIDITY_DAYS_ANNUAL", "380"))
 
