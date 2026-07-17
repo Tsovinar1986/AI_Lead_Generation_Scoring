@@ -27,14 +27,14 @@ or by hand:
 ```
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cd backend && uvicorn app.main:app --reload --port 8000
+cd backend && uvicorn app.main:app --reload --port 8081
 
 # separate terminal
 cd frontend && npm install && npm run dev
 ```
 
 Open **http://localhost:5173** (the Vite dev server; it proxies `/api/*`
-calls to the backend on :8000, see `frontend/vite.config.ts`).
+calls to the backend on :8081, see `frontend/vite.config.ts`).
 
 **Merged/production mode** — one process, one port. This is what a
 self-hosted buyer actually runs: FastAPI builds+serves the frontend itself
@@ -46,7 +46,19 @@ frontend server at all.
 run-prod.bat       # Windows
 ```
 
-Open **http://localhost:8000** — same origin serves both the UI and the API.
+Open **http://localhost:8081** — same origin serves both the UI and the API.
+
+**Docker** — same merged mode, containerized:
+
+```
+docker build -t ai-lead-scoring .
+docker run --rm -p 8081:8081 --env-file .env -v $(pwd)/backend/data:/app/backend/data ai-lead-scoring
+```
+
+The volume mount matters: `backend/data/app.db` is where leads/alerts/trial
+state persist, and without mounting it a removed container loses everything
+(including the trial clock, which would otherwise just restart itself, one
+free trial per container recreation).
 
 **How to tell it's actually working**: hit `/api/health` (`{"status":"ok"}`)
 directly, then in the browser upload `backend/data/sample_leads.csv` and
@@ -85,6 +97,6 @@ push/PR.
 ## Configuration
 
 Copy `.env.example` to `.env` (and `frontend/.env.example` to
-`frontend/.env` if the backend isn't on `localhost:8000`) and fill in
+`frontend/.env` if the backend isn't on `localhost:8081`) and fill in
 whichever keys are available. Every integration degrades gracefully without
 one — see `.env.example` for what each variable unlocks.

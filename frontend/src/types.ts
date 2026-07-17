@@ -42,5 +42,13 @@ export interface Alert {
 }
 
 export type LicenseStatus =
-  | { licensed: false; reason: "none" | "invalid" | "expired"; customer_email: string | null; plan: string | null }
+  | {
+      licensed: false;
+      reason: "trial" | "trial_expired" | "invalid" | "expired";
+      customer_email: string | null;
+      plan: string | null;
+      trial_days_left: number | null;
+    }
   | { licensed: true; customer_email: string; plan: string; expires_at: number | null };
+
+export type BillingInterval = "monthly" | "annual";

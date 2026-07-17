@@ -21,5 +21,5 @@ echo "-> Installing backend dependencies..."
 echo "-> Building frontend..."
 (cd frontend && npm install --silent && npm run build)
 
-echo "-> Starting on http://localhost:8000 (Ctrl+C to stop)"
-cd backend && exec "$VENV_PY" -m uvicorn app.main:app --port 8000
+echo "-> Starting on http://localhost:8081 (Ctrl+C to stop)"
+cd backend && exec "$VENV_PY" -m uvicorn app.main:app --port 8081

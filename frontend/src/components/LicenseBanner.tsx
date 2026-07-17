@@ -1,27 +1,29 @@
 import { useEffect, useState } from "react";
 import { fetchLicenseStatus, startCheckout } from "../api";
-import type { LicenseStatus } from "../types";
+import type { BillingInterval, LicenseStatus } from "../types";
 
 export function LicenseBanner() {
   const [status, setStatus] = useState<LicenseStatus | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busyInterval, setBusyInterval] = useState<BillingInterval | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLicenseStatus()
       .then(setStatus)
-      .catch(() => setStatus({ licensed: false, reason: "none", customer_email: null, plan: null }));
+      .catch(() =>
+        setStatus({ licensed: false, reason: "trial", customer_email: null, plan: null, trial_days_left: null })
+      );
   }, []);
 
-  async function handleBuy() {
-    setBusy(true);
+  async function handleBuy(interval: BillingInterval) {
+    setBusyInterval(interval);
     setError(null);
     try {
-      const { checkout_url } = await startCheckout();
+      const { checkout_url } = await startCheckout(interval);
       window.location.href = checkout_url;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start checkout");
-      setBusy(false);
+      setBusyInterval(null);
     }
   }
 
@@ -43,33 +45,47 @@ export function LicenseBanner() {
   // A buyer who already paid but has a stale/expired key must never see the
   // same "you're on a trial" copy as someone who's never purchased -- that
   // reads as "your payment didn't go through" and risks a double-charge.
-  const { message, showBuyButton, buyLabel } =
+  // Someone whose free trial window has simply run out (never paid) also
+  // needs its own copy, distinct from "still evaluating."
+  const { message, showBuyButtons } =
     status.reason === "expired"
       ? {
           message: `Your license${status.customer_email ? ` for ${status.customer_email}` : ""} has expired — renew to keep syncing to your CRM/Slack.`,
-          showBuyButton: true,
-          buyLabel: "Renew license",
+          showBuyButtons: true,
         }
       : status.reason === "invalid"
         ? {
             message: "Your license key couldn't be verified — double-check LICENSE_KEY in your .env, or contact support if you believe this is a mistake.",
-            showBuyButton: false,
-            buyLabel: "",
+            showBuyButtons: false,
           }
-        : {
-            message: "Running in trial mode — full functionality for evaluation.",
-            showBuyButton: true,
-            buyLabel: "Buy a license",
-          };
+        : status.reason === "trial_expired"
+          ? {
+              message: "Your 3-day trial has ended — buy a license to keep scoring leads.",
+              showBuyButtons: true,
+            }
+          : {
+              message:
+                status.trial_days_left != null
+                  ? `Trial mode — full functionality for evaluation, ${status.trial_days_left} day${status.trial_days_left === 1 ? "" : "s"} left.`
+                  : "Running in trial mode — full functionality for evaluation.",
+              showBuyButtons: true,
+            };
+
+  const bannerVariant = status.reason === "invalid" || status.reason === "trial_expired" ? "error" : "trial";
 
   return (
-    <div className={`panel license-banner license-banner-${status.reason === "invalid" ? "error" : "trial"}`}>
+    <div className={`panel license-banner license-banner-${bannerVariant}`}>
       <span>{message}</span>
       <div className="license-banner-actions">
-        {showBuyButton && (
-          <button className="primary" disabled={busy} onClick={handleBuy}>
-            {busy ? "Redirecting…" : buyLabel}
-          </button>
+        {showBuyButtons && (
+          <>
+            <button className="primary" disabled={busyInterval !== null} onClick={() => handleBuy("monthly")}>
+              {busyInterval === "monthly" ? "Redirecting…" : "$30/mo"}
+            </button>
+            <button className="primary" disabled={busyInterval !== null} onClick={() => handleBuy("annual")}>
+              {busyInterval === "annual" ? "Redirecting…" : "Buy annual (save 2 months)"}
+            </button>
+          </>
         )}
         {error && <span className="error">{error}</span>}
       </div>

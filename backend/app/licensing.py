@@ -27,7 +27,8 @@ from enum import Enum
 from nacl.exceptions import BadSignatureError
 from nacl.signing import VerifyKey
 
-from .config import LICENSE_KEY, LICENSE_PUBLIC_KEY
+from . import storage
+from .config import LICENSE_KEY, LICENSE_PUBLIC_KEY, TRIAL_DAYS
 
 
 class LicenseState(Enum):
@@ -88,3 +89,13 @@ def verify_license() -> LicenseInfo | None:
     """
     check = check_license()
     return check.info if check.state == LicenseState.VALID else None
+
+
+def trial_days_left() -> float:
+    """Days remaining in the unlicensed grace period, floored at 0. Only
+    meaningful when there's no valid license -- callers gate on
+    verify_license() first and only consult this for the LICENSE_KEY-less
+    case, deployment-wide (see storage.get_or_start_trial)."""
+    started_at = storage.get_or_start_trial()
+    elapsed_days = (time.time() - started_at) / 86400
+    return max(0.0, TRIAL_DAYS - elapsed_days)

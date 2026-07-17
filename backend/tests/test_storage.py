@@ -114,3 +114,20 @@ def test_create_tenant_and_lookup_by_api_key():
 def test_lookup_with_wrong_api_key_returns_none():
     storage.create_tenant("Acme Corp")
     assert storage.get_tenant_by_api_key("not-the-real-key") is None
+
+
+def test_get_or_start_trial_is_stable_across_calls():
+    first = storage.get_or_start_trial()
+    second = storage.get_or_start_trial()
+    assert first == second
+
+
+def test_get_or_start_trial_persists_across_reconnect(tmp_path):
+    db_path = str(tmp_path / "trial.db")
+    storage._reset_for_tests(db_path)
+    started = storage.get_or_start_trial()
+
+    storage._conn.close()
+    storage._conn = storage._connect()
+
+    assert storage.get_or_start_trial() == started

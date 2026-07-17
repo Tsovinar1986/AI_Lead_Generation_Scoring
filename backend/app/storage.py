@@ -54,6 +54,9 @@ def _connect() -> sqlite3.Connection:
         "CREATE TABLE IF NOT EXISTS tenants ("
         "id TEXT PRIMARY KEY, name TEXT NOT NULL, api_key_hash TEXT NOT NULL UNIQUE, created_at REAL NOT NULL)"
     )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+    )
     return conn
 
 
@@ -152,6 +155,21 @@ def clear_all(tenant_id: str) -> None:
     with _lock, _conn:
         _conn.execute("DELETE FROM leads WHERE tenant_id = ?", (tenant_id,))
         _conn.execute("DELETE FROM alerts WHERE tenant_id = ?", (tenant_id,))
+
+
+def get_or_start_trial() -> float:
+    """Deployment-wide (not tenant-scoped, matching /api/license), so this is
+    one clock per self-hosted instance, not per tenant. Set once on the
+    first call ever for this DB file and never overwritten after -- that's
+    what makes it a real trial window instead of something a restart resets.
+    """
+    with _lock, _conn:
+        _conn.execute(
+            "INSERT OR IGNORE INTO app_meta (key, value) VALUES ('trial_started_at', ?)",
+            (str(time.time()),),
+        )
+        row = _conn.execute("SELECT value FROM app_meta WHERE key = 'trial_started_at'").fetchone()
+    return float(row[0])
 
 
 def _reset_for_tests(path: str) -> None:

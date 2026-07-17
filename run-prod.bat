@@ -23,8 +23,8 @@ call npm install --silent
 call npm run build
 popd
 
-echo -^> Starting on http://localhost:8000 (Ctrl+C to stop)
+echo -^> Starting on http://localhost:8081 (Ctrl+C to stop)
 cd backend
-"%VENV_PY%" -m uvicorn app.main:app --port 8000
+"%VENV_PY%" -m uvicorn app.main:app --port 8081
 
 endlocal

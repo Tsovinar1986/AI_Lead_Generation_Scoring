@@ -45,9 +45,17 @@ LICENSE_KEY = os.getenv("LICENSE_KEY", "")
 # instance can verify a license without contacting anything. Safe to commit;
 # it can only verify signatures, not create them.
 LICENSE_PUBLIC_KEY = os.getenv("LICENSE_PUBLIC_KEY", "")
-# When true, endpoints that do real work (lead upload/scoring) 402 until a
-# valid LICENSE_KEY is present. Leave false for local dev/eval.
+# When true, endpoints that do real work (lead upload/scoring) 402 immediately
+# without a valid LICENSE_KEY -- skips the TRIAL_DAYS grace period entirely.
+# Leave false (default) so a fresh deployment gets TRIAL_DAYS of unlicensed
+# use before it starts enforcing (see TRIAL_DAYS below).
 LICENSE_REQUIRED = os.getenv("LICENSE_REQUIRED", "false").lower() == "true"
+# How many days a deployment with no LICENSE_KEY may keep using paid
+# endpoints before it starts 402ing. The clock starts on this deployment's
+# first request that checks it (storage.get_or_start_trial), not on install,
+# and persists in the same SQLite file as everything else -- so it survives
+# restarts and can't be reset by just restarting the process.
+TRIAL_DAYS = int(os.getenv("TRIAL_DAYS", "3"))
 
 # --- Licensing (seller side) ---
 # Only used by routers/billing.py, which the seller runs on their own
@@ -55,21 +63,29 @@ LICENSE_REQUIRED = os.getenv("LICENSE_REQUIRED", "false").lower() == "true"
 LICENSE_PRIVATE_KEY = os.getenv("LICENSE_PRIVATE_KEY", "")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")
+# Two recurring Stripe Prices for the same product -- see licensing/README.md
+# for suggested amounts ($30/mo, discounted annual) and how to create them.
+STRIPE_PRICE_ID_MONTHLY = os.getenv("STRIPE_PRICE_ID_MONTHLY", "")
+STRIPE_PRICE_ID_ANNUAL = os.getenv("STRIPE_PRICE_ID_ANNUAL", "")
 STRIPE_SUCCESS_URL = os.getenv("STRIPE_SUCCESS_URL", "http://localhost:5173/purchase-complete")
 STRIPE_CANCEL_URL = os.getenv("STRIPE_CANCEL_URL", "http://localhost:5173/")
 # "subscription" (recurring price, license auto-renews via the invoice.paid
 # webhook each billing cycle) or "payment" (one-time price, perpetual license
-# issued once). Must match how STRIPE_PRICE_ID was created in the Stripe
-# dashboard.
+# issued once). Must match how the Stripe prices above were created in the
+# dashboard. Apple Pay/Google Pay show up automatically on Stripe Checkout's
+# "card" payment method for eligible browsers/devices -- nothing to configure
+# here for that.
 STRIPE_BILLING_MODE = os.getenv("STRIPE_BILLING_MODE", "subscription")
 # Subscription licenses are issued with an expiry this many days out, not a
 # perpetual one -- since an already-issued offline key can't be revoked if a
 # payment fails or a subscription is cancelled, this bounds how long a lapsed
 # subscriber keeps working. invoice.paid re-issues a fresh one every cycle,
 # so an active subscriber never notices; comfortably longer than one billing
-# period to tolerate Stripe retry/dunning delays.
-LICENSE_VALIDITY_DAYS = int(os.getenv("LICENSE_VALIDITY_DAYS", "35"))
+# period to tolerate Stripe retry/dunning delays. Separate windows for
+# monthly vs. annual since "comfortably longer than one billing period"
+# means something very different for each.
+LICENSE_VALIDITY_DAYS_MONTHLY = int(os.getenv("LICENSE_VALIDITY_DAYS_MONTHLY", "35"))
+LICENSE_VALIDITY_DAYS_ANNUAL = int(os.getenv("LICENSE_VALIDITY_DAYS_ANNUAL", "380"))
 
 # --- Email delivery (seller side) ---
 # Sends issued license keys to buyers automatically. Without either of these

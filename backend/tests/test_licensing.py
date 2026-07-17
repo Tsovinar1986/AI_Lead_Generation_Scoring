@@ -126,6 +126,27 @@ def test_check_license_state_expired_still_exposes_customer_email(monkeypatch):
     assert check.info.customer_email == "buyer@example.com"
 
 
+def test_trial_days_left_starts_at_full_window(monkeypatch):
+    monkeypatch.setattr(licensing, "TRIAL_DAYS", 3)
+    monkeypatch.setattr(licensing.storage, "get_or_start_trial", lambda: time.time())
+
+    assert licensing.trial_days_left() == 3.0
+
+
+def test_trial_days_left_counts_down(monkeypatch):
+    monkeypatch.setattr(licensing, "TRIAL_DAYS", 3)
+    monkeypatch.setattr(licensing.storage, "get_or_start_trial", lambda: time.time() - 86400)
+
+    assert round(licensing.trial_days_left(), 2) == 2.0
+
+
+def test_trial_days_left_floors_at_zero_once_expired(monkeypatch):
+    monkeypatch.setattr(licensing, "TRIAL_DAYS", 3)
+    monkeypatch.setattr(licensing.storage, "get_or_start_trial", lambda: time.time() - 10 * 86400)
+
+    assert licensing.trial_days_left() == 0.0
+
+
 def test_check_license_state_valid(monkeypatch):
     signing_key, public_b64 = _make_keypair()
     key = _sign_license(signing_key, {

@@ -43,7 +43,8 @@ describe("UploadPanel", () => {
     await selectFile();
 
     expect(await screen.findByText(/trial has expired/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /buy a license/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /\$30\/mo/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /buy annual/i })).toBeInTheDocument();
     expect(screen.queryByText("No valid license found.")).not.toBeInTheDocument();
   });
 });

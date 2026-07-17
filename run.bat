@@ -28,14 +28,14 @@ if not exist "frontend\node_modules" (
   popd
 )
 
-echo -^> Starting backend in a new window on http://localhost:8000
-start "Lead Agent - Backend" cmd /k "cd /d "%~dp0backend" && "%VENV_PY%" -m uvicorn app.main:app --reload --port 8000"
+echo -^> Starting backend in a new window on http://localhost:8081
+start "Lead Agent - Backend" cmd /k "cd /d "%~dp0backend" && "%VENV_PY%" -m uvicorn app.main:app --reload --port 8081"
 
 echo -^> Starting frontend in a new window on http://localhost:5173
 start "Lead Agent - Frontend" cmd /k "cd /d "%~dp0frontend" && npm run dev"
 
 echo.
-echo Backend:  http://localhost:8000/api/health
+echo Backend:  http://localhost:8081/api/health
 echo Frontend: http://localhost:5173
 echo Two new windows were opened for backend and frontend - close them to stop.
 

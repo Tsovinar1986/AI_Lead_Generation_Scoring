@@ -16,9 +16,16 @@ their own infra. Stripe handles payment; a webhook mints the key.
    you've already sold). `LICENSE_PUBLIC_KEY` is safe to commit/ship; it can
    only verify signatures, not create them.
 
-2. **Create a Stripe product + price**, then set in your `.env`:
-   `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_SUCCESS_URL`,
-   `STRIPE_CANCEL_URL`.
+2. **Create a Stripe product with two recurring prices** — monthly and
+   annual, e.g. $30/mo and ~$300/yr (a "2 months free" discount is a
+   standard anchor and reads better than an arbitrary percentage off). In
+   the Stripe dashboard: Product catalog → your product → Add price, once
+   for each interval. Then set in your `.env`: `STRIPE_SECRET_KEY`,
+   `STRIPE_PRICE_ID_MONTHLY`, `STRIPE_PRICE_ID_ANNUAL`, `STRIPE_SUCCESS_URL`,
+   `STRIPE_CANCEL_URL`. `POST /api/billing/checkout?interval=monthly` (or
+   `annual`) picks which one a given "Buy" button uses. Apple Pay/Google Pay
+   show up automatically as wallet options on Stripe's hosted Checkout page
+   for eligible buyers/browsers — no extra setup on your end for those.
 
 3. **Add a webhook endpoint** in the Stripe dashboard pointing at
    `https://<your-domain>/api/billing/webhook`, subscribed to
@@ -51,12 +58,15 @@ Drop the license key you send them into their `.env`:
 ```
 LICENSE_KEY=<the key you issued them>
 LICENSE_PUBLIC_KEY=<your public key, ship this with the product>
-LICENSE_REQUIRED=true
 ```
-With `LICENSE_REQUIRED=true`, `/api/leads/upload` 402s until the key
-verifies. Leave it `false` (the default) for evaluation/trial use — the
-whole point of shipping this as self-hosted software is that a prospect can
-run it fully unlocked to evaluate before you ever collect payment.
+A fresh deployment gets `TRIAL_DAYS` (default 3) of full-functionality
+evaluation with no `LICENSE_KEY` set at all — the whole point of shipping
+this as self-hosted software is that a prospect can run it unlocked to
+evaluate before you ever collect payment. Once those days are up,
+`/api/leads/upload` 402s until a valid `LICENSE_KEY` is set. Set
+`LICENSE_REQUIRED=true` instead to skip the trial and require a key from
+the first request (useful for your own storefront/demo instance, not
+typical for a buyer's copy).
 
 ---
 
@@ -100,3 +110,10 @@ hour spent manually qualifying+drafting per lead), not against per-seat SaaS
 comps — a one-time or annual self-hosted license reads as "buy the tool,"
 which is a different (and for this buyer, often easier) purchase decision
 than "add another monthly subscription."
+
+**Current pricing**: $30/mo, or an annual plan priced at roughly 2 months
+free (~$300/yr) to reward the lower-churn commitment — both set up as
+separate recurring Stripe prices (`STRIPE_PRICE_ID_MONTHLY`/`_ANNUAL`),
+selected via `/api/billing/checkout?interval=monthly|annual`. A 3-day
+unlicensed trial (`TRIAL_DAYS`) runs automatically before either plan is
+required, so a prospect always gets a no-card-required look before buying.

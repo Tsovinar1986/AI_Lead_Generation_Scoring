@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { LicenseRequiredError, startCheckout, uploadLeads } from "../api";
-import type { ScoredLead } from "../types";
+import type { BillingInterval, ScoredLead } from "../types";
 
 interface Props {
   onUploaded: (leads: ScoredLead[]) => void;
@@ -32,10 +32,10 @@ export function UploadPanel({ onUploaded }: Props) {
     }
   }
 
-  async function handleBuy() {
+  async function handleBuy(interval: BillingInterval) {
     setBusy(true);
     try {
-      const { checkout_url } = await startCheckout();
+      const { checkout_url } = await startCheckout(interval);
       window.location.href = checkout_url;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start checkout");
@@ -76,8 +76,11 @@ export function UploadPanel({ onUploaded }: Props) {
       {licenseRequired && (
         <div className="license-required">
           <p>Your trial has expired — a license is required to keep scoring leads.</p>
-          <button className="primary" disabled={busy} onClick={handleBuy}>
-            Buy a license
+          <button className="primary" disabled={busy} onClick={() => handleBuy("monthly")}>
+            $30/mo
+          </button>
+          <button className="primary" disabled={busy} onClick={() => handleBuy("annual")}>
+            Buy annual (save 2 months)
           </button>
         </div>
       )}

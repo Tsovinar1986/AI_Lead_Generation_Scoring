@@ -91,10 +91,13 @@ describe("uploadLeads", () => {
 });
 
 describe("startCheckout", () => {
-  it("posts to /billing/checkout and returns the checkout url", async () => {
+  it("posts to /billing/checkout with the selected interval and returns the checkout url", async () => {
     mockFetchOnce(200, { checkout_url: "https://checkout.stripe.com/xyz" });
 
-    const result = await startCheckout();
+    const result = await startCheckout("annual");
     expect(result.checkout_url).toBe("https://checkout.stripe.com/xyz");
+
+    const [url] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toContain("/billing/checkout?interval=annual");
   });
 });

@@ -42,15 +42,15 @@ cleanup() {
   wait 2>/dev/null || true
   # Belt-and-suspenders: reloader/esbuild helper processes sometimes survive
   # the group signal, so make sure the dev ports are actually free on exit.
-  for port in 8000 5173; do
+  for port in 8081 5173; do
     pids=$(lsof -ti:"$port" 2>/dev/null || true)
     [ -n "$pids" ] && echo "$pids" | xargs kill -9 2>/dev/null || true
   done
 }
 trap cleanup EXIT INT TERM
 
-echo "-> Starting backend  on http://localhost:8000"
-(cd backend && exec "$VENV_PY" -m uvicorn app.main:app --reload --port 8000) &
+echo "-> Starting backend  on http://localhost:8081"
+(cd backend && exec "$VENV_PY" -m uvicorn app.main:app --reload --port 8081) &
 BACKEND_PID=$!
 
 echo "-> Starting frontend on http://localhost:5173"
@@ -58,7 +58,7 @@ echo "-> Starting frontend on http://localhost:5173"
 FRONTEND_PID=$!
 
 echo ""
-echo "Backend:  http://localhost:8000/api/health"
+echo "Backend:  http://localhost:8081/api/health"
 echo "Frontend: http://localhost:5173"
 echo "Press Ctrl+C to stop both."
 

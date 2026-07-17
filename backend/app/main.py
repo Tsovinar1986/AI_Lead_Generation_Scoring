@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from loguru import logger
 
 from .config import CORS_ALLOWED_ORIGINS
-from .licensing import LicenseState, check_license, verify_license
+from .licensing import LicenseState, check_license, trial_days_left, verify_license
 from .logging_config import configure_logging
 from .routers import actions, billing, leads
 
@@ -63,12 +63,19 @@ def license_status():
     # INVALID/EXPIRED still carry customer_email/plan when the key at least
     # parsed, so the frontend can say "your license for X expired" instead
     # of generic trial messaging -- a buyer who already paid should never
-    # see the same "buy a license" copy as someone who never did.
+    # see the same "buy a license" copy as someone who never did. NONE further
+    # splits into "trial" vs "trial_expired" so a still-evaluating prospect
+    # doesn't see the same hard-stop copy as one whose grace period is over.
+    days_left = trial_days_left() if check.state == LicenseState.NONE else None
+    reason = check.state.value
+    if check.state == LicenseState.NONE:
+        reason = "trial" if days_left > 0 else "trial_expired"
     return {
         "licensed": False,
-        "reason": check.state.value,
+        "reason": reason,
         "customer_email": check.info.customer_email if check.info else None,
         "plan": check.info.plan if check.info else None,
+        "trial_days_left": round(days_left, 1) if days_left is not None else None,
     }
 
 

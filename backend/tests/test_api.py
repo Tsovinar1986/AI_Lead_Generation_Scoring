@@ -67,7 +67,8 @@ def test_license_status_endpoint_unlicensed(client):
     resp = client.get("/api/license")
     body = resp.json()
     assert body["licensed"] is False
-    assert body["reason"] == "none"
+    assert body["reason"] == "trial"
+    assert body["trial_days_left"] > 0
 
 
 def test_upload_blocked_when_license_required_and_missing(client, monkeypatch):
@@ -84,6 +85,22 @@ def test_upload_allowed_when_license_required_and_valid(client, monkeypatch):
 
     resp = _upload(client)
     assert resp.status_code == 200
+
+
+def test_upload_allowed_during_trial_with_no_license_required(client, monkeypatch):
+    monkeypatch.setattr(leads_router, "verify_license", lambda: None)
+    monkeypatch.setattr(leads_router, "trial_days_left", lambda: 1.0)
+
+    resp = _upload(client)
+    assert resp.status_code == 200
+
+
+def test_upload_blocked_once_trial_expires_even_without_license_required(client, monkeypatch):
+    monkeypatch.setattr(leads_router, "verify_license", lambda: None)
+    monkeypatch.setattr(leads_router, "trial_days_left", lambda: 0.0)
+
+    resp = _upload(client)
+    assert resp.status_code == 402
 
 
 def test_hot_lead_upload_creates_alert(client):

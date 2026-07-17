@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from .. import storage
 from ..auth import get_current_tenant
 from ..config import LICENSE_REQUIRED
-from ..licensing import verify_license
+from ..licensing import trial_days_left, verify_license
 from ..models import ScoredLead
 from ..services.alerts import maybe_alert
 from ..services.enrichment import enrich_lead
@@ -15,10 +15,11 @@ router = APIRouter(prefix="/api/leads", tags=["leads"])
 
 @router.post("/upload", response_model=list[ScoredLead])
 async def upload_leads(file: UploadFile, tenant: storage.Tenant = Depends(get_current_tenant)):
-    if LICENSE_REQUIRED and verify_license() is None:
+    if verify_license() is None and (LICENSE_REQUIRED or trial_days_left() <= 0):
         raise HTTPException(
             status_code=402,
-            detail="No valid license found. Purchase one at /api/billing/checkout and set LICENSE_KEY in .env.",
+            detail="No valid license found and the trial period has ended. "
+            "Purchase one at /api/billing/checkout and set LICENSE_KEY in .env.",
         )
 
     content = await file.read()
