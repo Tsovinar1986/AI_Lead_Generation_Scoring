@@ -122,6 +122,31 @@
     margin: 0;
   }
 
+  section.example {
+    padding: 48px 0;
+    border-top: 1px solid var(--border);
+  }
+  section.example h2 { font-size: 1.6rem; margin: 0 0 8px; text-align: center; }
+  section.example > .wrap > p.lede { color: var(--text-muted); margin: 0 0 28px; text-align: center; }
+  .example-table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow-x: auto;
+    background: var(--bg-alt);
+  }
+  table.example-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; white-space: nowrap; }
+  table.example-table th, table.example-table td { padding: 12px 16px; text-align: left; }
+  table.example-table thead th { color: var(--text-muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--border); }
+  table.example-table tbody tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
+  table.example-table td.company { font-weight: 600; }
+  table.example-table td.company span { display: block; font-weight: 400; color: var(--text-muted); font-size: 0.82rem; }
+  .bucket-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+  .bucket-hot { background: color-mix(in srgb, var(--hot) 18%, transparent); color: var(--hot); }
+  .bucket-warm { background: color-mix(in srgb, #d99a2b 18%, transparent); color: #b5791a; }
+  @media (prefers-color-scheme: dark) { .bucket-warm { color: #e0ad4c; } }
+  :root[data-theme="dark"] .bucket-warm { color: #e0ad4c; }
+  section.example .caption { color: var(--text-muted); font-size: 0.82rem; margin-top: 12px; text-align: center; }
+
   section.pricing {
     padding: 56px 0;
     border-top: 1px solid var(--border);
@@ -216,6 +241,50 @@
           <p>Drafted outreach, CRM push, and Slack alerts the moment a lead crosses your threshold.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="example">
+    <div class="wrap">
+      <h2>What you get back</h2>
+      <p class="lede">Upload a CSV, get this in seconds — real output from the actual scorer, running on mock data (no API keys set).</p>
+      <div class="example-table-wrap">
+        <table class="example-table">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Industry</th>
+              <th>Fit</th>
+              <th>LLM</th>
+              <th>Combined</th>
+              <th>Bucket</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="company">Northwind Analytics<span>Jamie Rivera · VP of Sales</span></td>
+              <td>SaaS</td><td>81</td><td>88</td><td><strong>84</strong></td>
+              <td><span class="bucket-badge bucket-hot">Hot</span></td>
+            </tr>
+            <tr>
+              <td class="company">Fintura Pay<span>Alex Chen · CFO</span></td>
+              <td>Fintech</td><td>85</td><td>80</td><td><strong>83</strong></td>
+              <td><span class="bucket-badge bucket-hot">Hot</span></td>
+            </tr>
+            <tr>
+              <td class="company">Vitalis Health<span>Priya Nair · CTO</span></td>
+              <td>Healthcare Tech</td><td>81</td><td>74</td><td><strong>78</strong></td>
+              <td><span class="bucket-badge bucket-hot">Hot</span></td>
+            </tr>
+            <tr>
+              <td class="company">Ledger Logistics<span>Tom Becker · Head of Growth</span></td>
+              <td>Logistics</td><td>62</td><td>65</td><td><strong>63</strong></td>
+              <td><span class="bucket-badge bucket-warm">Warm</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caption">Fit = rule-based score. LLM = conversion-likelihood estimate. Combined ranks the list.</p>
     </div>
   </section>
 
