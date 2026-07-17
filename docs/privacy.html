@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy Policy — CRM Scoring</title>
+<style>
+  :root {
+    --bg: #ffffff; --bg-alt: #f6f7f9; --text: #14171f; --text-muted: #5b6270;
+    --border: #e4e6eb; --accent: #5b4cf0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161c; --bg-alt: #1b1e26; --text: #eceef2; --text-muted: #9aa1b0; --border: #2b2f3a; --accent: #8b7bff; }
+  }
+  :root[data-theme="dark"] { --bg: #14161c; --bg-alt: #1b1e26; --text: #eceef2; --text-muted: #9aa1b0; --border: #2b2f3a; --accent: #8b7bff; }
+  :root[data-theme="light"] { --bg: #ffffff; --bg-alt: #f6f7f9; --text: #14171f; --text-muted: #5b6270; --border: #e4e6eb; --accent: #5b4cf0; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+  header.nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+  .logo { font-weight: 700; font-size: 1.1rem; }
+  .logo span { color: var(--accent); }
+  .logo a { color: inherit; text-decoration: none; }
+  main { padding: 24px 0 64px; }
+  h1 { font-size: 1.8rem; margin-bottom: 4px; }
+  .updated { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 32px; }
+  h2 { font-size: 1.15rem; margin: 36px 0 8px; }
+  p, li { color: var(--text-muted); font-size: 0.95rem; }
+  a { color: var(--accent); }
+  .callout {
+    background: var(--bg-alt); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 20px; margin: 20px 0; font-size: 0.9rem;
+  }
+  footer { padding: 32px 0 48px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+  footer a { color: var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="nav">
+      <div class="logo"><a href="index.html">CRM<span>Scoring</span></a></div>
+    </header>
+  </div>
+
+  <main class="wrap">
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: July 2026</p>
+
+    <div class="callout">
+      <strong>The short version:</strong> this policy covers the crmscoring.com
+      marketing site and the purchase/licensing flow only. The software
+      itself is self-hosted — once you're running it, your leads and CRM
+      data live entirely on your own infrastructure. We never see it,
+      store it, or have any way to access it.
+    </div>
+
+    <h2>What this site collects</h2>
+    <p>
+      This marketing site has no analytics, tracking scripts, or cookies.
+      We don't know who visits it.
+    </p>
+
+    <h2>What we collect when you buy a license</h2>
+    <p>
+      When you purchase, our payment processor (Paddle, acting as merchant
+      of record) collects your email address and payment details to
+      process the transaction — we never see or store your full card
+      number. Paddle's own privacy policy governs that data; see
+      <a href="https://www.paddle.com/legal/privacy" target="_blank" rel="noopener">paddle.com/legal/privacy</a>.
+    </p>
+    <p>
+      We keep a record of the email address and plan associated with each
+      issued license key, so we can help you recover a lost key or verify
+      a purchase. That's the extent of what we retain. If you'd like this
+      deleted, email us and we'll remove it.
+    </p>
+
+    <h2>What we never collect</h2>
+    <p>
+      The software runs on your own infrastructure with no phone-home
+      behavior. Your uploaded CRM exports, enriched lead data, scoring
+      results, and any outreach drafts never reach us — there's no server
+      of ours in that path at all. If you configure your own Anthropic,
+      Apollo, HubSpot/Salesforce, or Slack credentials, those calls go
+      directly from your instance to that provider, governed by your
+      agreement with them, not us.
+    </p>
+
+    <h2>Email delivery</h2>
+    <p>
+      License keys are emailed to you via SendGrid or plain SMTP,
+      depending on how the seller's deployment is configured. If neither
+      is configured, the key is simply logged and sent by hand.
+    </p>
+
+    <h2>Your rights</h2>
+    <p>
+      You can ask us at any time what we hold about you, request a copy,
+      or request deletion, by emailing
+      <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a>.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      If this policy changes, we'll update the date at the top of this
+      page. Material changes will be noted here.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions about this policy: <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a>
+    </p>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      &copy; 2026 CRM Scoring. <a href="index.html">Home</a> ·
+      <a href="privacy.html">Privacy</a> · <a href="guardrails.html">AI Guardrails</a>
+    </div>
+  </footer>
+</body>
+</html>
