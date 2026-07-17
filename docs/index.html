@@ -303,15 +303,16 @@
           <span class="badge">Monthly</span>
           <div class="price">$30<span>/mo</span></div>
           <p class="note">Billed monthly, cancel anytime.</p>
-          <a class="btn btn-secondary" href="mailto:hello@crmscoring.com?subject=Monthly%20plan" style="width:100%; text-align:center; display:block;">Get started</a>
+          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('monthly')">Get started</button>
         </div>
         <div class="plan featured">
           <span class="badge">Annual — save 2 months</span>
           <div class="price">$300<span>/yr</span></div>
           <p class="note">Billed yearly. Equivalent to $25/mo.</p>
-          <a class="btn btn-primary" href="mailto:hello@crmscoring.com?subject=Annual%20plan" style="width:100%; text-align:center; display:block;">Get started</a>
+          <button class="btn btn-primary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('annual')">Get started</button>
         </div>
       </div>
+      <p id="checkout-error" class="caption" style="display:none; color: var(--hot);"></p>
     </div>
   </section>
 
@@ -322,5 +323,36 @@
       &nbsp;·&nbsp; <a href="guardrails.html">AI Guardrails</a>
     </div>
   </footer>
+
+  <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+  <script>
+    // Sandbox credentials for now -- non-secret client-side token, safe to
+    // ship in a static page (it can't create charges or read account data,
+    // only open a checkout). Swap for live values once Paddle is in
+    // production and this page is served from the real domain.
+    var PADDLE_ENVIRONMENT = "sandbox";
+    var PADDLE_CLIENT_TOKEN = "test_c38965b594b300bcd03e972cab7";
+    var PADDLE_PRICE_IDS = {
+      monthly: "pri_01kxrhyx0g7x4t5572gj36v9ct",
+      annual: "pri_01kxrhyxh789zgc5d5q8mya3sx"
+    };
+
+    if (PADDLE_ENVIRONMENT === "sandbox") {
+      Paddle.Environment.set("sandbox");
+    }
+    Paddle.Initialize({ token: PADDLE_CLIENT_TOKEN });
+
+    function buyPlan(interval) {
+      var errorEl = document.getElementById("checkout-error");
+      errorEl.style.display = "none";
+      var priceId = PADDLE_PRICE_IDS[interval];
+      if (!priceId) {
+        errorEl.textContent = "Checkout isn't configured for this plan yet.";
+        errorEl.style.display = "block";
+        return;
+      }
+      Paddle.Checkout.open({ items: [{ priceId: priceId, quantity: 1 }] });
+    }
+  </script>
 </body>
 </html>
