@@ -77,16 +77,32 @@ describe("uploadLeads", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => [],
+      headers: { get: () => null },
     });
     vi.stubGlobal("fetch", fetchMock);
 
     const file = new File(["a,b"], "leads.csv", { type: "text/csv" });
-    await uploadLeads(file);
+    const result = await uploadLeads(file);
+    expect(result).toEqual({ leads: [], trialLimitedRows: null, trialTotalRows: null });
 
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toContain("/leads/upload");
     expect(options.method).toBe("POST");
     expect(options.body).toBeInstanceOf(FormData);
+  });
+
+  it("surfaces the trial row cap from response headers", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [],
+      headers: {
+        get: (name: string) => ({ "X-Trial-Limited-Rows": "10", "X-Trial-Total-Rows": "45" }[name] ?? null),
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await uploadLeads(new File(["a,b"], "leads.csv", { type: "text/csv" }));
+    expect(result).toEqual({ leads: [], trialLimitedRows: 10, trialTotalRows: 45 });
   });
 });
 

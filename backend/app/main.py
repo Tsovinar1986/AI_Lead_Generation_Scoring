@@ -37,6 +37,10 @@ app.add_middleware(
     allow_origins=CORS_ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Browsers hide all response headers from JS by default except a small
+    # built-in safelist -- these carry the trial upload cap so the frontend
+    # can tell the user why their file got truncated.
+    expose_headers=["X-Trial-Limited-Rows", "X-Trial-Total-Rows"],
 )
 
 app.include_router(leads.router)

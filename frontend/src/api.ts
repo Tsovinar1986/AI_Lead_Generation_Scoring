@@ -44,11 +44,26 @@ async function handle<T>(res: Response): Promise<T> {
   return res.json();
 }
 
-export async function uploadLeads(file: File): Promise<ScoredLead[]> {
+export interface UploadResult {
+  leads: ScoredLead[];
+  // Set when a trial upload got capped to fewer rows than the file
+  // contained (see backend/app/routers/leads.py's TRIAL_MAX_LEADS_PER_UPLOAD).
+  trialLimitedRows: number | null;
+  trialTotalRows: number | null;
+}
+
+export async function uploadLeads(file: File): Promise<UploadResult> {
   const form = new FormData();
   form.append("file", file);
   const res = await fetch(`${BASE}/leads/upload`, { method: "POST", headers: authHeaders(), body: form });
-  return handle(res);
+  const leads = await handle<ScoredLead[]>(res);
+  const limitedRows = res.headers.get("X-Trial-Limited-Rows");
+  const totalRows = res.headers.get("X-Trial-Total-Rows");
+  return {
+    leads,
+    trialLimitedRows: limitedRows ? Number(limitedRows) : null,
+    trialTotalRows: totalRows ? Number(totalRows) : null,
+  };
 }
 
 export async function fetchLeads(): Promise<ScoredLead[]> {

@@ -56,6 +56,11 @@ LICENSE_REQUIRED = os.getenv("LICENSE_REQUIRED", "false").lower() == "true"
 # and persists in the same SQLite file as everything else -- so it survives
 # restarts and can't be reset by just restarting the process.
 TRIAL_DAYS = int(os.getenv("TRIAL_DAYS", "3"))
+# Caps each /api/leads/upload call to at most this many rows while
+# unlicensed (whether still within TRIAL_DAYS or not) -- lets a prospect
+# judge scoring quality on a real sample of their own data without getting
+# full free use of a large list. Licensed deployments have no cap.
+TRIAL_MAX_LEADS_PER_UPLOAD = int(os.getenv("TRIAL_MAX_LEADS_PER_UPLOAD", "10"))
 
 # --- Licensing (seller side) ---
 # Only used by routers/billing.py, which the seller runs on their own

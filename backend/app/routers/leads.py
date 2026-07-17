@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
 
 from .. import storage
 from ..auth import get_current_tenant
-from ..config import LICENSE_REQUIRED
+from ..config import LICENSE_REQUIRED, TRIAL_MAX_LEADS_PER_UPLOAD
 from ..licensing import trial_days_left, verify_license
 from ..models import ScoredLead
 from ..services.alerts import maybe_alert
@@ -14,8 +14,11 @@ router = APIRouter(prefix="/api/leads", tags=["leads"])
 
 
 @router.post("/upload", response_model=list[ScoredLead])
-async def upload_leads(file: UploadFile, tenant: storage.Tenant = Depends(get_current_tenant)):
-    if verify_license() is None and (LICENSE_REQUIRED or trial_days_left() <= 0):
+async def upload_leads(
+    response: Response, file: UploadFile, tenant: storage.Tenant = Depends(get_current_tenant)
+):
+    licensed = verify_license() is not None
+    if not licensed and (LICENSE_REQUIRED or trial_days_left() <= 0):
         raise HTTPException(
             status_code=402,
             detail="No valid license found and the trial period has ended. "
@@ -32,6 +35,13 @@ async def upload_leads(file: UploadFile, tenant: storage.Tenant = Depends(get_cu
 
     if not raw_leads:
         raise HTTPException(status_code=400, detail="No leads found in file.")
+
+    # Trial usage cap: judge scoring quality on a real sample without full
+    # free use of a large list. Doesn't apply once licensed.
+    if not licensed and len(raw_leads) > TRIAL_MAX_LEADS_PER_UPLOAD:
+        response.headers["X-Trial-Limited-Rows"] = str(TRIAL_MAX_LEADS_PER_UPLOAD)
+        response.headers["X-Trial-Total-Rows"] = str(len(raw_leads))
+        raw_leads = raw_leads[:TRIAL_MAX_LEADS_PER_UPLOAD]
 
     scored: list[ScoredLead] = []
     for lead in raw_leads:

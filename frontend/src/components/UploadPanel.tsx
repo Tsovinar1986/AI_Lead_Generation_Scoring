@@ -13,14 +13,21 @@ export function UploadPanel({ onUploaded }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [licenseRequired, setLicenseRequired] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [trialLimitNotice, setTrialLimitNotice] = useState<string | null>(null);
 
   async function handleFile(file: File) {
     setBusy(true);
     setError(null);
     setLicenseRequired(false);
+    setTrialLimitNotice(null);
     setFileName(file.name);
     try {
-      const leads = await uploadLeads(file);
+      const { leads, trialLimitedRows, trialTotalRows } = await uploadLeads(file);
+      if (trialLimitedRows != null && trialTotalRows != null) {
+        setTrialLimitNotice(
+          `Trial scores the first ${trialLimitedRows} of ${trialTotalRows} rows — upgrade for the full file.`
+        );
+      }
       onUploaded(leads);
     } catch (err) {
       if (err instanceof LicenseRequiredError) {
@@ -74,6 +81,7 @@ export function UploadPanel({ onUploaded }: Props) {
         {fileName && <span className="muted">{fileName}</span>}
       </div>
       {error && <p className="error">{error}</p>}
+      {trialLimitNotice && <p className="muted">{trialLimitNotice}</p>}
       {licenseRequired && (
         <div className="license-required">
           <p>Your trial has expired — a license is required to keep scoring leads.</p>

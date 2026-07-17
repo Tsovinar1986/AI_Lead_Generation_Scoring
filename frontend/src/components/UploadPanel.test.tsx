@@ -20,13 +20,23 @@ function selectFile() {
 describe("UploadPanel", () => {
   it("calls onUploaded with the scored leads on success", async () => {
     const leads = [{ id: "1", company_name: "Acme" }] as never;
-    vi.mocked(api.uploadLeads).mockResolvedValue(leads);
+    vi.mocked(api.uploadLeads).mockResolvedValue({ leads, trialLimitedRows: null, trialTotalRows: null });
     const onUploaded = vi.fn();
 
     render(<UploadPanel onUploaded={onUploaded} />);
     await selectFile();
 
     await waitFor(() => expect(onUploaded).toHaveBeenCalledWith(leads));
+  });
+
+  it("shows a trial-limit notice when the upload was capped", async () => {
+    const leads = [{ id: "1", company_name: "Acme" }] as never;
+    vi.mocked(api.uploadLeads).mockResolvedValue({ leads, trialLimitedRows: 10, trialTotalRows: 45 });
+
+    render(<UploadPanel onUploaded={vi.fn()} />);
+    await selectFile();
+
+    expect(await screen.findByText(/first 10 of 45 rows/i)).toBeInTheDocument();
   });
 
   it("shows a generic error message for a non-license failure", async () => {

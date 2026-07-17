@@ -103,6 +103,49 @@ def test_upload_blocked_once_trial_expires_even_without_license_required(client,
     assert resp.status_code == 402
 
 
+def _make_csv(row_count: int) -> bytes:
+    header = b"company_name,domain,contact_name,contact_title,industry,employees,revenue,country\n"
+    rows = b"".join(
+        f"Company {i},company{i}.com,Jane Doe,VP of Sales,SaaS,200,20000000,United States\n".encode()
+        for i in range(row_count)
+    )
+    return header + rows
+
+
+def test_trial_upload_caps_rows_and_reports_it_via_headers(client, monkeypatch):
+    monkeypatch.setattr(leads_router, "verify_license", lambda: None)
+    monkeypatch.setattr(leads_router, "TRIAL_MAX_LEADS_PER_UPLOAD", 10)
+
+    resp = _upload(client, content=_make_csv(25), filename="big.csv")
+
+    assert resp.status_code == 200
+    assert len(resp.json()) == 10
+    assert resp.headers["x-trial-limited-rows"] == "10"
+    assert resp.headers["x-trial-total-rows"] == "25"
+
+
+def test_trial_upload_under_cap_gets_no_limit_headers(client, monkeypatch):
+    monkeypatch.setattr(leads_router, "verify_license", lambda: None)
+    monkeypatch.setattr(leads_router, "TRIAL_MAX_LEADS_PER_UPLOAD", 10)
+
+    resp = _upload(client, content=_make_csv(3), filename="small.csv")
+
+    assert resp.status_code == 200
+    assert len(resp.json()) == 3
+    assert "x-trial-limited-rows" not in resp.headers
+
+
+def test_licensed_upload_is_never_capped(client, monkeypatch):
+    monkeypatch.setattr(leads_router, "verify_license", lambda: object())
+    monkeypatch.setattr(leads_router, "TRIAL_MAX_LEADS_PER_UPLOAD", 10)
+
+    resp = _upload(client, content=_make_csv(25), filename="big.csv")
+
+    assert resp.status_code == 200
+    assert len(resp.json()) == 25
+    assert "x-trial-limited-rows" not in resp.headers
+
+
 def test_hot_lead_upload_creates_alert(client):
     _upload(client)
     alerts = client.get("/api/alerts").json()
