@@ -145,6 +145,7 @@
   .bucket-warm { background: color-mix(in srgb, #d99a2b 18%, transparent); color: #b5791a; }
   @media (prefers-color-scheme: dark) { .bucket-warm { color: #e0ad4c; } }
   :root[data-theme="dark"] .bucket-warm { color: #e0ad4c; }
+  .bucket-cold { background: color-mix(in srgb, var(--text-muted) 18%, transparent); color: var(--text-muted); }
   section.example .caption { color: var(--text-muted); font-size: 0.82rem; margin-top: 12px; text-align: center; }
 
   section.pricing {
@@ -280,6 +281,11 @@
               <td class="company">Ledger Logistics<span>Tom Becker · Head of Growth</span></td>
               <td>Logistics</td><td>62</td><td>65</td><td><strong>63</strong></td>
               <td><span class="bucket-badge bucket-warm">Warm</span></td>
+            </tr>
+            <tr>
+              <td class="company">Tiny Print Shop<span>Bob Smith · Owner</span></td>
+              <td>Printing</td><td>50</td><td>43</td><td><strong>47</strong></td>
+              <td><span class="bucket-badge bucket-cold">Cold</span></td>
             </tr>
           </tbody>
         </table>
