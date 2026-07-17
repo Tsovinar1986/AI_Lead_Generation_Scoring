@@ -252,7 +252,8 @@
       <div class="try-upload">
         <input type="file" id="try-upload-input" accept=".csv,.xlsx,.xls" hidden />
         <div class="cta-row" style="justify-content:flex-start; margin-bottom: 20px;">
-          <button class="btn btn-primary" id="try-upload-btn" onclick="document.getElementById('try-upload-input').click()">Try it with your own file</button>
+          <button class="btn btn-secondary" id="try-choose-btn" onclick="document.getElementById('try-upload-input').click()">Choose file</button>
+          <button class="btn btn-primary" id="try-score-btn" disabled onclick="handleTryUpload()">Score it</button>
           <span id="try-upload-filename" class="caption"></span>
         </div>
         <p id="try-upload-status" class="caption" style="display:none;"></p>
@@ -370,19 +371,24 @@
     var TRY_UPLOAD_API_BASE = "https://disobey-battered-deploy.ngrok-free.dev/api";
 
     var bucketLabels = { hot: "Hot", warm: "Warm", cold: "Cold" };
+    var selectedFile = null;
 
     document.getElementById("try-upload-input").addEventListener("change", function (e) {
       var file = e.target.files[0];
       if (!file) return;
-      handleTryUpload(file);
+      selectedFile = file;
+      document.getElementById("try-upload-filename").textContent = file.name;
+      document.getElementById("try-upload-status").style.display = "none";
+      document.getElementById("try-score-btn").disabled = false;
     });
 
-    async function handleTryUpload(file) {
+    async function handleTryUpload() {
+      if (!selectedFile) return;
+      var file = selectedFile;
       var statusEl = document.getElementById("try-upload-status");
       var tbody = document.querySelector("#example-table tbody");
-      var btn = document.getElementById("try-upload-btn");
+      var btn = document.getElementById("try-score-btn");
 
-      document.getElementById("try-upload-filename").textContent = file.name;
       statusEl.style.display = "none";
       btn.disabled = true;
       btn.textContent = "Scoring…";
@@ -434,7 +440,7 @@
         statusEl.style.display = "block";
       } finally {
         btn.disabled = false;
-        btn.textContent = "Try it with your own file";
+        btn.textContent = "Score it";
       }
     }
 
