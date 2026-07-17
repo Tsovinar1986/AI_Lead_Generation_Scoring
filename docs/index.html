@@ -247,9 +247,19 @@
   <section class="example" id="example">
     <div class="wrap">
       <h2>What you get back</h2>
-      <p class="lede">Upload a CSV, get this in seconds — real output from the actual scorer, running on mock data (no API keys set).</p>
+      <p class="lede" id="example-lede">Upload a CSV, get this in seconds — real output from the actual scorer, running on mock data (no API keys set).</p>
+
+      <div class="try-upload">
+        <input type="file" id="try-upload-input" accept=".csv,.xlsx,.xls" hidden />
+        <div class="cta-row" style="justify-content:flex-start; margin-bottom: 20px;">
+          <button class="btn btn-primary" id="try-upload-btn" onclick="document.getElementById('try-upload-input').click()">Try it with your own file</button>
+          <span id="try-upload-filename" class="caption"></span>
+        </div>
+        <p id="try-upload-status" class="caption" style="display:none;"></p>
+      </div>
+
       <div class="example-table-wrap">
-        <table class="example-table">
+        <table class="example-table" id="example-table">
           <thead>
             <tr>
               <th>Company</th>
@@ -289,30 +299,7 @@
           </tbody>
         </table>
       </div>
-      <p class="caption">Fit = rule-based score. LLM = conversion-likelihood estimate. Combined ranks the list.</p>
-
-      <div class="try-upload">
-        <h3>Try it with your own file</h3>
-        <p class="lede" style="margin-bottom:16px;">CSV or XLSX with at least a company name and domain column.</p>
-        <input type="file" id="try-upload-input" accept=".csv,.xlsx,.xls" hidden />
-        <div class="cta-row" style="justify-content:flex-start;">
-          <button class="btn btn-primary" id="try-upload-btn" onclick="document.getElementById('try-upload-input').click()">Choose file</button>
-          <span id="try-upload-filename" class="caption"></span>
-        </div>
-        <p id="try-upload-status" class="caption" style="display:none;"></p>
-        <div id="try-upload-results" style="display:none; margin-top:20px;">
-          <div class="example-table-wrap">
-            <table class="example-table" id="try-upload-table">
-              <thead>
-                <tr>
-                  <th>Company</th><th>Industry</th><th>Fit</th><th>LLM</th><th>Combined</th><th>Bucket</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+      <p class="caption" id="example-caption">Fit = rule-based score. LLM = conversion-likelihood estimate. Combined ranks the list.</p>
     </div>
   </section>
 
@@ -392,13 +379,11 @@
 
     async function handleTryUpload(file) {
       var statusEl = document.getElementById("try-upload-status");
-      var resultsEl = document.getElementById("try-upload-results");
-      var tbody = document.querySelector("#try-upload-table tbody");
+      var tbody = document.querySelector("#example-table tbody");
       var btn = document.getElementById("try-upload-btn");
 
       document.getElementById("try-upload-filename").textContent = file.name;
       statusEl.style.display = "none";
-      resultsEl.style.display = "none";
       btn.disabled = true;
       btn.textContent = "Scoring…";
 
@@ -422,6 +407,10 @@
           statusEl.style.display = "block";
         }
 
+        document.getElementById("example-lede").textContent = "Your file, scored just now:";
+        document.getElementById("example-caption").textContent =
+          "Fit = rule-based score. LLM = conversion-likelihood estimate. Combined ranks the list.";
+
         tbody.innerHTML = "";
         body.forEach(function (lead) {
           var tr = document.createElement("tr");
@@ -437,7 +426,6 @@
             "<td><span class=\"bucket-badge bucket-" + bucket + "\">" + (bucketLabels[bucket] || bucket) + "</span></td>";
           tbody.appendChild(tr);
         });
-        resultsEl.style.display = "block";
       } catch (err) {
         statusEl.textContent =
           "Couldn't reach the demo backend — it's only reachable from the same WiFi network as the machine running it right now.";
