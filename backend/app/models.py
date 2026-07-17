@@ -69,6 +69,34 @@ class CrmPushResponse(BaseModel):
     detail: str
 
 
+class ChurnCustomer(BaseModel):
+    """Raw customer row from a churn-risk export (a different data shape than
+    a B2B lead -- individual subscribers/accounts, not companies)."""
+
+    id: str = Field(default_factory=new_id)
+    contract: str
+    tenure_months: int
+    monthly_charges: float
+    internet_service: Optional[str] = None
+    tech_support: Optional[str] = None
+    online_security: Optional[str] = None
+    payment_method: Optional[str] = None
+
+
+class ChurnRiskBreakdown(BaseModel):
+    contract_risk: float
+    tenure_risk: float
+    charges_risk: float
+    service_gaps_risk: float
+    payment_method_risk: float
+
+
+class ChurnScoredCustomer(ChurnCustomer):
+    risk_score: float
+    risk_breakdown: ChurnRiskBreakdown
+    bucket: str  # "high" | "medium" | "low"
+
+
 class Alert(BaseModel):
     id: str = Field(default_factory=new_id)
     lead_id: str

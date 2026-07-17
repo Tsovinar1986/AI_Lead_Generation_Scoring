@@ -9,7 +9,7 @@ from loguru import logger
 from .config import CORS_ALLOWED_ORIGINS
 from .licensing import LicenseState, check_license, trial_days_left, verify_license
 from .logging_config import configure_logging
-from .routers import actions, billing, leads
+from .routers import actions, billing, churn, leads
 
 configure_logging()
 
@@ -47,6 +47,7 @@ app.include_router(leads.router)
 app.include_router(actions.router)
 app.include_router(actions.alerts_router)
 app.include_router(billing.router)
+app.include_router(churn.router)
 
 
 @app.get("/api/health")

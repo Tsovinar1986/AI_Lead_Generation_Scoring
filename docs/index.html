@@ -382,11 +382,68 @@
       document.getElementById("try-score-btn").disabled = false;
     });
 
+    var LEADS_TABLE_HEAD =
+      "<tr><th>Company</th><th>Industry</th><th>Fit</th><th>LLM</th><th>Combined</th><th>Bucket</th></tr>";
+    var CHURN_TABLE_HEAD =
+      "<tr><th>Contract</th><th>Tenure</th><th>Monthly charges</th><th>Services</th><th>Risk score</th><th>Bucket</th></tr>";
+    var churnBucketLabels = { high: "High", medium: "Medium", low: "Low" };
+    var churnBucketClass = { high: "hot", medium: "warm", low: "cold" };
+
+    function looksLikeLeadShapeError(detail) {
+      return typeof detail === "string" &&
+        detail.toLowerCase().indexOf("company name") !== -1 &&
+        detail.toLowerCase().indexOf("domain") !== -1;
+    }
+
+    function renderLeadsResults(leads) {
+      document.querySelector("#example-table thead").innerHTML = LEADS_TABLE_HEAD;
+      document.getElementById("example-lede").textContent = "Your file, scored just now:";
+      var tbody = document.querySelector("#example-table tbody");
+      tbody.innerHTML = "";
+      leads.forEach(function (lead) {
+        var tr = document.createElement("tr");
+        var bucket = lead.bucket || "cold";
+        tr.innerHTML =
+          "<td class=\"company\">" + escapeHtml(lead.company_name) +
+          (lead.contact_name ? "<span>" + escapeHtml(lead.contact_name) + (lead.contact_title ? " · " + escapeHtml(lead.contact_title) : "") + "</span>" : "") +
+          "</td>" +
+          "<td>" + escapeHtml(lead.industry || "—") + "</td>" +
+          "<td>" + Math.round(lead.fit_score) + "</td>" +
+          "<td>" + Math.round(lead.conversion_likelihood) + "</td>" +
+          "<td><strong>" + Math.round(lead.combined_score) + "</strong></td>" +
+          "<td><span class=\"bucket-badge bucket-" + bucket + "\">" + (bucketLabels[bucket] || bucket) + "</span></td>";
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderChurnResults(customers) {
+      document.querySelector("#example-table thead").innerHTML = CHURN_TABLE_HEAD;
+      document.getElementById("example-lede").textContent =
+        "That's a customer/subscriber file, not a lead list — here's churn-risk scoring on it instead:";
+      var tbody = document.querySelector("#example-table tbody");
+      tbody.innerHTML = "";
+      customers.forEach(function (c) {
+        var tr = document.createElement("tr");
+        var bucket = c.bucket || "low";
+        var services = [];
+        if (c.internet_service) services.push(c.internet_service);
+        if ((c.tech_support || "").toLowerCase() === "no") services.push("no tech support");
+        if ((c.online_security || "").toLowerCase() === "no") services.push("no online security");
+        tr.innerHTML =
+          "<td class=\"company\">" + escapeHtml(c.contract) + "</td>" +
+          "<td>" + Math.round(c.tenure_months) + " mo</td>" +
+          "<td>$" + Number(c.monthly_charges).toFixed(2) + "</td>" +
+          "<td>" + escapeHtml(services.join(", ") || "—") + "</td>" +
+          "<td><strong>" + Math.round(c.risk_score) + "</strong></td>" +
+          "<td><span class=\"bucket-badge bucket-" + (churnBucketClass[bucket] || "cold") + "\">" + (churnBucketLabels[bucket] || bucket) + "</span></td>";
+        tbody.appendChild(tr);
+      });
+    }
+
     async function handleTryUpload() {
       if (!selectedFile) return;
       var file = selectedFile;
       var statusEl = document.getElementById("try-upload-status");
-      var tbody = document.querySelector("#example-table tbody");
       var btn = document.getElementById("try-score-btn");
 
       statusEl.style.display = "none";
@@ -405,6 +462,25 @@
 
         if (!res.ok) {
           var detail = (body && body.detail) || "Upload failed (" + res.status + ").";
+
+          // Not a lead list -- try it as a customer/subscriber churn export
+          // before giving up, since that's a data shape this demo also scores.
+          if (looksLikeLeadShapeError(detail)) {
+            var churnForm = new FormData();
+            churnForm.append("file", file);
+            var churnRes = await fetch(TRY_UPLOAD_API_BASE + "/churn/upload", {
+              method: "POST",
+              body: churnForm,
+              headers: { "ngrok-skip-browser-warning": "true" },
+            });
+            var churnBody = await churnRes.json().catch(function () { return null; });
+
+            if (churnRes.ok) {
+              renderChurnResults(churnBody);
+              return;
+            }
+          }
+
           statusEl.textContent = detail;
           statusEl.style.display = "block";
           return;
@@ -417,23 +493,7 @@
           statusEl.style.display = "block";
         }
 
-        document.getElementById("example-lede").textContent = "Your file, scored just now:";
-
-        tbody.innerHTML = "";
-        body.forEach(function (lead) {
-          var tr = document.createElement("tr");
-          var bucket = lead.bucket || "cold";
-          tr.innerHTML =
-            "<td class=\"company\">" + escapeHtml(lead.company_name) +
-            (lead.contact_name ? "<span>" + escapeHtml(lead.contact_name) + (lead.contact_title ? " · " + escapeHtml(lead.contact_title) : "") + "</span>" : "") +
-            "</td>" +
-            "<td>" + escapeHtml(lead.industry || "—") + "</td>" +
-            "<td>" + Math.round(lead.fit_score) + "</td>" +
-            "<td>" + Math.round(lead.conversion_likelihood) + "</td>" +
-            "<td><strong>" + Math.round(lead.combined_score) + "</strong></td>" +
-            "<td><span class=\"bucket-badge bucket-" + bucket + "\">" + (bucketLabels[bucket] || bucket) + "</span></td>";
-          tbody.appendChild(tr);
-        });
+        renderLeadsResults(body);
       } catch (err) {
         statusEl.textContent =
           "Couldn't reach the demo backend — the ngrok tunnel may be down. Try again shortly.";
