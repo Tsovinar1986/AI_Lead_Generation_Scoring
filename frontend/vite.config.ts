@@ -7,6 +7,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5000,
+    // Fail loudly instead of silently picking 5001/5002/... when 5000 is
+    // taken (e.g. by a leftover dev server, or macOS's AirPlay Receiver,
+    // which squats on 5000 by default -- disable it in System Settings ->
+    // General -> AirDrop & Handoff if it's the culprit) -- README always
+    // says "open localhost:5000" and a silently different port breaks that.
+    strictPort: true,
     // Lets the frontend call same-origin relative /api/* URLs even in dev
     // mode, where Vite (5000) and FastAPI (8081) are different origins --
     // matches production, where the backend serves this build itself and
