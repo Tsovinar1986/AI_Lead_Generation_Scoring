@@ -6,57 +6,84 @@
 <title>CRM Scoring — AI Lead Scoring, Self-Hosted</title>
 <meta name="description" content="Hybrid rule + LLM lead scoring you self-host. Your CRM data never leaves your infrastructure." />
 <style>
+  /* Same design tokens as frontend/src/index.css (the real app) --
+     the landing page is a different layout for a different job (marketing
+     splash vs. dense working UI), but the colors/font/radii it renders with
+     must be the same product, not a reskin. */
   :root {
-    --bg: #ffffff;
-    --bg-alt: #f6f7f9;
-    --text: #14171f;
-    --text-muted: #5b6270;
-    --border: #e4e6eb;
-    --accent: #5b4cf0;
-    --accent-dark: #4638d6;
-    --hot: #e0563f;
+    --text-h: #08060d;
+    --text: #4b5563;
+    --text-muted: #4b5563;
+    --bg: #f7f7f8;
+    --bg-alt: #ffffff;
+    --border: #e5e4e7;
+    --accent: #7c3aed;
+    --accent-dark: #6d28d9;
+    --accent-bg: rgba(124, 58, 237, 0.1);
+    --hot: #dc2626;
+    --hot-bg: rgba(220, 38, 38, 0.1);
+    --warm: #d97706;
+    --warm-bg: rgba(217, 119, 6, 0.12);
+    --cold: #6b7280;
+    --cold-bg: rgba(107, 114, 128, 0.12);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #14161c;
-      --bg-alt: #1b1e26;
-      --text: #eceef2;
-      --text-muted: #9aa1b0;
-      --border: #2b2f3a;
-      --accent: #8b7bff;
-      --accent-dark: #a597ff;
-      --hot: #ff7a5c;
+      --text-h: #f3f4f6;
+      --text: #9ca3af;
+      --text-muted: #9ca3af;
+      --bg: #16171d;
+      --bg-alt: #1e1f27;
+      --border: #2e303a;
+      --accent: #c084fc;
+      --accent-dark: #d8b4fe;
+      --accent-bg: rgba(192, 132, 252, 0.15);
+      --hot-bg: rgba(220, 38, 38, 0.2);
+      --warm-bg: rgba(217, 119, 6, 0.2);
+      --cold-bg: rgba(107, 114, 128, 0.2);
     }
   }
   :root[data-theme="dark"] {
-    --bg: #14161c;
-    --bg-alt: #1b1e26;
-    --text: #eceef2;
-    --text-muted: #9aa1b0;
-    --border: #2b2f3a;
-    --accent: #8b7bff;
-    --accent-dark: #a597ff;
-    --hot: #ff7a5c;
+    --text-h: #f3f4f6;
+    --text: #9ca3af;
+    --text-muted: #9ca3af;
+    --bg: #16171d;
+    --bg-alt: #1e1f27;
+    --border: #2e303a;
+    --accent: #c084fc;
+    --accent-dark: #d8b4fe;
+    --accent-bg: rgba(192, 132, 252, 0.15);
+    --hot-bg: rgba(220, 38, 38, 0.2);
+    --warm-bg: rgba(217, 119, 6, 0.2);
+    --cold-bg: rgba(107, 114, 128, 0.2);
   }
   :root[data-theme="light"] {
-    --bg: #ffffff;
-    --bg-alt: #f6f7f9;
-    --text: #14171f;
-    --text-muted: #5b6270;
-    --border: #e4e6eb;
-    --accent: #5b4cf0;
-    --accent-dark: #4638d6;
-    --hot: #e0563f;
+    --text-h: #08060d;
+    --text: #4b5563;
+    --text-muted: #4b5563;
+    --bg: #f7f7f8;
+    --bg-alt: #ffffff;
+    --border: #e5e4e7;
+    --accent: #7c3aed;
+    --accent-dark: #6d28d9;
+    --accent-bg: rgba(124, 58, 237, 0.1);
+    --hot: #dc2626;
+    --hot-bg: rgba(220, 38, 38, 0.1);
+    --warm: #d97706;
+    --warm-bg: rgba(217, 119, 6, 0.12);
+    --cold: #6b7280;
+    --cold-bg: rgba(107, 114, 128, 0.12);
   }
 
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-family: system-ui, "Segoe UI", Roboto, sans-serif;
     background: var(--bg);
     color: var(--text);
     line-height: 1.5;
   }
+  h1, h2, h3, .logo { color: var(--text-h); }
   .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
 
   header.nav {
@@ -88,7 +115,7 @@
   .btn {
     display: inline-block;
     padding: 12px 24px;
-    border-radius: 8px;
+    border-radius: 6px;
     font-weight: 600;
     text-decoration: none;
     font-size: 0.95rem;
@@ -130,7 +157,7 @@
   section.example > .wrap > p.lede { color: var(--text-muted); margin: 0 0 28px; text-align: center; }
   .example-table-wrap {
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 10px;
     overflow-x: auto;
     background: var(--bg-alt);
   }
@@ -140,12 +167,12 @@
   table.example-table tbody tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
   table.example-table td.company { font-weight: 600; }
   table.example-table td.company span { display: block; font-weight: 400; color: var(--text-muted); font-size: 0.82rem; }
-  .bucket-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
-  .bucket-hot { background: color-mix(in srgb, var(--hot) 18%, transparent); color: var(--hot); }
-  .bucket-warm { background: color-mix(in srgb, #d99a2b 18%, transparent); color: #b5791a; }
-  @media (prefers-color-scheme: dark) { .bucket-warm { color: #e0ad4c; } }
-  :root[data-theme="dark"] .bucket-warm { color: #e0ad4c; }
-  .bucket-cold { background: color-mix(in srgb, var(--text-muted) 18%, transparent); color: var(--text-muted); }
+  /* Same bucket-badge colors as frontend/src/index.css's .badge-hot/-warm/-cold --
+     hot/warm/cold are constant across themes there too, only the *-bg alpha shifts. */
+  .bucket-badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .bucket-hot { background: var(--hot-bg); color: var(--hot); }
+  .bucket-warm { background: var(--warm-bg); color: var(--warm); }
+  .bucket-cold { background: var(--cold-bg); color: var(--cold); }
   section.example .caption { color: var(--text-muted); font-size: 0.82rem; margin-top: 12px; text-align: center; }
 
   section.pricing {
@@ -167,7 +194,7 @@
   }
   .plan {
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 10px;
     padding: 28px 24px;
     background: var(--bg-alt);
     text-align: left;
@@ -178,7 +205,7 @@
     font-size: 0.7rem;
     font-weight: 700;
     color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    background: var(--accent-bg);
     padding: 3px 8px;
     border-radius: 999px;
     margin-bottom: 10px;
