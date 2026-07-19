@@ -94,6 +94,33 @@ npm run build                  # tsc + production build
 `.github/workflows/ci.yml` runs both suites plus the frontend build on every
 push/PR.
 
+## Deploying (from this GitHub repo)
+
+`render.yaml` is a Render Blueprint — Render builds the `Dockerfile` above
+directly from this repo and redeploys automatically on every push to
+`main`, so there's no separate CI/CD step to maintain. One-time setup:
+
+1. Create a free account at [render.com](https://render.com) and connect
+   your GitHub account.
+2. **New +** → **Blueprint** → pick this repo. Render reads `render.yaml`
+   and shows every env var it needs.
+3. Fill in the secrets it prompts for (Paddle keys, `LICENSE_PRIVATE_KEY`,
+   any of the optional integration keys you have) — these are entered once
+   in Render's dashboard and never touch git. Leave any of the optional
+   integration keys blank to keep that feature on mock data for now.
+4. Deploy. Render gives you a `https://crm-scoring-xxxx.onrender.com` URL —
+   confirm `/api/health` responds, then update `CORS_ALLOWED_ORIGINS` (in
+   Render's dashboard) and the landing page's demo widget
+   (`docs/index.html`'s `TRY_UPLOAD_API_BASE`) to point at it instead of any
+   temporary tunnel.
+
+**Free tier caveats**: the instance spins down after 15 minutes idle (first
+request after that takes ~30-50s to wake it back up), and there's no
+persistent disk — the SQLite file resets on every redeploy/periodic
+restart, so leads/trial state won't survive across deploys. Both are
+one-click upgrades in Render's dashboard once there's a paying customer to
+justify it; fine as-is for a public demo/beta.
+
 ## Configuration
 
 Copy `.env.example` to `.env` (and `frontend/.env.example` to
