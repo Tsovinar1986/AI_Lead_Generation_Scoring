@@ -32,8 +32,19 @@ windows are deliberately short rather than perpetual.
 transaction.completed does not include the buyer's email directly (only
 customer_id), so a verified webhook makes one follow-up authenticated call
 to Paddle's GET /customers/{customer_id} to resolve it.
+
+Polar is a second, independent processor below (POST /polar/checkout,
+POST /polar/webhook) -- not a fallback for Paddle, an alternative for
+sellers Paddle can't serve either. It's a redirect checkout (Polar creates
+the session server-side and hands back a URL to send the buyer to) rather
+than an in-page overlay, since Polar has no Paddle.js-equivalent client
+SDK; the license-issuance logic it calls into (_issue_and_deliver) is
+shared with Paddle's path above. Signature verification follows the
+Standard Webhooks spec (webhook-id/webhook-timestamp/webhook-signature
+headers, HMAC-SHA256 of "id.timestamp.body"), not Paddle's ts/h1 scheme.
 """
 
+import base64
 import hashlib
 import hmac
 import json
@@ -44,6 +55,7 @@ from pathlib import Path
 import requests
 from fastapi import APIRouter, HTTPException, Request
 from loguru import logger
+from pydantic import BaseModel
 
 from ..config import (
     LICENSE_PRIVATE_KEY,
@@ -55,6 +67,11 @@ from ..config import (
     PADDLE_PRICE_ID_ANNUAL,
     PADDLE_PRICE_ID_MONTHLY,
     PADDLE_WEBHOOK_SECRET,
+    POLAR_ACCESS_TOKEN,
+    POLAR_ENVIRONMENT,
+    POLAR_PRODUCT_ID_ANNUAL,
+    POLAR_PRODUCT_ID_MONTHLY,
+    POLAR_WEBHOOK_SECRET,
 )
 from ..services.license_email import send_license_email
 
@@ -126,6 +143,10 @@ def billing_config():
         "environment": PADDLE_ENVIRONMENT,
         "price_id_monthly": PADDLE_PRICE_ID_MONTHLY or None,
         "price_id_annual": PADDLE_PRICE_ID_ANNUAL or None,
+        # Polar has no client-side token to expose (it's a redirect checkout,
+        # not an overlay) -- the frontend just needs to know whether to show
+        # the button at all.
+        "polar_available": bool(POLAR_ACCESS_TOKEN and POLAR_PRODUCT_ID_MONTHLY and POLAR_PRODUCT_ID_ANNUAL),
     }
 
 
@@ -179,6 +200,118 @@ async def paddle_webhook(request: Request):
         logger.info(
             "Subscription event {} for customer {} — no new license issued, existing key lapses at its own expiry.",
             event_type,
+            data.get("customer_id", "(unknown customer)"),
+        )
+
+    return {"status": "ok"}
+
+
+# --- Polar (alternative processor, see module docstring) ---
+
+
+def _polar_api_base() -> str:
+    return "https://sandbox-api.polar.sh/v1" if POLAR_ENVIRONMENT == "sandbox" else "https://api.polar.sh/v1"
+
+
+def _product_id_for_interval(interval: str) -> str:
+    return POLAR_PRODUCT_ID_ANNUAL if interval == "annual" else POLAR_PRODUCT_ID_MONTHLY
+
+
+def _interval_for_product_id(product_id: str | None) -> str:
+    return "annual" if product_id == POLAR_PRODUCT_ID_ANNUAL else "monthly"
+
+
+class PolarCheckoutRequest(BaseModel):
+    interval: str  # "monthly" | "annual"
+
+
+@router.post("/polar/checkout")
+def create_polar_checkout(payload: PolarCheckoutRequest):
+    product_id = _product_id_for_interval(payload.interval)
+    if not POLAR_ACCESS_TOKEN or not product_id:
+        raise HTTPException(status_code=503, detail="Polar isn't configured on this deployment.")
+
+    resp = requests.post(
+        f"{_polar_api_base()}/checkouts/",
+        headers={"Authorization": f"Bearer {POLAR_ACCESS_TOKEN}"},
+        json={"products": [product_id]},
+        timeout=10,
+    )
+    if not resp.ok:
+        logger.warning("Couldn't create Polar checkout session: {} {}", resp.status_code, resp.text)
+        raise HTTPException(status_code=502, detail="Couldn't create a Polar checkout session.")
+
+    return {"url": resp.json()["url"]}
+
+
+def _fetch_polar_customer_email(customer_id: str) -> str | None:
+    resp = requests.get(
+        f"{_polar_api_base()}/customers/{customer_id}",
+        headers={"Authorization": f"Bearer {POLAR_ACCESS_TOKEN}"},
+        timeout=10,
+    )
+    if not resp.ok:
+        logger.warning("Couldn't fetch Polar customer {}: {} {}", customer_id, resp.status_code, resp.text)
+        return None
+    return resp.json().get("email")
+
+
+def _verify_polar_signature(raw_body: bytes, webhook_id: str, webhook_timestamp: str, signature_header: str) -> bool:
+    if not webhook_id or not webhook_timestamp or not signature_header:
+        return False
+    if abs(time.time() - int(webhook_timestamp)) > _WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS:
+        return False
+
+    secret = POLAR_WEBHOOK_SECRET
+    secret_bytes = base64.b64decode(secret[len("whsec_"):]) if secret.startswith("whsec_") else secret.encode()
+    signed_content = f"{webhook_id}.{webhook_timestamp}.{raw_body.decode()}"
+    computed = base64.b64encode(
+        hmac.new(secret_bytes, signed_content.encode(), hashlib.sha256).digest()
+    ).decode()
+
+    # Header holds space-separated "v1,<sig>" pairs (key rotation support) --
+    # valid if it matches any of them, not just the first.
+    candidates = [part.split(",", 1)[1] for part in signature_header.split() if "," in part]
+    return any(hmac.compare_digest(computed, candidate) for candidate in candidates)
+
+
+@router.post("/polar/webhook")
+async def polar_webhook(request: Request):
+    if not POLAR_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="POLAR_WEBHOOK_SECRET not configured.")
+
+    raw_body = await request.body()
+    webhook_id = request.headers.get("webhook-id", "")
+    webhook_timestamp = request.headers.get("webhook-timestamp", "")
+    signature_header = request.headers.get("webhook-signature", "")
+
+    try:
+        valid = _verify_polar_signature(raw_body, webhook_id, webhook_timestamp, signature_header)
+    except (ValueError, TypeError):
+        valid = False
+    if not valid:
+        raise HTTPException(status_code=400, detail="Invalid webhook signature.")
+
+    event = json.loads(raw_body)
+    event_type = event["type"]
+    data = event["data"]
+
+    if event_type == "order.paid":
+        customer_id = data.get("customer_id")
+        if not customer_id:
+            logger.warning("order.paid with no customer_id; can't issue a license.")
+            return {"status": "ignored"}
+
+        email = _fetch_polar_customer_email(customer_id)
+        if not email:
+            logger.warning("Couldn't resolve an email for Polar customer {}; can't issue a license.", customer_id)
+            return {"status": "ignored"}
+
+        _issue_and_deliver(email, plan=_interval_for_product_id(data.get("product_id")))
+
+    elif event_type == "subscription.canceled":
+        logger.info(
+            "Polar subscription canceled for customer {} — no new license issued, existing key lapses at its own expiry.",
             data.get("customer_id", "(unknown customer)"),
         )
 

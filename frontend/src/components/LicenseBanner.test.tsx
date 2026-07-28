@@ -1,18 +1,29 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LicenseBanner } from "./LicenseBanner";
 import * as api from "../api";
 import * as paddle from "../paddle";
+import * as polar from "../polar";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
-  return { ...actual, fetchLicenseStatus: vi.fn() };
+  return { ...actual, fetchLicenseStatus: vi.fn(), fetchBillingConfig: vi.fn() };
 });
 
 vi.mock("../paddle", () => ({ openPaddleCheckout: vi.fn() }));
+vi.mock("../polar", () => ({ openPolarCheckout: vi.fn() }));
 
 describe("LicenseBanner", () => {
+  beforeEach(() => {
+    // Most tests don't care about Polar -- default it "off" so the extra
+    // buttons don't show up unless a test explicitly opts in.
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({
+      client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
+      polar_available: false,
+    });
+  });
+
   it("renders nothing until the license status has loaded", () => {
     vi.mocked(api.fetchLicenseStatus).mockReturnValue(new Promise(() => {}));
     const { container } = render(<LicenseBanner />);
@@ -103,5 +114,48 @@ describe("LicenseBanner", () => {
     await userEvent.click(await screen.findByRole("button", { name: /\$30\/mo/i }));
 
     expect(await screen.findByText("Paddle isn't configured on this deployment.")).toBeInTheDocument();
+  });
+
+  it("does not show Polar buttons when Polar isn't configured on this deployment", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      licensed: false, reason: "trial", customer_email: null, plan: null, trial_days_left: 3,
+    });
+
+    render(<LicenseBanner />);
+
+    await screen.findByRole("button", { name: /\$30\/mo/i });
+    expect(screen.queryByRole("button", { name: /pay with polar/i })).not.toBeInTheDocument();
+  });
+
+  it("shows Polar buttons and opens Polar checkout when Polar is configured", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      licensed: false, reason: "trial", customer_email: null, plan: null, trial_days_left: 3,
+    });
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({
+      client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
+      polar_available: true,
+    });
+    vi.mocked(polar.openPolarCheckout).mockResolvedValue(undefined);
+
+    render(<LicenseBanner />);
+    await userEvent.click(await screen.findByRole("button", { name: /pay with polar.*annual/i }));
+
+    await waitFor(() => expect(polar.openPolarCheckout).toHaveBeenCalledWith("annual"));
+  });
+
+  it("shows an error message when Polar checkout fails to open", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      licensed: false, reason: "trial", customer_email: null, plan: null, trial_days_left: 3,
+    });
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({
+      client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
+      polar_available: true,
+    });
+    vi.mocked(polar.openPolarCheckout).mockRejectedValue(new Error("Polar isn't configured on this deployment."));
+
+    render(<LicenseBanner />);
+    await userEvent.click(await screen.findByRole("button", { name: /pay with polar.*mo/i }));
+
+    expect(await screen.findByText("Polar isn't configured on this deployment.")).toBeInTheDocument();
   });
 });

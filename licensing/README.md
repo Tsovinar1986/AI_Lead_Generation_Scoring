@@ -66,6 +66,44 @@ Checkout → Payment methods if it isn't already on.
    sandbox purchase works end-to-end, switch `PADDLE_ENVIRONMENT=production`
    and swap in your live API key/client token/prices.
 
+## Polar — an alternative processor (optional, not a Paddle fallback)
+
+Paddle doesn't support sellers in every country. If you're one of the
+sellers it can't serve, **Polar** is worth checking: it's also a
+merchant-of-record, but pays out via Stripe Connect Express, whose
+supported *recipient* countries are broader than the countries Stripe
+supports for a direct merchant account — worth verifying by actually
+starting Polar's signup flow, since the only certain way to know is
+whether it accepts your business. This is additive, not a replacement:
+both processors can be live at once, each with its own buy button, sharing
+the same license-issuance logic.
+
+1. **Create a Polar account** at polar.sh (sandbox by default —
+   `sandbox-api.polar.sh`, fully separate from production).
+2. **Create two Products**, one per plan (Polar models a plan as its own
+   Product, not one product with multiple Prices like Paddle) — set
+   `POLAR_PRODUCT_ID_MONTHLY` / `POLAR_PRODUCT_ID_ANNUAL` to their ids.
+3. **Create an Organization Access Token** (dashboard → Developer settings)
+   with `checkouts:write` — set as `POLAR_ACCESS_TOKEN`.
+4. **Add a webhook endpoint** pointing at
+   `https://www.crmscoring.com/api/billing/polar/webhook` (or wherever this
+   backend ends up hosted — same tunnel-for-local-testing caveat as
+   Paddle's webhook above), subscribed to `order.paid` (fires for both the
+   first payment and every renewal, same simple model as Paddle's
+   `transaction.completed`) and `subscription.canceled`. Copy the
+   destination's signing secret into `POLAR_WEBHOOK_SECRET`.
+5. Unlike Paddle.js, Polar has no client-side checkout overlay — the
+   backend creates the session itself (`POST /api/billing/polar/checkout`)
+   and hands back a URL to redirect the buyer to
+   (`frontend/src/polar.ts`). `GET /api/billing/config`'s `polar_available`
+   field controls whether the "Pay with Polar" buttons show up at all — set
+   all four `POLAR_*` variables above to reveal them; leave any unset to
+   keep them hidden.
+
+Once a full sandbox purchase works end-to-end, switch
+`POLAR_ENVIRONMENT=production` and swap in your live token/product ids —
+same pattern as Paddle.
+
 ## What happens on a sale
 
 Paddle fires `transaction.completed` → the webhook looks up the buyer's

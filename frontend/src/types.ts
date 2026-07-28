@@ -58,4 +58,5 @@ export interface BillingConfig {
   environment: "sandbox" | "production";
   price_id_monthly: string | null;
   price_id_annual: string | null;
+  polar_available: boolean;
 }

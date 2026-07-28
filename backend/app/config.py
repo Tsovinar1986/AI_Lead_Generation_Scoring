@@ -101,6 +101,23 @@ PADDLE_PRICE_ID_ANNUAL = os.getenv("PADDLE_PRICE_ID_ANNUAL", "")
 LICENSE_VALIDITY_DAYS_MONTHLY = int(os.getenv("LICENSE_VALIDITY_DAYS_MONTHLY", "35"))
 LICENSE_VALIDITY_DAYS_ANNUAL = int(os.getenv("LICENSE_VALIDITY_DAYS_ANNUAL", "380"))
 
+# --- Polar (seller side, alternative to Paddle) ---
+# Polar is also a merchant-of-record, added alongside Paddle (not instead of
+# it) specifically for sellers Paddle can't serve either -- Polar pays out
+# via Stripe Connect Express, whose supported *recipient* countries are
+# broader than the countries Stripe itself supports for a direct merchant
+# account (confirmed: Armenia is a supported Polar/Connect payout country
+# even though it isn't a Stripe merchant country). See licensing/README.md.
+POLAR_ACCESS_TOKEN = os.getenv("POLAR_ACCESS_TOKEN", "")
+POLAR_WEBHOOK_SECRET = os.getenv("POLAR_WEBHOOK_SECRET", "")
+# "sandbox" (default -- sandbox-api.polar.sh, a separate test org) or
+# "production" (api.polar.sh).
+POLAR_ENVIRONMENT = os.getenv("POLAR_ENVIRONMENT", "sandbox")
+# Polar models each plan as its own Product (rather than one product with
+# multiple Prices, as Paddle does) -- two Product ids here, one per plan.
+POLAR_PRODUCT_ID_MONTHLY = os.getenv("POLAR_PRODUCT_ID_MONTHLY", "")
+POLAR_PRODUCT_ID_ANNUAL = os.getenv("POLAR_PRODUCT_ID_ANNUAL", "")
+
 # --- Email delivery (seller side) ---
 # Sends issued license keys to buyers automatically. Without either of these
 # set, keys are still issued and logged/appended to

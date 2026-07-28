@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
-import { LicenseRequiredError, uploadLeads } from "../api";
+import { useEffect, useRef, useState } from "react";
+import { LicenseRequiredError, fetchBillingConfig, uploadLeads } from "../api";
 import { openPaddleCheckout } from "../paddle";
+import { openPolarCheckout } from "../polar";
 import type { BillingInterval, ScoredLead } from "../types";
 
 interface Props {
@@ -14,6 +15,13 @@ export function UploadPanel({ onUploaded }: Props) {
   const [licenseRequired, setLicenseRequired] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [trialLimitNotice, setTrialLimitNotice] = useState<string | null>(null);
+  const [polarAvailable, setPolarAvailable] = useState(false);
+
+  useEffect(() => {
+    fetchBillingConfig()
+      .then((config) => setPolarAvailable(config.polar_available))
+      .catch(() => setPolarAvailable(false));
+  }, []);
 
   async function handleFile(file: File) {
     setBusy(true);
@@ -44,6 +52,17 @@ export function UploadPanel({ onUploaded }: Props) {
     setBusy(true);
     try {
       await openPaddleCheckout(interval);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't start checkout");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleBuyWithPolar(interval: BillingInterval) {
+    setBusy(true);
+    try {
+      await openPolarCheckout(interval);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start checkout");
     } finally {
@@ -91,6 +110,16 @@ export function UploadPanel({ onUploaded }: Props) {
           <button className="primary" disabled={busy} onClick={() => handleBuy("annual")}>
             Buy annual (save 2 months)
           </button>
+          {polarAvailable && (
+            <>
+              <button className="secondary" disabled={busy} onClick={() => handleBuyWithPolar("monthly")}>
+                Pay with Polar — $30/mo
+              </button>
+              <button className="secondary" disabled={busy} onClick={() => handleBuyWithPolar("annual")}>
+                Pay with Polar — annual
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

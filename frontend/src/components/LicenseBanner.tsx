@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
-import { fetchLicenseStatus } from "../api";
+import { fetchBillingConfig, fetchLicenseStatus } from "../api";
 import { openPaddleCheckout } from "../paddle";
+import { openPolarCheckout } from "../polar";
 import type { BillingInterval, LicenseStatus } from "../types";
+
+type BuyKey = `${"paddle" | "polar"}-${BillingInterval}`;
 
 export function LicenseBanner() {
   const [status, setStatus] = useState<LicenseStatus | null>(null);
-  const [busyInterval, setBusyInterval] = useState<BillingInterval | null>(null);
+  const [polarAvailable, setPolarAvailable] = useState(false);
+  const [busyKey, setBusyKey] = useState<BuyKey | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -14,17 +18,32 @@ export function LicenseBanner() {
       .catch(() =>
         setStatus({ licensed: false, reason: "trial", customer_email: null, plan: null, trial_days_left: null })
       );
+    fetchBillingConfig()
+      .then((config) => setPolarAvailable(config.polar_available))
+      .catch(() => setPolarAvailable(false));
   }, []);
 
   async function handleBuy(interval: BillingInterval) {
-    setBusyInterval(interval);
+    setBusyKey(`paddle-${interval}`);
     setError(null);
     try {
       await openPaddleCheckout(interval);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start checkout");
     } finally {
-      setBusyInterval(null);
+      setBusyKey(null);
+    }
+  }
+
+  async function handleBuyWithPolar(interval: BillingInterval) {
+    setBusyKey(`polar-${interval}`);
+    setError(null);
+    try {
+      await openPolarCheckout(interval);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't start checkout");
+    } finally {
+      setBusyKey(null);
     }
   }
 
@@ -80,12 +99,30 @@ export function LicenseBanner() {
       <div className="license-banner-actions">
         {showBuyButtons && (
           <>
-            <button className="primary" disabled={busyInterval !== null} onClick={() => handleBuy("monthly")}>
-              {busyInterval === "monthly" ? "Opening checkout…" : "$30/mo"}
+            <button className="primary" disabled={busyKey !== null} onClick={() => handleBuy("monthly")}>
+              {busyKey === "paddle-monthly" ? "Opening checkout…" : "$30/mo"}
             </button>
-            <button className="primary" disabled={busyInterval !== null} onClick={() => handleBuy("annual")}>
-              {busyInterval === "annual" ? "Opening checkout…" : "Buy annual (save 2 months)"}
+            <button className="primary" disabled={busyKey !== null} onClick={() => handleBuy("annual")}>
+              {busyKey === "paddle-annual" ? "Opening checkout…" : "Buy annual (save 2 months)"}
             </button>
+            {polarAvailable && (
+              <>
+                <button
+                  className="secondary"
+                  disabled={busyKey !== null}
+                  onClick={() => handleBuyWithPolar("monthly")}
+                >
+                  {busyKey === "polar-monthly" ? "Opening checkout…" : "Pay with Polar — $30/mo"}
+                </button>
+                <button
+                  className="secondary"
+                  disabled={busyKey !== null}
+                  onClick={() => handleBuyWithPolar("annual")}
+                >
+                  {busyKey === "polar-annual" ? "Opening checkout…" : "Pay with Polar — annual"}
+                </button>
+              </>
+            )}
           </>
         )}
         {error && <span className="error">{error}</span>}

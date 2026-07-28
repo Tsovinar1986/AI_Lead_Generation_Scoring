@@ -1,4 +1,4 @@
-import type { Alert, BillingConfig, LicenseStatus, ScoredLead } from "./types";
+import type { Alert, BillingConfig, BillingInterval, LicenseStatus, ScoredLead } from "./types";
 
 // Same-origin by default -- works unmodified both in merged production mode
 // (backend serves the built frontend, so "same origin" IS the backend) and
@@ -109,5 +109,14 @@ export async function fetchLicenseStatus(): Promise<LicenseStatus> {
 
 export async function fetchBillingConfig(): Promise<BillingConfig> {
   const res = await fetch(`${BASE}/billing/config`);
+  return handle(res);
+}
+
+export async function createPolarCheckout(interval: BillingInterval): Promise<{ url: string }> {
+  const res = await fetch(`${BASE}/billing/polar/checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ interval }),
+  });
   return handle(res);
 }

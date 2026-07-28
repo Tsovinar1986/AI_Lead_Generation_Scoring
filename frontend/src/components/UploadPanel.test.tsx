@@ -1,15 +1,17 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UploadPanel } from "./UploadPanel";
 import * as api from "../api";
+import * as polar from "../polar";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
-  return { ...actual, uploadLeads: vi.fn() };
+  return { ...actual, uploadLeads: vi.fn(), fetchBillingConfig: vi.fn() };
 });
 
 vi.mock("../paddle", () => ({ openPaddleCheckout: vi.fn() }));
+vi.mock("../polar", () => ({ openPolarCheckout: vi.fn() }));
 
 function selectFile() {
   const file = new File(["company_name,domain\nAcme,acme.com"], "leads.csv", { type: "text/csv" });
@@ -18,6 +20,13 @@ function selectFile() {
 }
 
 describe("UploadPanel", () => {
+  beforeEach(() => {
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({
+      client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
+      polar_available: false,
+    });
+  });
+
   it("calls onUploaded with the scored leads on success", async () => {
     const leads = [{ id: "1", company_name: "Acme" }] as never;
     vi.mocked(api.uploadLeads).mockResolvedValue({ leads, trialLimitedRows: null, trialTotalRows: null });
@@ -58,5 +67,20 @@ describe("UploadPanel", () => {
     expect(screen.getByRole("button", { name: /\$30\/mo/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /buy annual/i })).toBeInTheDocument();
     expect(screen.queryByText("No valid license found.")).not.toBeInTheDocument();
+  });
+
+  it("shows Polar as an alternative to Paddle when configured, on the license-expired CTA", async () => {
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({
+      client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
+      polar_available: true,
+    });
+    vi.mocked(api.uploadLeads).mockRejectedValue(new api.LicenseRequiredError("No valid license found."));
+    vi.mocked(polar.openPolarCheckout).mockResolvedValue(undefined);
+
+    render(<UploadPanel onUploaded={vi.fn()} />);
+    await selectFile();
+
+    await userEvent.click(await screen.findByRole("button", { name: /pay with polar.*annual/i }));
+    await waitFor(() => expect(polar.openPolarCheckout).toHaveBeenCalledWith("annual"));
   });
 });

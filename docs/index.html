@@ -342,12 +342,14 @@
           <div class="price">$30<span>/mo</span></div>
           <p class="note">Billed monthly, cancel anytime.</p>
           <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('monthly')">Get started</button>
+          <button class="btn btn-secondary" id="polar-btn-monthly" style="width:100%; text-align:center; display:none; font: inherit; margin-top:8px;" onclick="buyPlanWithPolar('monthly')">Pay with Polar instead</button>
         </div>
         <div class="plan featured">
           <span class="badge">Annual — save 2 months</span>
           <div class="price">$300<span>/yr</span></div>
           <p class="note">Billed yearly. Equivalent to $25/mo.</p>
           <button class="btn btn-primary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('annual')">Get started</button>
+          <button class="btn btn-secondary" id="polar-btn-annual" style="width:100%; text-align:center; display:none; font: inherit; margin-top:8px;" onclick="buyPlanWithPolar('annual')">Pay with Polar instead</button>
         </div>
       </div>
       <p id="checkout-error" class="caption" style="display:none; color: var(--hot);"></p>
@@ -392,11 +394,51 @@
       Paddle.Checkout.open({ items: [{ priceId: priceId, quantity: 1 }] });
     }
 
+    // Polar is an alternative processor to Paddle (see backend/app/routers/
+    // billing.py) -- unlike Paddle.js, it has no client-side overlay, so
+    // this calls the seller's own backend to create a session and redirects
+    // there. Hidden by default; only shown once GET /api/billing/config
+    // confirms it's actually configured on this deployment.
+    async function buyPlanWithPolar(interval) {
+      var errorEl = document.getElementById("checkout-error");
+      errorEl.style.display = "none";
+      try {
+        var res = await fetch(TRY_UPLOAD_API_BASE + "/billing/polar/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+          body: JSON.stringify({ interval: interval }),
+        });
+        var body = await res.json().catch(function () { return null; });
+        if (!res.ok) {
+          errorEl.textContent = (body && body.detail) || "Couldn't start Polar checkout.";
+          errorEl.style.display = "block";
+          return;
+        }
+        window.location.href = body.url;
+      } catch (err) {
+        errorEl.textContent = "Couldn't reach the checkout backend. Try again shortly.";
+        errorEl.style.display = "block";
+      }
+    }
+
     // Public https:// tunnel (ngrok) to the demo machine's local backend.
     // Free-tier ngrok URLs are ephemeral -- this needs updating whenever the
     // tunnel is restarted. Swap for the real deployed backend URL once the
     // app is hosted publicly.
     var TRY_UPLOAD_API_BASE = "https://disobey-battered-deploy.ngrok-free.dev/api";
+
+    // Reveal the Polar buttons only once the backend confirms it's actually
+    // configured -- stays hidden (not just non-functional) otherwise, since
+    // Polar isn't set up on this deployment yet.
+    fetch(TRY_UPLOAD_API_BASE + "/billing/config", { headers: { "ngrok-skip-browser-warning": "true" } })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (config) {
+        if (config && config.polar_available) {
+          document.getElementById("polar-btn-monthly").style.display = "block";
+          document.getElementById("polar-btn-annual").style.display = "block";
+        }
+      })
+      .catch(function () { /* leave Polar buttons hidden */ });
 
     var bucketLabels = { hot: "Hot", warm: "Warm", cold: "Cold" };
     var selectedFile = null;
