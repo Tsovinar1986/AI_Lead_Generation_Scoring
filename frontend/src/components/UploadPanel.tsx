@@ -71,15 +71,15 @@ export function UploadPanel({ onUploaded }: Props) {
   }
 
   return (
-    <div className="panel upload-panel">
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-panel p-5 shadow-sm">
       <div>
-        <h2>Upload leads</h2>
-        <p className="muted">
+        <h2 className="text-base font-semibold text-heading">Upload leads</h2>
+        <p className="mt-1 text-sm text-text/75">
           CSV or XLSX with at least a company name and domain column. Missing
           firmographic fields are filled in automatically.
         </p>
       </div>
-      <div className="upload-controls">
+      <div className="flex items-center gap-3">
         <input
           ref={inputRef}
           type="file"
@@ -91,31 +91,47 @@ export function UploadPanel({ onUploaded }: Props) {
           }}
         />
         <button
-          className="primary"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={busy}
           onClick={() => inputRef.current?.click()}
         >
           {busy ? "Scoring…" : "Choose file"}
         </button>
-        {fileName && <span className="muted">{fileName}</span>}
+        {fileName && <span className="text-sm text-text/75">{fileName}</span>}
       </div>
-      {error && <p className="error">{error}</p>}
-      {trialLimitNotice && <p className="muted">{trialLimitNotice}</p>}
+      {error && <p className="w-full text-sm text-hot">{error}</p>}
+      {trialLimitNotice && <p className="w-full text-sm text-text/75">{trialLimitNotice}</p>}
       {licenseRequired && (
-        <div className="license-required">
+        <div className="flex w-full flex-wrap items-center gap-3 border-t border-border pt-3 text-sm text-hot">
           <p>Your trial has expired — a license is required to keep scoring leads.</p>
-          <button className="primary" disabled={busy} onClick={() => handleBuy("monthly")}>
+          <button
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={busy}
+            onClick={() => handleBuy("monthly")}
+          >
             $30/mo
           </button>
-          <button className="primary" disabled={busy} onClick={() => handleBuy("annual")}>
+          <button
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={busy}
+            onClick={() => handleBuy("annual")}
+          >
             Buy annual (save 2 months)
           </button>
           {polarAvailable && (
             <>
-              <button className="secondary" disabled={busy} onClick={() => handleBuyWithPolar("monthly")}>
+              <button
+                className="rounded-md border border-accent/40 bg-accent-soft px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={busy}
+                onClick={() => handleBuyWithPolar("monthly")}
+              >
                 Pay with Polar — $30/mo
               </button>
-              <button className="secondary" disabled={busy} onClick={() => handleBuyWithPolar("annual")}>
+              <button
+                className="rounded-md border border-accent/40 bg-accent-soft px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={busy}
+                onClick={() => handleBuyWithPolar("annual")}
+              >
                 Pay with Polar — annual
               </button>
             </>

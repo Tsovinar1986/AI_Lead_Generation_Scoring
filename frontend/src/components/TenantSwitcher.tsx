@@ -31,29 +31,48 @@ export function TenantSwitcher({ onChange }: Props) {
 
   if (editing) {
     return (
-      <div className="tenant-switcher">
+      <div className="flex flex-wrap items-center gap-2">
         <input
           type="password"
           placeholder="Paste your workspace API key"
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSave()}
+          className="min-w-[220px] rounded-md border border-border bg-panel px-3 py-1.5 text-sm text-heading outline-none focus:border-accent"
         />
-        <button className="primary" onClick={handleSave}>Connect</button>
-        <button onClick={() => setEditing(false)}>Cancel</button>
+        <button
+          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
+          onClick={handleSave}
+        >
+          Connect
+        </button>
+        <button
+          className="rounded-md border border-border bg-panel px-3 py-1.5 text-sm text-heading transition-colors hover:border-accent/40"
+          onClick={() => setEditing(false)}
+        >
+          Cancel
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="tenant-switcher">
+    <div className="flex flex-wrap items-center gap-2">
       {hasKey ? (
         <>
-          <span className="muted">Connected to a custom workspace</span>
-          <button onClick={handleClear}>Disconnect</button>
+          <span className="text-sm text-text/75">Connected to a custom workspace</span>
+          <button
+            className="rounded-md border border-border bg-panel px-3 py-1.5 text-sm text-heading transition-colors hover:border-accent/40"
+            onClick={handleClear}
+          >
+            Disconnect
+          </button>
         </>
       ) : (
-        <button className="tenant-switcher-link" onClick={() => setEditing(true)}>
+        <button
+          className="bg-transparent text-sm text-accent underline underline-offset-2"
+          onClick={() => setEditing(true)}
+        >
           Have a workspace key?
         </button>
       )}

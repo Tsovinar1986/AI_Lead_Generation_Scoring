@@ -15,6 +15,19 @@ const BUCKET_LABELS: Record<string, string> = {
   cold: "Cold",
 };
 
+const CHIP_ACTIVE_CLASSES: Record<string, string> = {
+  all: "border-accent bg-accent-soft text-accent",
+  hot: "border-hot bg-hot-soft text-hot",
+  warm: "border-warm bg-warm-soft text-warm",
+  cold: "border-cold bg-cold-soft text-cold",
+};
+
+const BADGE_CLASSES: Record<string, string> = {
+  hot: "bg-hot-soft text-hot",
+  warm: "bg-warm-soft text-warm",
+  cold: "bg-cold-soft text-cold",
+};
+
 export function LeadsTable({
   leads,
   selectedId,
@@ -34,14 +47,18 @@ export function LeadsTable({
   );
 
   return (
-    <div className="panel leads-panel">
-      <div className="leads-header">
-        <h2>Ranked leads ({filtered.length})</h2>
-        <div className="bucket-filters">
+    <div className="rounded-xl border border-border bg-panel p-5 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-heading">Ranked leads ({filtered.length})</h2>
+        <div className="flex flex-wrap items-center gap-1.5">
           {(["all", "hot", "warm", "cold"] as const).map((b) => (
             <button
               key={b}
-              className={`chip chip-${b} ${bucketFilter === b ? "chip-active" : ""}`}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                bucketFilter === b
+                  ? CHIP_ACTIVE_CLASSES[b]
+                  : "border-border text-text hover:border-accent/40"
+              }`}
               onClick={() => onBucketFilterChange(b)}
             >
               {b === "all" ? "All" : BUCKET_LABELS[b]}
@@ -49,7 +66,7 @@ export function LeadsTable({
             </button>
           ))}
           <button
-            className="chip"
+            className="rounded-full border border-border px-3 py-1 text-xs font-medium text-text transition-colors hover:border-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={filtered.length === 0}
             onClick={() =>
               downloadLeadsCsv(
@@ -64,48 +81,57 @@ export function LeadsTable({
       </div>
 
       {leads.length === 0 ? (
-        <p className="muted">No leads yet — upload a file to get started.</p>
+        <p className="mt-4 text-sm text-text/75">No leads yet — upload a file to get started.</p>
       ) : (
-        <div className="table-scroll">
-          <table>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
-                <th>Company</th>
-                <th>Industry</th>
-                <th>Contact</th>
-                <th>Fit</th>
-                <th>LLM</th>
-                <th>Combined</th>
-                <th>Bucket</th>
+                {["Company", "Industry", "Contact", "Fit", "LLM", "Combined", "Bucket"].map((h) => (
+                  <th
+                    key={h}
+                    className="whitespace-nowrap border-b border-border px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-text/70"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map((lead) => (
                 <tr
                   key={lead.id}
-                  className={lead.id === selectedId ? "row-selected" : ""}
+                  className={`cursor-pointer transition-colors hover:bg-accent-soft ${
+                    lead.id === selectedId ? "bg-accent-soft" : ""
+                  }`}
                   onClick={() => onSelect(lead)}
                 >
-                  <td>
-                    <div className="company-cell">
-                      <strong>{lead.company_name}</strong>
-                      <span className="muted">{lead.domain}</span>
+                  <td className="border-b border-border px-3 py-3 align-top">
+                    <div className="flex flex-col">
+                      <strong className="font-medium text-heading">{lead.company_name}</strong>
+                      <span className="text-xs text-text/75">{lead.domain}</span>
                     </div>
                   </td>
-                  <td>{lead.industry}</td>
-                  <td>
-                    <div className="company-cell">
+                  <td className="border-b border-border px-3 py-3 align-top">{lead.industry}</td>
+                  <td className="border-b border-border px-3 py-3 align-top">
+                    <div className="flex flex-col">
                       <span>{lead.contact_name ?? "—"}</span>
-                      <span className="muted">{lead.contact_title}</span>
+                      <span className="text-xs text-text/75">{lead.contact_title}</span>
                     </div>
                   </td>
-                  <td>{lead.fit_score.toFixed(0)}</td>
-                  <td>{lead.conversion_likelihood.toFixed(0)}</td>
-                  <td>
-                    <strong>{lead.combined_score.toFixed(0)}</strong>
+                  <td className="border-b border-border px-3 py-3 align-top tabular-nums">
+                    {lead.fit_score.toFixed(0)}
                   </td>
-                  <td>
-                    <span className={`badge badge-${lead.bucket}`}>
+                  <td className="border-b border-border px-3 py-3 align-top tabular-nums">
+                    {lead.conversion_likelihood.toFixed(0)}
+                  </td>
+                  <td className="border-b border-border px-3 py-3 align-top tabular-nums">
+                    <strong className="font-semibold text-heading">{lead.combined_score.toFixed(0)}</strong>
+                  </td>
+                  <td className="border-b border-border px-3 py-3 align-top">
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${BADGE_CLASSES[lead.bucket]}`}
+                    >
                       {BUCKET_LABELS[lead.bucket]}
                     </span>
                   </td>

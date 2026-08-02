@@ -6,6 +6,11 @@ import type { BillingInterval, LicenseStatus } from "../types";
 
 type BuyKey = `${"paddle" | "polar"}-${BillingInterval}`;
 
+const btnPrimary =
+  "rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50";
+const btnSecondary =
+  "rounded-md border border-accent/40 bg-accent-soft px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50";
+
 export function LicenseBanner() {
   const [status, setStatus] = useState<LicenseStatus | null>(null);
   const [polarAvailable, setPolarAvailable] = useState(false);
@@ -51,11 +56,11 @@ export function LicenseBanner() {
 
   if (status.licensed) {
     return (
-      <div className="panel license-banner license-banner-active">
-        <span>
-          Licensed to <strong>{status.customer_email}</strong> ({status.plan} plan)
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-panel px-5 py-3 text-sm shadow-sm">
+        <span className="text-text">
+          Licensed to <strong className="text-heading">{status.customer_email}</strong> ({status.plan} plan)
           {status.expires_at && (
-            <span className="muted"> — renews {new Date(status.expires_at * 1000).toLocaleDateString()}</span>
+            <span className="text-text/75"> — renews {new Date(status.expires_at * 1000).toLocaleDateString()}</span>
           )}
         </span>
       </div>
@@ -91,31 +96,35 @@ export function LicenseBanner() {
               showBuyButtons: true,
             };
 
-  const bannerVariant = status.reason === "invalid" || status.reason === "trial_expired" ? "error" : "trial";
+  const isError = status.reason === "invalid" || status.reason === "trial_expired";
 
   return (
-    <div className={`panel license-banner license-banner-${bannerVariant}`}>
+    <div
+      className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-5 py-3 text-sm shadow-sm ${
+        isError ? "border-hot/30 bg-hot-soft text-hot" : "border-warm/30 bg-warm-soft text-warm"
+      }`}
+    >
       <span>{message}</span>
-      <div className="license-banner-actions">
+      <div className="flex flex-wrap items-center gap-2">
         {showBuyButtons && (
           <>
-            <button className="primary" disabled={busyKey !== null} onClick={() => handleBuy("monthly")}>
+            <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("monthly")}>
               {busyKey === "paddle-monthly" ? "Opening checkout…" : "$30/mo"}
             </button>
-            <button className="primary" disabled={busyKey !== null} onClick={() => handleBuy("annual")}>
+            <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("annual")}>
               {busyKey === "paddle-annual" ? "Opening checkout…" : "Buy annual (save 2 months)"}
             </button>
             {polarAvailable && (
               <>
                 <button
-                  className="secondary"
+                  className={btnSecondary}
                   disabled={busyKey !== null}
                   onClick={() => handleBuyWithPolar("monthly")}
                 >
                   {busyKey === "polar-monthly" ? "Opening checkout…" : "Pay with Polar — $30/mo"}
                 </button>
                 <button
-                  className="secondary"
+                  className={btnSecondary}
                   disabled={busyKey !== null}
                   onClick={() => handleBuyWithPolar("annual")}
                 >
@@ -125,7 +134,7 @@ export function LicenseBanner() {
             )}
           </>
         )}
-        {error && <span className="error">{error}</span>}
+        {error && <span className="text-hot">{error}</span>}
       </div>
     </div>
   );

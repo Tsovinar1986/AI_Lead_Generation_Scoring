@@ -47,35 +47,43 @@ function LeadScoringApp() {
   const selectedLead = leads.find((l) => l.id === selectedId) ?? null;
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <div className="app-header-row">
-          <div>
-            <h1>AI Lead Generation &amp; Scoring Agent</h1>
-            <p className="muted">Upload leads, get a ranked hybrid score, act on the hot ones.</p>
+    <div className="min-h-screen bg-bg font-sans text-text antialiased">
+      <div className="mx-auto max-w-[1200px] px-6 py-8">
+        <header className="mb-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-heading">
+                AI Lead Generation &amp; Scoring Agent
+              </h1>
+              <p className="mt-1 text-sm text-text/75">
+                Upload leads, get a ranked hybrid score, act on the hot ones.
+              </p>
+            </div>
+            <TenantSwitcher onChange={handleWorkspaceChange} />
           </div>
-          <TenantSwitcher onChange={handleWorkspaceChange} />
-        </div>
-        {authError && <p className="error">{authError}</p>}
-      </header>
+          {authError && <p className="mt-3 text-sm text-hot">{authError}</p>}
+        </header>
 
-      <LicenseBanner />
+        <div className="mb-5">
+          <LicenseBanner />
+        </div>
 
-      <main className="app-grid">
-        <div className="app-main-col">
-          <UploadPanel onUploaded={handleUploaded} />
-          <LeadsTable
-            leads={leads}
-            selectedId={selectedId}
-            bucketFilter={bucketFilter}
-            onSelect={(lead) => setSelectedId(lead.id)}
-            onBucketFilterChange={setBucketFilter}
-          />
-        </div>
-        <div className="app-side-col">
-          <AlertsPanel alerts={alerts} />
-        </div>
-      </main>
+        <main className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_280px]">
+          <div className="flex min-w-0 flex-col gap-5">
+            <UploadPanel onUploaded={handleUploaded} />
+            <LeadsTable
+              leads={leads}
+              selectedId={selectedId}
+              bucketFilter={bucketFilter}
+              onSelect={(lead) => setSelectedId(lead.id)}
+              onBucketFilterChange={setBucketFilter}
+            />
+          </div>
+          <div>
+            <AlertsPanel alerts={alerts} />
+          </div>
+        </main>
+      </div>
 
       {selectedLead && (
         <LeadDetail
