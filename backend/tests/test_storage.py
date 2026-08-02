@@ -131,3 +131,54 @@ def test_get_or_start_trial_persists_across_reconnect(tmp_path):
     storage._conn = storage._connect()
 
     assert storage.get_or_start_trial() == started
+
+
+# --- SQL injection: every query in storage.py uses ? placeholders, never
+# string-built SQL, so a malicious value in any of these fields should be
+# treated as inert data -- never as executable SQL, never able to read or
+# affect another tenant's rows.
+
+
+INJECTION_PAYLOAD = "x'; DROP TABLE leads; --"
+
+
+def test_tenant_id_containing_sql_metacharacters_is_treated_as_literal_data():
+    tenant_id = "tenant'; DROP TABLE leads; --"
+    storage.upsert_leads(tenant_id, [make_scored_lead(domain="a.com")])
+
+    # If this were ever interpolated instead of bound, the table would be
+    # gone and every call below would raise sqlite3.OperationalError.
+    assert len(storage.list_leads(tenant_id)) == 1
+    assert storage.list_leads(TENANT) == []  # no cross-tenant bleed either
+
+
+def test_lead_domain_containing_sql_metacharacters_is_treated_as_literal_data():
+    storage.upsert_leads(TENANT, [make_scored_lead(domain=INJECTION_PAYLOAD)])
+
+    leads = storage.list_leads(TENANT)
+    assert len(leads) == 1
+    assert leads[0].domain == INJECTION_PAYLOAD
+
+
+def test_lead_id_lookup_with_sql_metacharacters_finds_nothing_not_everything():
+    storage.upsert_leads(TENANT, [make_scored_lead(domain="a.com")])
+
+    # A classic injection probe (e.g. "' OR '1'='1") must not turn into a
+    # match-everything query -- it should simply find no such id.
+    assert storage.get_lead(TENANT, "' OR '1'='1") is None
+
+
+def test_api_key_lookup_with_sql_metacharacters_finds_nothing():
+    storage.create_tenant("Acme Corp")
+    assert storage.get_tenant_by_api_key("' OR '1'='1") is None
+
+
+def test_database_still_usable_after_injection_attempt_in_same_session():
+    # Same DB instance, same test -- proves an injection attempt doesn't
+    # corrupt state for whatever runs after it, not just that a fresh DB
+    # in a different test happens to still work.
+    storage.upsert_leads(TENANT, [make_scored_lead(domain=INJECTION_PAYLOAD)])
+    storage.get_lead(TENANT, "' OR '1'='1")
+
+    storage.upsert_leads(TENANT, [make_scored_lead(domain="still-here.com")])
+    assert "still-here.com" in [lead.domain for lead in storage.list_leads(TENANT)]

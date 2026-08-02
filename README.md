@@ -152,5 +152,11 @@ one — see `.env.example` for what each variable unlocks.
   `.xls` before parsing; request bodies use `Literal` types instead of bare
   `str` wherever only a fixed set of values makes sense (billing interval,
   outreach channel, CRM target); lead/customer text fields have length caps
-  and numeric fields reject negatives. SQL is parameterized throughout
-  (`storage.py`) — no string-built queries anywhere.
+  and numeric fields reject negatives.
+- **SQL**: every query in `storage.py` uses `?` placeholders — no
+  string-built queries anywhere, so nothing from an upload or an API
+  request is ever interpolated into SQL. `tests/test_storage.py` proves
+  this with real injection payloads (`'; DROP TABLE leads; --`, `' OR
+  '1'='1`) through every field that flows into a query — tenant ID, lead
+  ID, domain, API key — confirming each is treated as inert data, not
+  executed or able to cross a tenant boundary.
