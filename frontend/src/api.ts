@@ -1,4 +1,4 @@
-import type { Alert, BillingConfig, BillingInterval, LicenseStatus, ScoredLead } from "./types";
+import type { BillingConfig, BillingInterval, LicenseStatus, ScoredLead } from "./types";
 
 // Same-origin by default -- works unmodified both in merged production mode
 // (backend serves the built frontend, so "same origin" IS the backend) and
@@ -68,11 +68,6 @@ export async function uploadLeads(file: File): Promise<UploadResult> {
 
 export async function fetchLeads(): Promise<ScoredLead[]> {
   const res = await fetch(`${BASE}/leads`, { headers: authHeaders() });
-  return handle(res);
-}
-
-export async function fetchAlerts(): Promise<Alert[]> {
-  const res = await fetch(`${BASE}/alerts`, { headers: authHeaders() });
   return handle(res);
 }
 

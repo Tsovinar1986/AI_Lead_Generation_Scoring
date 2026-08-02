@@ -32,15 +32,6 @@ export interface ScoredLead {
   crm_pushed: boolean;
 }
 
-export interface Alert {
-  id: string;
-  lead_id: string;
-  company_name: string;
-  combined_score: number;
-  message: string;
-  channel: string;
-}
-
 export type LicenseStatus =
   | {
       licensed: false;

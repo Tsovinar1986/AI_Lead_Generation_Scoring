@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
-import { TenantAuthError, clearTenantApiKey, fetchAlerts, fetchLeads } from "./api";
-import { AlertsPanel } from "./components/AlertsPanel";
+import { TenantAuthError, clearTenantApiKey, fetchLeads } from "./api";
 import { LeadDetail } from "./components/LeadDetail";
 import { LeadsTable } from "./components/LeadsTable";
 import { LicenseBanner } from "./components/LicenseBanner";
 import { TenantSwitcher } from "./components/TenantSwitcher";
 import { UploadPanel } from "./components/UploadPanel";
 import { PurchaseComplete } from "./pages/PurchaseComplete";
-import type { Alert, ScoredLead } from "./types";
+import type { ScoredLead } from "./types";
 
 function LeadScoringApp() {
   const [leads, setLeads] = useState<ScoredLead[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [bucketFilter, setBucketFilter] = useState<"all" | "hot" | "warm" | "cold">("all");
   const [workspaceGeneration, setWorkspaceGeneration] = useState(0);
@@ -26,12 +24,10 @@ function LeadScoringApp() {
           setAuthError("That workspace key was rejected — disconnected, showing the default workspace.");
         }
       });
-    fetchAlerts().then(setAlerts).catch(() => {});
   }, [workspaceGeneration]);
 
   function handleUploaded(newLeads: ScoredLead[]) {
     setLeads(newLeads);
-    fetchAlerts().then(setAlerts).catch(() => {});
   }
 
   function handleLeadUpdate(updated: ScoredLead) {
@@ -68,20 +64,15 @@ function LeadScoringApp() {
           <LicenseBanner />
         </div>
 
-        <main className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[1fr_280px]">
-          <div className="flex min-w-0 flex-col gap-5">
-            <UploadPanel onUploaded={handleUploaded} />
-            <LeadsTable
-              leads={leads}
-              selectedId={selectedId}
-              bucketFilter={bucketFilter}
-              onSelect={(lead) => setSelectedId(lead.id)}
-              onBucketFilterChange={setBucketFilter}
-            />
-          </div>
-          <div>
-            <AlertsPanel alerts={alerts} />
-          </div>
+        <main className="flex flex-col gap-5">
+          <UploadPanel onUploaded={handleUploaded} />
+          <LeadsTable
+            leads={leads}
+            selectedId={selectedId}
+            bucketFilter={bucketFilter}
+            onSelect={(lead) => setSelectedId(lead.id)}
+            onBucketFilterChange={setBucketFilter}
+          />
         </main>
       </div>
 
