@@ -22,4 +22,12 @@ echo "-> Building frontend..."
 (cd frontend && npm install --silent && npm run build)
 
 echo "-> Starting on http://localhost:8081 (Ctrl+C to stop)"
-cd backend && exec "$VENV_PY" -m uvicorn app.main:app --port 8081
+cd backend
+# Only trust X-Forwarded-*  headers (needed for rate limiting to see the
+# real client IP, not a reverse proxy's) if you're actually running this
+# behind one -- see TRUST_PROXY_HEADERS in .env.example.
+if [ "${TRUST_PROXY_HEADERS:-false}" = "true" ]; then
+  exec "$VENV_PY" -m uvicorn app.main:app --port 8081 --proxy-headers --forwarded-allow-ips='*'
+else
+  exec "$VENV_PY" -m uvicorn app.main:app --port 8081
+fi

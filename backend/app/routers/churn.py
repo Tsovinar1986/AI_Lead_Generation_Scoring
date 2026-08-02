@@ -5,17 +5,24 @@ subscribers, not B2B companies) and not the thing this product is sold as.
 No license gating here.
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, Request, UploadFile
 
+from ..config import RATE_LIMIT_UPLOAD
+from ..middleware import limiter
 from ..models import ChurnScoredCustomer
 from ..services.churn_scoring import parse_churn_file, score_churn_customer
+from ..services.upload_validation import enforce_row_cap, validate_upload_file
 
 router = APIRouter(prefix="/api/churn", tags=["churn"])
 
 
+# No license gating on this endpoint (see module docstring), so the rate
+# limit below is this endpoint's only real defense against abuse.
 @router.post("/upload", response_model=list[ChurnScoredCustomer])
-async def upload_churn(file: UploadFile):
+@limiter.limit(RATE_LIMIT_UPLOAD)
+async def upload_churn(request: Request, file: UploadFile):
     content = await file.read()
+    validate_upload_file(file.filename, content)
     try:
         customers = parse_churn_file(file.filename, content)
     except ValueError as exc:
@@ -25,5 +32,6 @@ async def upload_churn(file: UploadFile):
 
     if not customers:
         raise HTTPException(status_code=400, detail="No customer rows found in file.")
+    enforce_row_cap(len(customers))
 
     return [score_churn_customer(c) for c in customers]

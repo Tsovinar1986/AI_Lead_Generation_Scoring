@@ -1,6 +1,7 @@
 import pytest
 
 from app import storage
+from app.middleware import limiter
 from app.models import ScoreBreakdown, ScoredLead
 
 
@@ -13,6 +14,18 @@ def fresh_storage(tmp_path):
     storage._reset_for_tests(str(tmp_path / "test.db"))
     yield
     storage._conn.close()
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits():
+    """slowapi's in-memory limiter is a module-level singleton, shared
+    across every test in the run (TestClient requests all come from the
+    same synthetic address) -- without this, upload-heavy test files trip
+    the real rate limit against each other, not against anything the test
+    itself is checking.
+    """
+    limiter.reset()
+    yield
 
 
 @pytest.fixture

@@ -151,3 +151,17 @@ def test_hot_lead_upload_creates_alert(client):
     alerts = client.get("/api/alerts").json()
     # sample data includes at least one strong-fit lead
     assert isinstance(alerts, list)
+
+
+def test_outreach_rejects_invalid_channel(client):
+    lead_id = _upload(client).json()[0]["id"]
+
+    resp = client.post(f"/api/leads/{lead_id}/outreach", json={"channel": "carrier-pigeon"})
+    assert resp.status_code == 422
+
+
+def test_crm_push_rejects_invalid_crm(client):
+    lead_id = _upload(client).json()[0]["id"]
+
+    resp = client.post(f"/api/leads/{lead_id}/crm-push?crm=some-other-crm")
+    assert resp.status_code == 422

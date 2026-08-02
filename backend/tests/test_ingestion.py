@@ -50,3 +50,12 @@ def test_domain_lowercased_and_trimmed():
     lead = parse_leads_file("leads.csv", csv)[0]
 
     assert lead.domain == "acme.com"
+
+
+def test_overlong_company_name_raises_value_error():
+    # Pydantic's ValidationError is a ValueError subclass, so this surfaces
+    # the same way a missing-column error does -- a 400 at the route level,
+    # not a 500 from an uncaught exception.
+    csv = ("company_name,domain\n" + "A" * 500 + ",acme.com\n").encode()
+    with pytest.raises(ValueError):
+        parse_leads_file("leads.csv", csv)

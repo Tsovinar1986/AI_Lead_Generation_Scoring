@@ -1,7 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from .. import storage
 from ..auth import get_current_tenant
+from ..config import RATE_LIMIT_UPLOAD
+from ..middleware import limiter
 from ..models import Alert, CrmPushResponse, OutreachRequest, OutreachResponse
 from ..services.crm import push_to_crm
 from ..services.outreach import generate_outreach_draft
@@ -17,9 +21,15 @@ def _get_or_404(tenant_id: str, lead_id: str):
     return lead
 
 
+# Same tier as the upload endpoints -- each call here hits a real,
+# potentially-billed third-party API (Anthropic/HubSpot/Salesforce) per lead.
 @router.post("/{lead_id}/outreach", response_model=OutreachResponse)
+@limiter.limit(RATE_LIMIT_UPLOAD)
 def create_outreach_draft(
-    lead_id: str, body: OutreachRequest, tenant: storage.Tenant = Depends(get_current_tenant)
+    request: Request,
+    lead_id: str,
+    body: OutreachRequest,
+    tenant: storage.Tenant = Depends(get_current_tenant),
 ):
     lead = _get_or_404(tenant.id, lead_id)
     draft = generate_outreach_draft(lead, channel=body.channel)
@@ -29,7 +39,13 @@ def create_outreach_draft(
 
 
 @router.post("/{lead_id}/crm-push", response_model=CrmPushResponse)
-def crm_push(lead_id: str, crm: str = "hubspot", tenant: storage.Tenant = Depends(get_current_tenant)):
+@limiter.limit(RATE_LIMIT_UPLOAD)
+def crm_push(
+    request: Request,
+    lead_id: str,
+    crm: Literal["hubspot", "salesforce"] = "hubspot",
+    tenant: storage.Tenant = Depends(get_current_tenant),
+):
     lead = _get_or_404(tenant.id, lead_id)
     result = push_to_crm(lead, crm=crm)
     lead.crm_pushed = True

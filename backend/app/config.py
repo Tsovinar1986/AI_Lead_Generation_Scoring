@@ -36,6 +36,33 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
+# --- Transport/network security (app/middleware.py, app/main.py) ---
+# Redirects plain HTTP to HTTPS at the app level. Leave false for local dev
+# (no TLS cert to redirect to) and for deployments where a proxy already
+# handles this (Render does). Turn on only for a self-hosted deployment
+# that terminates its own TLS with no proxy in front doing the redirect.
+FORCE_HTTPS = os.getenv("FORCE_HTTPS", "false").lower() == "true"
+# Trusts X-Forwarded-For/X-Forwarded-Proto from the immediate connecting
+# peer -- required for rate limiting and HTTPS-detection to see the real
+# client IP/scheme when running behind a reverse proxy (Render, nginx,
+# Caddy...), since otherwise every request appears to come from the proxy
+# itself. Only enable this when you control what's in front of this
+# process -- an internet-facing uvicorn with this on lets any client spoof
+# their own IP/scheme via those headers, defeating rate limiting entirely.
+TRUST_PROXY_HEADERS = os.getenv("TRUST_PROXY_HEADERS", "false").lower() == "true"
+
+# --- Rate limiting (app/middleware.py) ---
+# slowapi/limits syntax: "<count>/<second|minute|hour|day>".
+RATE_LIMIT_DEFAULT = os.getenv("RATE_LIMIT_DEFAULT", "100/minute")
+# Tighter limit for the expensive parse+enrich+score endpoints.
+RATE_LIMIT_UPLOAD = os.getenv("RATE_LIMIT_UPLOAD", "10/minute")
+
+# --- Upload limits (routers/leads.py, routers/churn.py) ---
+# Rejected before parsing -- bounds worst-case memory/CPU from one upload,
+# independent of the trial row cap below (which only applies unlicensed).
+MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "10"))
+MAX_UPLOAD_ROWS = int(os.getenv("MAX_UPLOAD_ROWS", "50000"))
+
 # --- Licensing (buyer side) ---
 # A signed key issued after purchase (see licensing/issue_license.py). Set by
 # whoever self-hosts this app. Verified offline against LICENSE_PUBLIC_KEY --

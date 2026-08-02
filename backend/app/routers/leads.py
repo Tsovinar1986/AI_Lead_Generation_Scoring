@@ -1,21 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, UploadFile
 
 from .. import storage
 from ..auth import get_current_tenant
-from ..config import LICENSE_REQUIRED, TRIAL_MAX_LEADS_PER_UPLOAD
+from ..config import LICENSE_REQUIRED, RATE_LIMIT_UPLOAD, TRIAL_MAX_LEADS_PER_UPLOAD
 from ..licensing import trial_days_left, verify_license
+from ..middleware import limiter
 from ..models import ScoredLead
 from ..services.alerts import maybe_alert
 from ..services.enrichment import enrich_lead
 from ..services.ingestion import parse_leads_file
 from ..services.scoring import score_lead
+from ..services.upload_validation import enforce_row_cap, validate_upload_file
 
 router = APIRouter(prefix="/api/leads", tags=["leads"])
 
 
 @router.post("/upload", response_model=list[ScoredLead])
+@limiter.limit(RATE_LIMIT_UPLOAD)
 async def upload_leads(
-    response: Response, file: UploadFile, tenant: storage.Tenant = Depends(get_current_tenant)
+    request: Request,
+    response: Response,
+    file: UploadFile,
+    tenant: storage.Tenant = Depends(get_current_tenant),
 ):
     licensed = verify_license() is not None
     if not licensed and (LICENSE_REQUIRED or trial_days_left() <= 0):
@@ -26,6 +32,7 @@ async def upload_leads(
         )
 
     content = await file.read()
+    validate_upload_file(file.filename, content)
     try:
         raw_leads = parse_leads_file(file.filename, content)
     except ValueError as exc:
@@ -35,6 +42,7 @@ async def upload_leads(
 
     if not raw_leads:
         raise HTTPException(status_code=400, detail="No leads found in file.")
+    enforce_row_cap(len(raw_leads))
 
     # Trial usage cap: judge scoring quality on a real sample without full
     # free use of a large list. Doesn't apply once licensed.

@@ -3,12 +3,17 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import FileResponse
 from loguru import logger
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
-from .config import CORS_ALLOWED_ORIGINS
+from .config import CORS_ALLOWED_ORIGINS, FORCE_HTTPS
 from .licensing import LicenseState, check_license, trial_days_left, verify_license
 from .logging_config import configure_logging
+from .middleware import SecurityHeadersMiddleware, limiter
 from .routers import actions, billing, churn, leads
 
 configure_logging()
@@ -32,16 +37,32 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="AI Lead Generation & Scoring Agent", lifespan=lifespan)
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Middleware order matters: the first one added here ends up outermost
+# (sees a request first, a response last), the last one added is innermost
+# (closest to route handling) -- see app/middleware.py's docstring.
+if FORCE_HTTPS:
+    app.add_middleware(HTTPSRedirectMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ALLOWED_ORIGINS,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # Every route in this app is GET or POST -- see routers/*.py.
+    allow_methods=["GET", "POST"],
+    # Authorization: tenant API key. Content-Type: JSON bodies + multipart
+    # uploads. ngrok-skip-browser-warning: only needed by the GitHub Pages
+    # demo widget (docs/index.html) calling through an ngrok tunnel; drop
+    # it once that's on real hosting.
+    allow_headers=["Authorization", "Content-Type", "ngrok-skip-browser-warning"],
     # Browsers hide all response headers from JS by default except a small
     # built-in safelist -- these carry the trial upload cap so the frontend
     # can tell the user why their file got truncated.
     expose_headers=["X-Trial-Limited-Rows", "X-Trial-Total-Rows"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(SlowAPIMiddleware)
 
 app.include_router(leads.router)
 app.include_router(actions.router)

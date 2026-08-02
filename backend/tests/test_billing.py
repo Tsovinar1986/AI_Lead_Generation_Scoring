@@ -230,6 +230,13 @@ def test_polar_checkout_returns_503_when_not_configured(client, monkeypatch):
     assert resp.status_code == 503
 
 
+def test_polar_checkout_rejects_invalid_interval(client, monkeypatch):
+    monkeypatch.setattr(billing, "POLAR_ACCESS_TOKEN", "polar_oat_test")
+
+    resp = client.post("/api/billing/polar/checkout", json={"interval": "biannual"})
+    assert resp.status_code == 422
+
+
 def test_polar_checkout_returns_session_url(client, monkeypatch):
     monkeypatch.setattr(billing, "POLAR_ACCESS_TOKEN", "polar_oat_test")
     monkeypatch.setattr(billing, "POLAR_PRODUCT_ID_MONTHLY", "prod_monthly")

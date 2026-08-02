@@ -28,6 +28,14 @@ services:
       - key: CORS_ALLOWED_ORIGINS
         value: https://tsovinar1986.github.io,https://www.crmscoring.com,https://crmscoring.com
 
+      # Render's own proxy sits in front of every request to this service --
+      # a trusted, known front door, so it's safe to trust the
+      # X-Forwarded-*  headers it sets (needed for rate limiting to see the
+      # real visitor IP instead of Render's proxy IP for every request).
+      # Leave this false for a deployment with no proxy in front of it.
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
+
       # --- Licensing (this deployment's own trial/license behavior) ---
       - key: LICENSE_REQUIRED
         value: "false"

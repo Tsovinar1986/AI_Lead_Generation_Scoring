@@ -127,3 +127,30 @@ Copy `.env.example` to `.env` (and `frontend/.env.example` to
 `frontend/.env` if the backend isn't on `localhost:8081`) and fill in
 whichever keys are available. Every integration degrades gracefully without
 one — see `.env.example` for what each variable unlocks.
+
+## Security
+
+- **Response headers** (`app/middleware.py`'s `SecurityHeadersMiddleware`):
+  `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+  `Permissions-Policy`, a `Content-Security-Policy` scoped to what Paddle/
+  Polar's checkout actually needs, and `Strict-Transport-Security` (only
+  sent once a request is actually HTTPS). No Node "helmet" package here
+  since this is a FastAPI backend — same idea, hand-rolled.
+- **HTTPS**: `FORCE_HTTPS=true` redirects HTTP→HTTPS at the app level for a
+  self-hosted deployment with no proxy in front doing it; Render (and most
+  managed hosts) already handles this, so it's off by default.
+- **CORS**: locked to `CORS_ALLOWED_ORIGINS`, `GET`/`POST` only (the only
+  methods this API has), and a specific header allow-list — not wildcarded.
+- **Rate limiting** (`slowapi`): a global default plus a tighter limit on
+  the upload/outreach/CRM-push endpoints (`RATE_LIMIT_DEFAULT`/
+  `RATE_LIMIT_UPLOAD` in `.env.example`). Set `TRUST_PROXY_HEADERS=true`
+  only when this genuinely runs behind a trusted reverse proxy (Render
+  does) — otherwise a client could spoof its own IP via `X-Forwarded-For`
+  and dodge the limit entirely.
+- **Input validation**: file uploads are capped by size and row count
+  (`MAX_UPLOAD_SIZE_MB`/`MAX_UPLOAD_ROWS`) and restricted to `.csv`/`.xlsx`/
+  `.xls` before parsing; request bodies use `Literal` types instead of bare
+  `str` wherever only a fixed set of values makes sense (billing interval,
+  outreach channel, CRM target); lead/customer text fields have length caps
+  and numeric fields reject negatives. SQL is parameterized throughout
+  (`storage.py`) — no string-built queries anywhere.

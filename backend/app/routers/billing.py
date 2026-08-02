@@ -51,6 +51,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Literal
 
 import requests
 from fastapi import APIRouter, HTTPException, Request
@@ -222,7 +223,7 @@ def _interval_for_product_id(product_id: str | None) -> str:
 
 
 class PolarCheckoutRequest(BaseModel):
-    interval: str  # "monthly" | "annual"
+    interval: Literal["monthly", "annual"]
 
 
 @router.post("/polar/checkout")
