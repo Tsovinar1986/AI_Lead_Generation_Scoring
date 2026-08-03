@@ -45,34 +45,46 @@ function LeadScoringApp() {
   return (
     <div className="min-h-screen bg-bg font-sans text-text antialiased">
       <div className="mx-auto max-w-[1200px] px-6 py-8">
-        <header className="mb-6">
+        <header className="animate-fade-in-up mb-7">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-heading">
-                AI Lead Generation &amp; Scoring Agent
-              </h1>
-              <p className="mt-1 text-sm text-text/75">
-                Upload leads, get a ranked hybrid score, act on the hot ones.
-              </p>
+            <div className="flex items-center gap-3">
+              <span
+                aria-hidden="true"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent/70 font-display text-lg font-semibold text-white shadow-[0_2px_8px_-2px_var(--color-accent)]"
+              >
+                A
+              </span>
+              <div>
+                <h1 className="font-display text-[1.7rem] font-semibold tracking-tight text-heading">
+                  AI Lead Generation &amp; Scoring Agent
+                </h1>
+                <p className="mt-0.5 text-sm text-text/75">
+                  Upload leads, get a ranked hybrid score, act on the hot ones.
+                </p>
+              </div>
             </div>
             <TenantSwitcher onChange={handleWorkspaceChange} />
           </div>
           {authError && <p className="mt-3 text-sm text-hot">{authError}</p>}
         </header>
 
-        <div className="mb-5">
+        <div className="animate-fade-in-up mb-5" style={{ animationDelay: "60ms" }}>
           <LicenseBanner />
         </div>
 
         <main className="flex flex-col gap-5">
-          <UploadPanel onUploaded={handleUploaded} />
-          <LeadsTable
-            leads={leads}
-            selectedId={selectedId}
-            bucketFilter={bucketFilter}
-            onSelect={(lead) => setSelectedId(lead.id)}
-            onBucketFilterChange={setBucketFilter}
-          />
+          <div className="animate-fade-in-up" style={{ animationDelay: "110ms" }}>
+            <UploadPanel onUploaded={handleUploaded} />
+          </div>
+          <div className="animate-fade-in-up" style={{ animationDelay: "160ms" }}>
+            <LeadsTable
+              leads={leads}
+              selectedId={selectedId}
+              bucketFilter={bucketFilter}
+              onSelect={(lead) => setSelectedId(lead.id)}
+              onBucketFilterChange={setBucketFilter}
+            />
+          </div>
         </main>
       </div>
 

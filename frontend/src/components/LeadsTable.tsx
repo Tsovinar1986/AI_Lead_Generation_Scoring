@@ -28,6 +28,32 @@ const BADGE_CLASSES: Record<string, string> = {
   cold: "bg-cold-soft text-cold",
 };
 
+const DOT_CLASSES: Record<string, string> = {
+  hot: "bg-hot",
+  warm: "bg-warm",
+  cold: "bg-cold",
+};
+
+const BAR_CLASSES: Record<string, string> = {
+  hot: "bg-hot",
+  warm: "bg-warm",
+  cold: "bg-cold",
+};
+
+function InboxIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M4 12.5 6.2 5h11.6l2.2 7.5M4 12.5V18a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5.5M4 12.5h4.7a1 1 0 0 1 .95.68L10.35 16h3.3l.7-2.82a1 1 0 0 1 .95-.68H20"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function LeadsTable({
   leads,
   selectedId,
@@ -49,12 +75,14 @@ export function LeadsTable({
   return (
     <div className="rounded-xl border border-border bg-panel p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-heading">Ranked leads ({filtered.length})</h2>
+        <h2 className="font-display text-lg font-semibold text-heading">
+          Ranked leads ({filtered.length})
+        </h2>
         <div className="flex flex-wrap items-center gap-1.5">
           {(["all", "hot", "warm", "cold"] as const).map((b) => (
             <button
               key={b}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-all hover:-translate-y-px ${
                 bucketFilter === b
                   ? CHIP_ACTIVE_CLASSES[b]
                   : "border-border text-text hover:border-accent/40"
@@ -66,7 +94,7 @@ export function LeadsTable({
             </button>
           ))}
           <button
-            className="rounded-full border border-border px-3 py-1 text-xs font-medium text-text transition-colors hover:border-accent/40 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-full border border-border px-3 py-1 text-xs font-medium text-text transition-all hover:-translate-y-px hover:border-accent/40 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
             disabled={filtered.length === 0}
             onClick={() =>
               downloadLeadsCsv(
@@ -81,7 +109,10 @@ export function LeadsTable({
       </div>
 
       {leads.length === 0 ? (
-        <p className="mt-4 text-sm text-text/75">No leads yet — upload a file to get started.</p>
+        <div className="mt-6 flex flex-col items-center gap-2 py-8 text-center">
+          <InboxIcon className="h-8 w-8 text-text/40" />
+          <p className="text-sm text-text/75">No leads yet — upload a file to get started.</p>
+        </div>
       ) : (
         <div className="mt-4 overflow-x-auto">
           <table className="w-full border-collapse text-sm">
@@ -101,8 +132,8 @@ export function LeadsTable({
               {filtered.map((lead) => (
                 <tr
                   key={lead.id}
-                  className={`cursor-pointer transition-colors hover:bg-accent-soft ${
-                    lead.id === selectedId ? "bg-accent-soft" : ""
+                  className={`cursor-pointer border-l-2 transition-colors hover:bg-accent-soft ${
+                    lead.id === selectedId ? "border-l-accent bg-accent-soft" : "border-l-transparent"
                   }`}
                   onClick={() => onSelect(lead)}
                 >
@@ -125,13 +156,24 @@ export function LeadsTable({
                   <td className="border-b border-border px-3 py-3 align-top tabular-nums">
                     {lead.conversion_likelihood.toFixed(0)}
                   </td>
-                  <td className="border-b border-border px-3 py-3 align-top tabular-nums">
-                    <strong className="font-semibold text-heading">{lead.combined_score.toFixed(0)}</strong>
+                  <td className="border-b border-border px-3 py-3 align-top">
+                    <div className="flex items-center gap-2">
+                      <strong className="tabular-nums font-semibold text-heading">
+                        {lead.combined_score.toFixed(0)}
+                      </strong>
+                      <div className="h-1 w-12 overflow-hidden rounded-full bg-border">
+                        <div
+                          className={`animate-grow-x h-full origin-left rounded-full ${BAR_CLASSES[lead.bucket]}`}
+                          style={{ width: `${Math.min(100, lead.combined_score)}%` }}
+                        />
+                      </div>
+                    </div>
                   </td>
                   <td className="border-b border-border px-3 py-3 align-top">
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${BADGE_CLASSES[lead.bucket]}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${BADGE_CLASSES[lead.bucket]}`}
                     >
+                      <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASSES[lead.bucket]}`} />
                       {BUCKET_LABELS[lead.bucket]}
                     </span>
                   </td>

@@ -7,9 +7,46 @@ import type { BillingInterval, LicenseStatus } from "../types";
 type BuyKey = `${"paddle" | "polar"}-${BillingInterval}`;
 
 const btnPrimary =
-  "rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50";
+  "rounded-md bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-sm";
 const btnSecondary =
-  "rounded-md border border-accent/40 bg-accent-soft px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50";
+  "rounded-md border border-accent/40 bg-accent-soft px-4 py-2 text-sm font-medium text-accent transition-all hover:-translate-y-px hover:bg-accent/20 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0";
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M12 8v4.5l3 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function AlertIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M10.9 4.6 2.9 18a2 2 0 0 0 1.7 3h14.8a2 2 0 0 0 1.7-3l-8-13.4a2 2 0 0 0-3.4 0Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M12 10v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="12" cy="17" r="0.9" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CheckBadgeIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <path
+        d="m9 12 2 2 4-4M12 3.5l1.9 1.1 2.2-.2 1.1 1.9 1.9 1.1-.2 2.2 1.1 1.9-1.9 1.1-1.1 1.9-2.2-.2L12 14.5l-1.9-1.1-2.2.2-1.1-1.9-1.9-1.1.2-2.2-1.1-1.9 1.9-1.1 1.1-1.9 2.2.2Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export function LicenseBanner() {
   const [status, setStatus] = useState<LicenseStatus | null>(null);
@@ -56,7 +93,8 @@ export function LicenseBanner() {
 
   if (status.licensed) {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-panel px-5 py-3 text-sm shadow-sm">
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-panel px-5 py-3 text-sm shadow-sm">
+        <CheckBadgeIcon className="h-4 w-4 shrink-0 text-accent" />
         <span className="text-text">
           Licensed to <strong className="text-heading">{status.customer_email}</strong> ({status.plan} plan)
           {status.expires_at && (
@@ -104,7 +142,14 @@ export function LicenseBanner() {
         isError ? "border-hot/30 bg-hot-soft text-hot" : "border-warm/30 bg-warm-soft text-warm"
       }`}
     >
-      <span>{message}</span>
+      <span className="flex items-center gap-2.5">
+        {isError ? (
+          <AlertIcon className="h-4 w-4 shrink-0" />
+        ) : (
+          <ClockIcon className="h-4 w-4 shrink-0" />
+        )}
+        {message}
+      </span>
       <div className="flex flex-wrap items-center gap-2">
         {showBuyButtons && (
           <>

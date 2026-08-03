@@ -41,13 +41,13 @@ export function TenantSwitcher({ onChange }: Props) {
           className="min-w-[220px] rounded-md border border-border bg-panel px-3 py-1.5 text-sm text-heading outline-none focus:border-accent"
         />
         <button
-          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-accent/90"
+          className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md"
           onClick={handleSave}
         >
           Connect
         </button>
         <button
-          className="rounded-md border border-border bg-panel px-3 py-1.5 text-sm text-heading transition-colors hover:border-accent/40"
+          className="rounded-md border border-border bg-panel px-3 py-1.5 text-sm text-heading transition-all hover:-translate-y-px hover:border-accent/40"
           onClick={() => setEditing(false)}
         >
           Cancel
@@ -62,7 +62,7 @@ export function TenantSwitcher({ onChange }: Props) {
         <>
           <span className="text-sm text-text/75">Connected to a custom workspace</span>
           <button
-            className="rounded-md border border-border bg-panel px-3 py-1.5 text-sm text-heading transition-colors hover:border-accent/40"
+            className="rounded-md border border-border bg-panel px-3 py-1.5 text-sm text-heading transition-all hover:-translate-y-px hover:border-accent/40"
             onClick={handleClear}
           >
             Disconnect
