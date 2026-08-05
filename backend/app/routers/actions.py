@@ -22,7 +22,7 @@ def _get_or_404(tenant_id: str, lead_id: str):
 
 
 # Same tier as the upload endpoints -- each call here hits a real,
-# potentially-billed third-party API (Anthropic/HubSpot/Salesforce) per lead.
+# potentially-billed third-party API (Anthropic/Salesforce) per lead.
 @router.post("/{lead_id}/outreach", response_model=OutreachResponse)
 @limiter.limit(RATE_LIMIT_UPLOAD)
 def create_outreach_draft(
@@ -43,7 +43,7 @@ def create_outreach_draft(
 def crm_push(
     request: Request,
     lead_id: str,
-    crm: Literal["hubspot", "salesforce"] = "hubspot",
+    crm: Literal["salesforce"] = "salesforce",
     tenant: storage.Tenant = Depends(get_current_tenant),
 ):
     lead = _get_or_404(tenant.id, lead_id)

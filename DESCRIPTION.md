@@ -24,7 +24,7 @@ cd frontend && npm install && npm run dev
 
 Open http://localhost:5000, upload `backend/data/sample_leads.csv` (or your
 own CRM export), and the ranked/scored leads appear immediately — no API
-keys required. Enrichment (Apollo), CRM push (HubSpot/Salesforce), and Slack
+keys required. Enrichment (Apollo), CRM push (Salesforce), and Slack
 alerts each auto-detect their credentials at startup: with none set they run
 on deterministic mock data/logging by default; drop real keys into a `.env`
 (see `.env.example`) and the exact same code path calls the live APIs
@@ -35,7 +35,7 @@ back to the mock for that lead rather than breaking the run.
 
 **1. Ingestion**
 - Bulk lead import from CRM exports (CSV/XLSX).
-- Live pull from HubSpot/Salesforce via API for existing pipeline records.
+- Live pull from Salesforce via API for existing pipeline records.
 - Company/domain lists submitted directly for cold enrichment.
 
 **2. Enrichment**
@@ -65,7 +65,7 @@ back to the mock for that lead rather than breaking the run.
   first-touch email or LinkedIn message referencing the specific fit signals
   found during enrichment.
 - **CRM push:** scores, bucket, rationale, and draft outreach get written back
-  to HubSpot/Salesforce as custom fields/tasks so sales has full context
+  to Salesforce as custom fields/tasks so sales has full context
   in-platform.
 - **Alerts:** Slack (and/or email) notification the moment a lead crosses the
   "Hot" threshold, so sales can act while the signal is fresh.
@@ -76,7 +76,7 @@ back to the mock for that lead rather than breaking the run.
 |---|---|
 | `ANTHROPIC_API_KEY` | LLM scoring layer + outreach drafting |
 | `APOLLO_API_KEY` (or chosen enrichment provider) | Firmographic/contact enrichment |
-| `HUBSPOT_ACCESS_TOKEN` / `SALESFORCE_*` | CRM read/write |
+| `SALESFORCE_*` | CRM read/write |
 | `SLACK_BOT_TOKEN` + channel ID | Hot-lead alerts |
 | `SMTP_*` (optional) | Email alerts if Slack isn't used |
 
@@ -115,7 +115,7 @@ current without manual re-triggering.
 - **`licensing/`** — Paddle checkout + an offline-verifiable Ed25519 license
   key, for selling this app directly as self-hosted software from your own
   site (`licensing/README.md`, which also has the go-to-market sequencing:
-  direct sale → RapidAPI → HubSpot/Salesforce marketplaces →
+  direct sale → RapidAPI → Salesforce AppExchange →
   AWS Marketplace/AppSumo, roughly cheapest/fastest to most involved).
 
 ## Not in scope (v1)

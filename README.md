@@ -6,7 +6,7 @@ model, ranked into Hot/Warm/Cold, and (for the hot ones) a drafted outreach
 message and a CRM push — all from one screen.
 
 FastAPI backend, React + Vite + TypeScript frontend. Every third-party
-integration (Claude, Apollo enrichment, HubSpot/Salesforce push, Slack
+integration (Claude, Apollo enrichment, Salesforce push, Slack
 alerts) auto-detects its credentials: set the key and it makes the real
 call, leave it unset and it runs on deterministic mock data — so the whole
 thing works end to end with zero API keys for local eval, and flips to

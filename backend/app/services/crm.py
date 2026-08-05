@@ -1,76 +1,22 @@
-"""HubSpot/Salesforce push.
+"""Salesforce push.
 
 Writes combined_score, bucket, LLM rationale, and outreach draft back onto
 the CRM record. Falls back to a simulated (logged, no-op) push when the
 relevant credentials aren't configured, or if a live call fails — so the
 pipeline never breaks on a CRM outage.
 
-HubSpot: the five custom company properties this needs (`fit_score`,
-`combined_score`, `lead_bucket`, `llm_rationale`, `outreach_draft`) are
-created automatically on first push via the Properties API if missing --
-no manual portal setup required, just an access token with the
-`crm.schemas.companies.write` scope.
-Salesforce: the matching custom Lead fields (`Fit_Score__c` etc.) are
-best-effort auto-created via the Tooling API on first push (see
-_ensure_salesforce_fields below) -- unlike HubSpot's Properties API this is
-metadata deployment, which is slower/finickier and depends on the API
-user's "Customize Application" permission, so treat it as "usually works,"
-not guaranteed; a failure here logs a warning and the push still falls back
-to mock rather than blocking.
+The matching custom Lead fields (`Fit_Score__c` etc.) are best-effort
+auto-created via the Tooling API on first push (see _ensure_salesforce_fields
+below) -- this is metadata deployment, which is slower/finickier and depends
+on the API user's "Customize Application" permission, so treat it as
+"usually works," not guaranteed; a failure here logs a warning and the push
+still falls back to mock rather than blocking.
 """
 
 from loguru import logger
 
-from ..config import (
-    HUBSPOT_ACCESS_TOKEN,
-    SALESFORCE_PASSWORD,
-    SALESFORCE_SECURITY_TOKEN,
-    SALESFORCE_USERNAME,
-)
+from ..config import SALESFORCE_PASSWORD, SALESFORCE_SECURITY_TOKEN, SALESFORCE_USERNAME
 from ..models import CrmPushResponse, ScoredLead
-
-_HUBSPOT_COMPANY_PROPERTIES = [
-    {"name": "fit_score", "label": "Fit Score", "type": "number", "fieldType": "number"},
-    {"name": "combined_score", "label": "Combined Score", "type": "number", "fieldType": "number"},
-    {"name": "lead_bucket", "label": "Lead Bucket", "type": "string", "fieldType": "text"},
-    {"name": "llm_rationale", "label": "LLM Rationale", "type": "string", "fieldType": "textarea"},
-    {"name": "outreach_draft", "label": "Outreach Draft", "type": "string", "fieldType": "textarea"},
-]
-
-_hubspot_properties_ready = False
-
-
-def _ensure_hubspot_properties(client) -> None:
-    """Idempotently create the custom company properties this app writes to.
-
-    Runs once per process (cached in _hubspot_properties_ready) rather than
-    before every push, since it's a portal-schema check, not per-lead data.
-    """
-    global _hubspot_properties_ready
-    if _hubspot_properties_ready:
-        return
-
-    from hubspot.crm.properties import ApiException, PropertyCreate
-
-    for prop in _HUBSPOT_COMPANY_PROPERTIES:
-        try:
-            client.crm.properties.core_api.get_by_name("companies", prop["name"])
-        except ApiException as exc:
-            if exc.status != 404:
-                raise
-            client.crm.properties.core_api.create(
-                "companies",
-                PropertyCreate(
-                    name=prop["name"],
-                    label=prop["label"],
-                    type=prop["type"],
-                    field_type=prop["fieldType"],
-                    group_name="companyinformation",
-                ),
-            )
-            logger.info("Created missing HubSpot company property '{}'", prop["name"])
-
-    _hubspot_properties_ready = True
 
 
 def _mock_push(lead: ScoredLead, crm: str, reason: str) -> CrmPushResponse:
@@ -92,47 +38,6 @@ def _mock_push(lead: ScoredLead, crm: str, reason: str) -> CrmPushResponse:
             f"{crm} record for {lead.company_name}."
         ),
     )
-
-
-def _hubspot_push(lead: ScoredLead) -> CrmPushResponse:
-    from hubspot import HubSpot
-    from hubspot.crm.companies import SimplePublicObjectInput
-
-    client = HubSpot(access_token=HUBSPOT_ACCESS_TOKEN)
-    _ensure_hubspot_properties(client)
-    properties = {
-        "name": lead.company_name,
-        "domain": lead.domain,
-        "fit_score": lead.fit_score,
-        "combined_score": lead.combined_score,
-        "lead_bucket": lead.bucket,
-        "llm_rationale": lead.llm_rationale,
-        "outreach_draft": lead.outreach_draft or "",
-    }
-
-    search = client.crm.companies.search_api.do_search(
-        public_object_search_request={
-            "filterGroups": [
-                {"filters": [{"propertyName": "domain", "operator": "EQ", "value": lead.domain}]}
-            ],
-            "limit": 1,
-        }
-    )
-
-    if search.results:
-        company_id = search.results[0].id
-        client.crm.companies.basic_api.update(
-            company_id, simple_public_object_input=SimplePublicObjectInput(properties=properties)
-        )
-        detail = f"Updated existing HubSpot company {company_id} for {lead.company_name}."
-    else:
-        created = client.crm.companies.basic_api.create(
-            simple_public_object_input_for_create=SimplePublicObjectInput(properties=properties)
-        )
-        company_id = created.id
-        detail = f"Created new HubSpot company {company_id} for {lead.company_name}."
-
-    return CrmPushResponse(lead_id=lead.id, crm="hubspot", status="success", detail=detail)
 
 
 _SALESFORCE_LEAD_FIELDS = [
@@ -229,16 +134,7 @@ def _salesforce_push(lead: ScoredLead) -> CrmPushResponse:
     return CrmPushResponse(lead_id=lead.id, crm="salesforce", status="success", detail=detail)
 
 
-def push_to_crm(lead: ScoredLead, crm: str = "hubspot") -> CrmPushResponse:
-    if crm == "hubspot":
-        if not HUBSPOT_ACCESS_TOKEN:
-            return _mock_push(lead, crm, "No HUBSPOT_ACCESS_TOKEN configured")
-        try:
-            return _hubspot_push(lead)
-        except Exception as exc:  # noqa: BLE001 - fall back rather than break the pipeline
-            logger.warning("HubSpot push failed for {}: {}", lead.company_name, exc)
-            return _mock_push(lead, crm, f"Live HubSpot push failed ({exc})")
-
+def push_to_crm(lead: ScoredLead, crm: str = "salesforce") -> CrmPushResponse:
     if crm == "salesforce":
         if not (SALESFORCE_USERNAME and SALESFORCE_PASSWORD and SALESFORCE_SECURITY_TOKEN):
             return _mock_push(lead, crm, "No SALESFORCE_* credentials configured")

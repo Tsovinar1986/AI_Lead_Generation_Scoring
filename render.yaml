@@ -75,8 +75,6 @@ services:
         value: claude-sonnet-5
       - key: APOLLO_API_KEY
         sync: false
-      - key: HUBSPOT_ACCESS_TOKEN
-        sync: false
       - key: SALESFORCE_USERNAME
         sync: false
       - key: SALESFORCE_PASSWORD

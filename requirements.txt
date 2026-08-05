@@ -16,9 +16,6 @@ playwright>=1.44,<2.0       # headless browser for JS-rendered sites
 
 # --- Enrichment / CRM integrations ---
 simple-salesforce>=1.12,<2.0
-hubspot-api-client>=8.2,<9.0
-setuptools<81               # hubspot-api-client's discovery module imports the
-                             # deprecated pkg_resources, removed from newer setuptools
 
 # --- LLM scoring & outreach drafting ---
 anthropic>=0.34,<1.0

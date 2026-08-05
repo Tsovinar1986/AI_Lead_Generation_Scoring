@@ -3,14 +3,6 @@ from app.services import crm
 from .conftest import make_scored_lead
 
 
-def test_hubspot_falls_back_to_mock_without_token(monkeypatch):
-    monkeypatch.setattr(crm, "HUBSPOT_ACCESS_TOKEN", "")
-    result = crm.push_to_crm(make_scored_lead(), crm="hubspot")
-
-    assert result.status == "simulated"
-    assert "HUBSPOT_ACCESS_TOKEN" in result.detail
-
-
 def test_salesforce_falls_back_to_mock_without_credentials(monkeypatch):
     monkeypatch.setattr(crm, "SALESFORCE_USERNAME", "")
     monkeypatch.setattr(crm, "SALESFORCE_PASSWORD", "")
@@ -27,49 +19,15 @@ def test_unknown_crm_falls_back_to_mock(monkeypatch):
 
 
 def test_live_push_failure_falls_back_to_mock(monkeypatch):
-    monkeypatch.setattr(crm, "HUBSPOT_ACCESS_TOKEN", "fake-token")
-    monkeypatch.setattr(crm, "_hubspot_push", lambda lead: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(crm, "SALESFORCE_USERNAME", "user")
+    monkeypatch.setattr(crm, "SALESFORCE_PASSWORD", "pass")
+    monkeypatch.setattr(crm, "SALESFORCE_SECURITY_TOKEN", "token")
+    monkeypatch.setattr(crm, "_salesforce_push", lambda lead: (_ for _ in ()).throw(RuntimeError("boom")))
 
-    result = crm.push_to_crm(make_scored_lead(), crm="hubspot")
+    result = crm.push_to_crm(make_scored_lead(), crm="salesforce")
 
     assert result.status == "simulated"
     assert "failed" in result.detail.lower()
-
-
-def test_ensure_hubspot_properties_creates_missing_ones(monkeypatch):
-    from unittest.mock import MagicMock
-
-    from hubspot.crm.properties import ApiException
-
-    fake_client = MagicMock()
-    fake_client.crm.properties.core_api.get_by_name.side_effect = ApiException(status=404)
-
-    crm._hubspot_properties_ready = False
-    crm._ensure_hubspot_properties(fake_client)
-
-    assert fake_client.crm.properties.core_api.create.call_count == len(crm._HUBSPOT_COMPANY_PROPERTIES)
-
-
-def test_ensure_hubspot_properties_skips_existing(monkeypatch):
-    from unittest.mock import MagicMock
-
-    fake_client = MagicMock()  # get_by_name succeeds -> property already exists
-
-    crm._hubspot_properties_ready = False
-    crm._ensure_hubspot_properties(fake_client)
-
-    assert fake_client.crm.properties.core_api.create.call_count == 0
-
-
-def test_ensure_hubspot_properties_only_runs_once(monkeypatch):
-    from unittest.mock import MagicMock
-
-    fake_client = MagicMock()
-    crm._hubspot_properties_ready = False
-    crm._ensure_hubspot_properties(fake_client)
-    crm._ensure_hubspot_properties(fake_client)
-
-    assert fake_client.crm.properties.core_api.get_by_name.call_count == len(crm._HUBSPOT_COMPANY_PROPERTIES)
 
 
 def test_ensure_salesforce_fields_creates_only_missing(monkeypatch):

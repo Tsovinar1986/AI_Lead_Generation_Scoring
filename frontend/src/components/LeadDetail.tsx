@@ -52,7 +52,7 @@ export function LeadDetail({ lead, onClose, onUpdate }: Props) {
   async function handleCrmPush() {
     setBusy("crm");
     try {
-      const res = await pushToCrm(lead.id, "hubspot");
+      const res = await pushToCrm(lead.id, "salesforce");
       setCrmStatus(res.detail);
       onUpdate({ ...lead, crm_pushed: true });
     } finally {
@@ -186,7 +186,7 @@ export function LeadDetail({ lead, onClose, onUpdate }: Props) {
               disabled={busy === "crm"}
               onClick={handleCrmPush}
             >
-              {busy === "crm" ? "Pushing…" : lead.crm_pushed ? "Push again to HubSpot" : "Push to HubSpot"}
+              {busy === "crm" ? "Pushing…" : lead.crm_pushed ? "Push again to Salesforce" : "Push to Salesforce"}
             </button>
             {crmStatus && <p className="mt-2 text-sm text-text/75">{crmStatus}</p>}
           </section>

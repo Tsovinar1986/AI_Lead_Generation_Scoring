@@ -150,7 +150,7 @@ anyone who'd balk at uploading a CRM export to a third party).
 
 **Who buys this**: a solo RevOps/sales-ops person or small GTM team at a
 company with an existing CRM export and no in-house scoring model — the
-"I have 5,000 rows, a HubSpot account, and no data scientist" buyer. Not
+"I have 5,000 rows, a Salesforce account, and no data scientist" buyer. Not
 large enterprise (no SSO yet) and not hobbyists (real integrations, real
 setup) — though multi-tenancy (`scripts/create_tenant.py`) now makes it
 viable to run one shared instance for several customers if you're selling
@@ -165,10 +165,10 @@ it that way rather than self-hosted-per-buyer.
    backend already is the product surface — wrapping it with API-key/quota
    auth for a metered listing is the next-cheapest channel and reaches
    buyers who want to call it, not run it.
-3. **HubSpot App Marketplace / Salesforce AppExchange** — only worth it once
-   you have paying customers on #1-2 validating demand; these are
-   multi-week review processes and require native (OAuth) integrations, not
-   the static access-token calls this app makes today.
+3. **Salesforce AppExchange** — only worth it once you have paying customers
+   on #1-2 validating demand; this is a multi-week review process and
+   requires a native (OAuth) integration, not the static access-token calls
+   this app makes today.
 4. **AWS Marketplace / AppSumo** — `storage.py` now supports multiple
    isolated tenants on one deployment (`backend/scripts/create_tenant.py`),
    so the technical blocker is gone; still hold until #1-2 validate demand,
