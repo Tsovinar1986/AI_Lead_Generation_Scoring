@@ -445,7 +445,40 @@
     var lastResultType = null; // "leads" | "churn"
     var lastResults = null;
 
+    // Free tries on the public demo, tracked per-browser (no login here) --
+    // after this many successful scores, the widget blocks further uploads
+    // and points at pricing instead of scoring for free indefinitely.
+    var TRY_LIMIT = 2;
+    var TRY_COUNT_KEY = "crmscoring_demo_tries";
+
+    function getTryCount() {
+      return Number(localStorage.getItem(TRY_COUNT_KEY) || "0");
+    }
+
+    function recordTry() {
+      localStorage.setItem(TRY_COUNT_KEY, String(getTryCount() + 1));
+    }
+
+    function showTryLimitReached() {
+      document.getElementById("try-choose-btn").disabled = true;
+      document.getElementById("try-score-btn").disabled = true;
+      document.getElementById("try-score-btn").textContent = "Score it";
+      var statusEl = document.getElementById("try-upload-status");
+      statusEl.innerHTML =
+        "You've used your " + TRY_LIMIT + " free scores on this demo — " +
+        "<a href=\"#pricing\" style=\"color:var(--accent); font-weight:600;\">upgrade to keep scoring</a>.";
+      statusEl.style.display = "block";
+    }
+
+    if (getTryCount() >= TRY_LIMIT) {
+      showTryLimitReached();
+    }
+
     document.getElementById("try-upload-input").addEventListener("change", function (e) {
+      if (getTryCount() >= TRY_LIMIT) {
+        showTryLimitReached();
+        return;
+      }
       var file = e.target.files[0];
       if (!file) return;
       selectedFile = file;
@@ -520,6 +553,10 @@
 
     async function handleTryUpload() {
       if (!selectedFile) return;
+      if (getTryCount() >= TRY_LIMIT) {
+        showTryLimitReached();
+        return;
+      }
       var file = selectedFile;
       var statusEl = document.getElementById("try-upload-status");
       var btn = document.getElementById("try-score-btn");
@@ -554,6 +591,7 @@
             var churnBody = await churnRes.json().catch(function () { return null; });
 
             if (churnRes.ok) {
+              recordTry();
               renderChurnResults(churnBody);
               return;
             }
@@ -564,6 +602,7 @@
           return;
         }
 
+        recordTry();
         var limitedRows = res.headers.get("X-Trial-Limited-Rows");
         var totalRows = res.headers.get("X-Trial-Total-Rows");
         if (limitedRows && totalRows) {
@@ -579,6 +618,11 @@
       } finally {
         btn.disabled = false;
         btn.textContent = "Score it";
+        // Re-checked last so a try that just used up the last free score
+        // ends in the blocked state, not re-enabled by the reset above.
+        if (getTryCount() >= TRY_LIMIT) {
+          showTryLimitReached();
+        }
       }
     }
 
