@@ -1,3 +1,5 @@
+import sqlite3
+
 from app import storage
 from app.models import Alert
 
@@ -5,6 +7,33 @@ from .conftest import make_scored_lead
 
 TENANT = "tenant-a"
 OTHER_TENANT = "tenant-b"
+
+
+def test_migrates_pre_signup_schema_without_losing_data(tmp_path):
+    # Simulates a real DB from before self-serve signup existed: a tenants
+    # table with no email/password_hash columns at all.
+    db_path = str(tmp_path / "old.db")
+    raw = sqlite3.connect(db_path)
+    raw.execute(
+        "CREATE TABLE tenants (id TEXT PRIMARY KEY, name TEXT NOT NULL, "
+        "api_key_hash TEXT NOT NULL UNIQUE, created_at REAL NOT NULL)"
+    )
+    raw.execute(
+        "INSERT INTO tenants (id, name, api_key_hash, created_at) VALUES (?, ?, ?, ?)",
+        ("old-tenant-id", "Pre-existing Co", "somehash", 1700000000.0),
+    )
+    raw.commit()
+    raw.close()
+
+    storage._reset_for_tests(db_path)  # runs _connect(), which must migrate in place
+
+    # Old data survived the migration...
+    found = storage.get_tenant_by_id("old-tenant-id")
+    assert found is not None
+    assert found.name == "Pre-existing Co"
+    # ...and the new self-serve columns now work on this same DB file.
+    storage.create_tenant("New Co", email="new@co.com", password_hash="hash")
+    assert storage.get_tenant_by_email("new@co.com") is not None
 
 
 def test_upsert_dedupes_by_domain_not_id():
@@ -114,6 +143,92 @@ def test_create_tenant_and_lookup_by_api_key():
 def test_lookup_with_wrong_api_key_returns_none():
     storage.create_tenant("Acme Corp")
     assert storage.get_tenant_by_api_key("not-the-real-key") is None
+
+
+def test_get_tenant_by_id_roundtrips():
+    tenant, _ = storage.create_tenant("Acme Corp")
+    found = storage.get_tenant_by_id(tenant.id)
+    assert found is not None
+    assert found.name == "Acme Corp"
+
+
+def test_get_tenant_by_id_missing_returns_none():
+    assert storage.get_tenant_by_id("does-not-exist") is None
+
+
+def test_self_serve_signup_tenant_findable_by_email():
+    tenant, _ = storage.create_tenant("Acme Corp", email="buyer@acme.com", password_hash="hash123")
+    found = storage.get_tenant_by_email("buyer@acme.com")
+    assert found is not None
+    assert found.id == tenant.id
+
+
+def test_get_tenant_by_email_missing_returns_none():
+    assert storage.get_tenant_by_email("nobody@nowhere.com") is None
+
+
+def test_get_tenant_auth_by_email_returns_password_hash():
+    storage.create_tenant("Acme Corp", email="buyer@acme.com", password_hash="hash123")
+    auth = storage.get_tenant_auth_by_email("buyer@acme.com")
+    assert auth is not None
+    tenant, password_hash = auth
+    assert tenant.name == "Acme Corp"
+    assert password_hash == "hash123"
+
+
+def test_get_tenant_auth_by_email_none_for_script_provisioned_tenant():
+    # create_tenant with no email/password_hash -- the scripts/create_tenant.py
+    # flow, which has no login of its own.
+    storage.create_tenant("Manually Provisioned Co")
+    # No email at all was set, so there's nothing to look up by -- but also
+    # confirm a script-provisioned tenant given a bare email later (no
+    # password) still correctly reports "no login" rather than crashing.
+    assert storage.get_tenant_auth_by_email("nobody@nowhere.com") is None
+
+
+def test_rotate_api_key_invalidates_the_old_one():
+    tenant, old_key = storage.create_tenant("Acme Corp")
+    new_key = storage.rotate_api_key(tenant.id)
+
+    assert new_key != old_key
+    assert storage.get_tenant_by_api_key(old_key) is None
+    found = storage.get_tenant_by_api_key(new_key)
+    assert found is not None
+    assert found.id == tenant.id
+
+
+def test_update_tenant_password_changes_auth_hash():
+    tenant, _ = storage.create_tenant("Acme Corp", email="buyer@acme.com", password_hash="old-hash")
+    storage.update_tenant_password(tenant.id, "new-hash")
+
+    _, password_hash = storage.get_tenant_auth_by_email("buyer@acme.com")
+    assert password_hash == "new-hash"
+
+
+def test_password_reset_token_resolves_to_the_right_tenant():
+    tenant, _ = storage.create_tenant("Acme Corp", email="buyer@acme.com", password_hash="hash")
+    token = storage.create_password_reset(tenant.id, ttl_seconds=3600)
+
+    assert storage.consume_password_reset(token) == tenant.id
+
+
+def test_password_reset_token_is_single_use():
+    tenant, _ = storage.create_tenant("Acme Corp", email="buyer@acme.com", password_hash="hash")
+    token = storage.create_password_reset(tenant.id, ttl_seconds=3600)
+
+    assert storage.consume_password_reset(token) == tenant.id
+    assert storage.consume_password_reset(token) is None  # already consumed
+
+
+def test_expired_password_reset_token_is_rejected():
+    tenant, _ = storage.create_tenant("Acme Corp", email="buyer@acme.com", password_hash="hash")
+    token = storage.create_password_reset(tenant.id, ttl_seconds=-1)  # already expired
+
+    assert storage.consume_password_reset(token) is None
+
+
+def test_unknown_password_reset_token_returns_none():
+    assert storage.consume_password_reset("not-a-real-token") is None
 
 
 def test_get_or_start_trial_is_stable_across_calls():

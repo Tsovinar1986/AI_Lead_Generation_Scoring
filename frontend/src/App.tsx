@@ -6,6 +6,7 @@ import { LicenseBanner } from "./components/LicenseBanner";
 import { TenantSwitcher } from "./components/TenantSwitcher";
 import { UploadPanel } from "./components/UploadPanel";
 import { PurchaseComplete } from "./pages/PurchaseComplete";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import type { ScoredLead } from "./types";
 
 function LeadScoringApp() {
@@ -102,6 +103,9 @@ function LeadScoringApp() {
 function App() {
   if (window.location.pathname === "/purchase-complete") {
     return <PurchaseComplete />;
+  }
+  if (window.location.pathname === "/reset-password") {
+    return <ResetPasswordPage />;
   }
   return <LeadScoringApp />;
 }

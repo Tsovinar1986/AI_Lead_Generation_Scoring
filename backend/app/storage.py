@@ -52,7 +52,25 @@ def _connect() -> sqlite3.Connection:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_tenant ON alerts (tenant_id)")
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tenants ("
-        "id TEXT PRIMARY KEY, name TEXT NOT NULL, api_key_hash TEXT NOT NULL UNIQUE, created_at REAL NOT NULL)"
+        "id TEXT PRIMARY KEY, name TEXT NOT NULL, api_key_hash TEXT NOT NULL UNIQUE, created_at REAL NOT NULL, "
+        "email TEXT, password_hash TEXT)"
+    )
+    # Migration for DBs created before self-serve signup existed -- CREATE
+    # TABLE IF NOT EXISTS above only takes effect on a brand-new file.
+    existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(tenants)").fetchall()}
+    if "email" not in existing_cols:
+        conn.execute("ALTER TABLE tenants ADD COLUMN email TEXT")
+    if "password_hash" not in existing_cols:
+        conn.execute("ALTER TABLE tenants ADD COLUMN password_hash TEXT")
+    # Partial index: enforces uniqueness among real emails while still
+    # allowing unlimited NULLs, since scripts/create_tenant.py-provisioned
+    # tenants have no email/login of their own.
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_email ON tenants (email) WHERE email IS NOT NULL"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS password_resets ("
+        "token_hash TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, expires_at REAL NOT NULL)"
     )
     conn.execute(
         "CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
@@ -67,18 +85,26 @@ def _hash_key(api_key: str) -> str:
     return hashlib.sha256(api_key.encode()).hexdigest()
 
 
-def create_tenant(name: str) -> tuple[Tenant, str]:
+def create_tenant(
+    name: str, email: str | None = None, password_hash: str | None = None
+) -> tuple[Tenant, str]:
     """Provisions a new tenant with a fresh API key. The plaintext key is
     returned once, here, and never stored -- only its hash is. Give it to
     the customer immediately; there's no way to recover it later, only to
-    provision a new one.
+    provision a new one (or, for a self-serve tenant, log in again -- see
+    rotate_api_key below).
+
+    email/password_hash are set for a self-serve signup
+    (routers/accounts.py); left None for the manual
+    scripts/create_tenant.py flow, which has no login of its own.
     """
     tenant_id = secrets.token_hex(8)
     api_key = secrets.token_urlsafe(32)
     with _lock, _conn:
         _conn.execute(
-            "INSERT INTO tenants (id, name, api_key_hash, created_at) VALUES (?, ?, ?, ?)",
-            (tenant_id, name, _hash_key(api_key), time.time()),
+            "INSERT INTO tenants (id, name, api_key_hash, created_at, email, password_hash) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (tenant_id, name, _hash_key(api_key), time.time(), email, password_hash),
         )
     return Tenant(id=tenant_id, name=name), api_key
 
@@ -89,6 +115,85 @@ def get_tenant_by_api_key(api_key: str) -> Tenant | None:
             "SELECT id, name FROM tenants WHERE api_key_hash = ?", (_hash_key(api_key),)
         ).fetchone()
     return Tenant(id=row[0], name=row[1]) if row else None
+
+
+def get_tenant_by_id(tenant_id: str) -> Tenant | None:
+    with _lock:
+        row = _conn.execute("SELECT id, name FROM tenants WHERE id = ?", (tenant_id,)).fetchone()
+    return Tenant(id=row[0], name=row[1]) if row else None
+
+
+def get_tenant_by_email(email: str) -> Tenant | None:
+    with _lock:
+        row = _conn.execute("SELECT id, name FROM tenants WHERE email = ?", (email,)).fetchone()
+    return Tenant(id=row[0], name=row[1]) if row else None
+
+
+def get_tenant_auth_by_email(email: str) -> tuple[Tenant, str] | None:
+    """(tenant, password_hash) for login verification -- kept separate from
+    get_tenant_by_email so nothing outside the login path ever touches a
+    password hash. None if there's no account with this email, or if it was
+    provisioned via scripts/create_tenant.py (no password of its own).
+    """
+    with _lock:
+        row = _conn.execute(
+            "SELECT id, name, password_hash FROM tenants WHERE email = ?", (email,)
+        ).fetchone()
+    if row is None or row[2] is None:
+        return None
+    return Tenant(id=row[0], name=row[1]), row[2]
+
+
+def rotate_api_key(tenant_id: str) -> str:
+    """Issues a fresh API key for an existing tenant, invalidating whichever
+    one was active before -- this app has exactly one credential type (the
+    same Bearer key used everywhere), and only its hash is ever stored, so
+    login can't recover the original key issued at signup; it hands back a
+    new one instead. Real tradeoff worth knowing: logging in on a second
+    device signs the first one out, since there's only ever one valid key
+    per tenant at a time, not one per device/session.
+    """
+    api_key = secrets.token_urlsafe(32)
+    with _lock, _conn:
+        _conn.execute("UPDATE tenants SET api_key_hash = ? WHERE id = ?", (_hash_key(api_key), tenant_id))
+    return api_key
+
+
+def update_tenant_password(tenant_id: str, password_hash: str) -> None:
+    with _lock, _conn:
+        _conn.execute("UPDATE tenants SET password_hash = ? WHERE id = ?", (password_hash, tenant_id))
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def create_password_reset(tenant_id: str, ttl_seconds: float) -> str:
+    token = secrets.token_urlsafe(32)
+    with _lock, _conn:
+        _conn.execute(
+            "INSERT INTO password_resets (token_hash, tenant_id, expires_at) VALUES (?, ?, ?)",
+            (_hash_token(token), tenant_id, time.time() + ttl_seconds),
+        )
+    return token
+
+
+def consume_password_reset(token: str) -> str | None:
+    """Validates + immediately deletes a reset token, returning the tenant_id
+    it was issued for (or None if it's invalid, expired, or already used) --
+    single-use, so a captured/reused link can't reset the password twice.
+    """
+    token_hash = _hash_token(token)
+    with _lock, _conn:
+        row = _conn.execute(
+            "SELECT tenant_id, expires_at FROM password_resets WHERE token_hash = ?", (token_hash,)
+        ).fetchone()
+        if row is None:
+            return None
+        _conn.execute("DELETE FROM password_resets WHERE token_hash = ?", (token_hash,))
+        if row[1] < time.time():
+            return None
+    return row[0]
 
 
 def upsert_leads(tenant_id: str, leads: list[ScoredLead]) -> None:

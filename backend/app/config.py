@@ -55,12 +55,22 @@ TRUST_PROXY_HEADERS = os.getenv("TRUST_PROXY_HEADERS", "false").lower() == "true
 RATE_LIMIT_DEFAULT = os.getenv("RATE_LIMIT_DEFAULT", "100/minute")
 # Tighter limit for the expensive parse+enrich+score endpoints.
 RATE_LIMIT_UPLOAD = os.getenv("RATE_LIMIT_UPLOAD", "10/minute")
+# Tighter still for signup/login/forgot-password (routers/accounts.py) --
+# these are classic brute-force/enumeration/spam targets.
+RATE_LIMIT_AUTH = os.getenv("RATE_LIMIT_AUTH", "5/minute")
 
 # --- Upload limits (routers/leads.py, routers/churn.py) ---
 # Rejected before parsing -- bounds worst-case memory/CPU from one upload,
 # independent of the trial row cap below (which only applies unlicensed).
 MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "10"))
 MAX_UPLOAD_ROWS = int(os.getenv("MAX_UPLOAD_ROWS", "50000"))
+
+# --- Self-serve tenant signup (routers/accounts.py) ---
+# Used to build the link in a password-reset email -- must be wherever the
+# frontend actually runs (the Vite dev server locally, the real domain in
+# production), not the backend's own origin.
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:5000")
+PASSWORD_RESET_TTL_MINUTES = int(os.getenv("PASSWORD_RESET_TTL_MINUTES", "30"))
 
 # --- Licensing (buyer side) ---
 # A signed key issued after purchase (see licensing/issue_license.py). Set by

@@ -70,10 +70,13 @@ Leads/alerts persist to a local SQLite file (`DATABASE_PATH`, default
 ## What's in here
 
 - **`backend/`** — FastAPI app: ingestion, enrichment, hybrid scoring,
-  outreach drafting, CRM push, Slack alerts, and Paddle-based licensing.
+  outreach drafting, CRM push, Slack alerts, Paddle/Polar-based licensing,
+  and self-serve tenant signup/login (`routers/accounts.py` — an
+  alternative to running `scripts/create_tenant.py` by hand).
 - **`frontend/`** — React SPA: upload panel, ranked/filterable leads table,
   a detail drawer (firmographics, score breakdown, LLM rationale, outreach
-  draft, CRM push), a live Slack-alerts panel, and a license/billing banner.
+  draft, CRM push), and a license/billing banner. `TenantSwitcher` handles
+  signup/login/forgot-password for a shared multi-tenant deployment.
 - **`licensing/`** — Paddle Checkout + an offline-verifiable Ed25519 license
   key, for selling this app directly as self-hosted software.
 
@@ -160,3 +163,12 @@ one — see `.env.example` for what each variable unlocks.
   '1'='1`) through every field that flows into a query — tenant ID, lead
   ID, domain, API key — confirming each is treated as inert data, not
   executed or able to cross a tenant boundary.
+- **Passwords** (self-serve signup, `services/password.py`): PBKDF2-HMAC-
+  SHA256 with a random salt per user and 600,000 iterations (OWASP's 2023
+  minimum), not a fast general-purpose hash — stdlib `hashlib` only, no
+  bcrypt/argon2/passlib dependency for something this size. Signup/login/
+  reset enforce 8+ characters with a letter, a number, and a symbol
+  (`RATE_LIMIT_AUTH` in `.env.example` throttles all three against
+  brute-forcing). Login can't recover a lost key (only its hash is ever
+  stored) — it issues a fresh one instead, invalidating whichever was
+  active before.

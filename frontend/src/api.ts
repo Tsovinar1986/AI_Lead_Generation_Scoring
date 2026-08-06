@@ -1,4 +1,4 @@
-import type { BillingConfig, BillingInterval, LicenseStatus, ScoredLead } from "./types";
+import type { BillingConfig, BillingInterval, LicenseStatus, ScoredLead, TenantAuth } from "./types";
 
 // Same-origin by default -- works unmodified both in merged production mode
 // (backend serves the built frontend, so "same origin" IS the backend) and
@@ -112,6 +112,45 @@ export async function createPolarCheckout(interval: BillingInterval): Promise<{ 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ interval }),
+  });
+  return handle(res);
+}
+
+// Self-serve workspace signup/login -- an alternative to the seller
+// manually running scripts/create_tenant.py. None of these send the tenant
+// Authorization header (there's no tenant yet to authenticate as).
+export async function signup(name: string, email: string, password: string): Promise<TenantAuth> {
+  const res = await fetch(`${BASE}/accounts/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, password }),
+  });
+  return handle(res);
+}
+
+export async function login(email: string, password: string): Promise<TenantAuth> {
+  const res = await fetch(`${BASE}/accounts/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  return handle(res);
+}
+
+export async function forgotPassword(email: string): Promise<{ detail: string }> {
+  const res = await fetch(`${BASE}/accounts/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  return handle(res);
+}
+
+export async function resetPassword(token: string, password: string): Promise<TenantAuth> {
+  const res = await fetch(`${BASE}/accounts/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, password }),
   });
   return handle(res);
 }

@@ -14,7 +14,7 @@ from .config import CORS_ALLOWED_ORIGINS, FORCE_HTTPS
 from .licensing import LicenseState, check_license, trial_days_left, verify_license
 from .logging_config import configure_logging
 from .middleware import SecurityHeadersMiddleware, limiter
-from .routers import actions, billing, churn, leads
+from .routers import accounts, actions, billing, churn, leads
 
 configure_logging()
 
@@ -69,6 +69,7 @@ app.include_router(actions.router)
 app.include_router(actions.alerts_router)
 app.include_router(billing.router)
 app.include_router(churn.router)
+app.include_router(accounts.router)
 
 
 @app.get("/api/health")

@@ -44,6 +44,14 @@ services:
       - key: TRIAL_MAX_LEADS_PER_UPLOAD
         value: "10"
 
+      # --- Self-serve tenant signup (routers/accounts.py) ---
+      # Update this to the real deployed URL once you have it (Render
+      # dashboard -> this service -> the URL at the top) -- used to build
+      # the link in a password-reset email. Wrong until then, but only
+      # affects that one email, nothing else.
+      - key: APP_BASE_URL
+        value: https://crm-scoring.onrender.com
+
       # --- Licensing & billing (seller side — secrets, entered once in the
       # Render dashboard during blueprint setup, never stored in this file
       # or git) ---

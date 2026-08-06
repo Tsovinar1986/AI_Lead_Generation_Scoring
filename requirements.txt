@@ -3,6 +3,7 @@ pandas>=2.2,<3.0
 numpy>=1.26,<2.0
 openpyxl>=3.1,<4.0          # .xlsx read/write for CRM export ingestion
 pydantic>=2.7,<3.0          # data models / validation for lead records
+email-validator>=2.0,<3.0   # pydantic EmailStr (routers/accounts.py signup/login)
 
 # --- HTTP / API clients ---
 requests>=2.32,<3.0

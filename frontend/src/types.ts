@@ -51,3 +51,9 @@ export interface BillingConfig {
   price_id_annual: string | null;
   polar_available: boolean;
 }
+
+export interface TenantAuth {
+  tenant_id: string;
+  name: string;
+  api_key: string;
+}
