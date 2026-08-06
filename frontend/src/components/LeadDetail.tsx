@@ -18,6 +18,32 @@ const BREAKDOWN_LABELS: Record<string, string> = {
   hiring_signal: "Hiring signal",
 };
 
+// Which CRM/enrichment field each score row is actually computed from --
+// mirrors backend/app/services/scoring.py's score_lead() exactly, so a
+// buyer can see *why* a number is what it is, not just that it is.
+function breakdownSource(key: string, lead: ScoredLead): string {
+  switch (key) {
+    case "industry_match":
+      return lead.industry ? `Industry: ${lead.industry}` : "Industry: —";
+    case "company_size_fit":
+      return lead.employee_count != null
+        ? `Employees: ${lead.employee_count.toLocaleString()}`
+        : "Employees: —";
+    case "revenue_fit":
+      return lead.revenue_usd != null ? `Revenue: $${lead.revenue_usd.toLocaleString()}` : "Revenue: —";
+    case "tech_stack_match":
+      return lead.tech_stack.length ? `Tech stack: ${lead.tech_stack.join(", ")}` : "Tech stack: —";
+    case "geography_fit":
+      return lead.geography ? `Geography: ${lead.geography}` : "Geography: —";
+    case "title_seniority":
+      return lead.contact_title ? `Title: ${lead.contact_title}` : "Title: —";
+    case "hiring_signal":
+      return `Hiring: ${lead.is_hiring ? "Yes" : "No"}`;
+    default:
+      return "";
+  }
+}
+
 const BAR_CLASSES: Record<string, string> = {
   hot: "bg-hot",
   warm: "bg-warm",
@@ -116,11 +142,14 @@ export function LeadDetail({ lead, onClose, onUpdate }: Props) {
 
           <section>
             <h3 className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-text/70">Score breakdown</h3>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-2.5">
               {Object.entries(lead.score_breakdown).map(([key, value], i) => (
-                <div className="grid grid-cols-[130px_1fr_30px] items-center gap-2 text-xs" key={key}>
-                  <span className="text-text">{BREAKDOWN_LABELS[key] ?? key}</span>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-border">
+                <div className="grid grid-cols-[130px_1fr_30px] items-start gap-2 text-xs" key={key}>
+                  <div className="flex flex-col">
+                    <span className="text-text">{BREAKDOWN_LABELS[key] ?? key}</span>
+                    <span className="text-[11px] text-text/60">{breakdownSource(key, lead)}</span>
+                  </div>
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-border">
                     <div
                       className={`animate-grow-x h-full origin-left rounded-full ${BAR_CLASSES[lead.bucket]}`}
                       style={{
@@ -129,7 +158,7 @@ export function LeadDetail({ lead, onClose, onUpdate }: Props) {
                       }}
                     />
                   </div>
-                  <span className="tabular-nums text-text/75">{value}</span>
+                  <span className="mt-1 tabular-nums text-text/75">{value}</span>
                 </div>
               ))}
             </div>
