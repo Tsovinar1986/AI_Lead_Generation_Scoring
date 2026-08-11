@@ -149,32 +149,6 @@
     margin: 0;
   }
 
-  section.example {
-    padding: 48px 0;
-    border-top: 1px solid var(--border);
-  }
-  section.example h2 { font-size: 1.6rem; margin: 0 0 8px; text-align: center; }
-  section.example > .wrap > p.lede { color: var(--text-muted); margin: 0 0 28px; text-align: center; }
-  .example-table-wrap {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow-x: auto;
-    background: var(--bg-alt);
-  }
-  table.example-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; white-space: nowrap; }
-  table.example-table th, table.example-table td { padding: 12px 16px; text-align: left; }
-  table.example-table thead th { color: var(--text-muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--border); }
-  table.example-table tbody tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
-  table.example-table td.company { font-weight: 600; }
-  table.example-table td.company span { display: block; font-weight: 400; color: var(--text-muted); font-size: 0.82rem; }
-  /* Same bucket-badge colors as frontend/src/index.css's .badge-hot/-warm/-cold --
-     hot/warm/cold are constant across themes there too, only the *-bg alpha shifts. */
-  .bucket-badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-  .bucket-hot { background: var(--hot-bg); color: var(--hot); }
-  .bucket-warm { background: var(--warm-bg); color: var(--warm); }
-  .bucket-cold { background: var(--cold-bg); color: var(--cold); }
-  section.example .caption { color: var(--text-muted); font-size: 0.82rem; margin-top: 12px; text-align: center; }
-
   section.pricing {
     padding: 56px 0;
     border-top: 1px solid var(--border);
@@ -271,67 +245,6 @@
     </div>
   </section>
 
-  <section class="example" id="example">
-    <div class="wrap">
-      <h2>What you get back</h2>
-      <p class="lede" id="example-lede">Upload a CSV, get this in seconds — real output from the actual scorer, running on mock data (no API keys set).</p>
-
-      <div class="try-upload">
-        <input type="file" id="try-upload-input" accept=".csv,.xlsx,.xls" hidden />
-        <div class="cta-row" style="justify-content:flex-start; margin-bottom: 20px;">
-          <button class="btn btn-secondary" id="try-choose-btn" onclick="document.getElementById('try-upload-input').click()">Choose file</button>
-          <button class="btn btn-primary" id="try-score-btn" disabled onclick="handleTryUpload()">Score it</button>
-          <button class="btn btn-secondary" id="try-download-btn" style="display:none;" onclick="downloadTryResults()">Download CSV</button>
-          <span id="try-upload-filename" class="caption"></span>
-        </div>
-        <p id="try-upload-status" class="caption" style="display:none;"></p>
-      </div>
-
-      <div class="example-table-wrap">
-        <table class="example-table" id="example-table">
-          <thead>
-            <tr>
-              <th>Company</th>
-              <th>Industry</th>
-              <th>Fit</th>
-              <th>LLM</th>
-              <th>Combined</th>
-              <th>Bucket</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="company">Northwind Analytics<span>Jamie Rivera · VP of Sales</span></td>
-              <td>SaaS</td><td>81</td><td>88</td><td><strong>84</strong></td>
-              <td><span class="bucket-badge bucket-hot">Hot</span></td>
-            </tr>
-            <tr>
-              <td class="company">Fintura Pay<span>Alex Chen · CFO</span></td>
-              <td>Fintech</td><td>85</td><td>80</td><td><strong>83</strong></td>
-              <td><span class="bucket-badge bucket-hot">Hot</span></td>
-            </tr>
-            <tr>
-              <td class="company">Vitalis Health<span>Priya Nair · CTO</span></td>
-              <td>Healthcare Tech</td><td>81</td><td>74</td><td><strong>78</strong></td>
-              <td><span class="bucket-badge bucket-hot">Hot</span></td>
-            </tr>
-            <tr>
-              <td class="company">Ledger Logistics<span>Tom Becker · Head of Growth</span></td>
-              <td>Logistics</td><td>62</td><td>65</td><td><strong>63</strong></td>
-              <td><span class="bucket-badge bucket-warm">Warm</span></td>
-            </tr>
-            <tr>
-              <td class="company">Tiny Print Shop<span>Bob Smith · Owner</span></td>
-              <td>Printing</td><td>50</td><td>43</td><td><strong>47</strong></td>
-              <td><span class="bucket-badge bucket-cold">Cold</span></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="caption" id="example-caption">Fit = rule-based score. LLM = conversion-likelihood estimate. Combined ranks the list.</p>
-    </div>
-  </section>
-
   <section class="pricing" id="pricing">
     <div class="wrap">
       <h2>Simple pricing</h2>
@@ -339,15 +252,15 @@
       <div class="plans">
         <div class="plan">
           <span class="badge">Monthly</span>
-          <div class="price">$30<span>/mo</span></div>
+          <div class="price">$20<span>/mo</span></div>
           <p class="note">Billed monthly, cancel anytime.</p>
           <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('monthly')">Get started</button>
           <button class="btn btn-secondary" id="polar-btn-monthly" style="width:100%; text-align:center; display:none; font: inherit; margin-top:8px;" onclick="buyPlanWithPolar('monthly')">Pay with Polar instead</button>
         </div>
         <div class="plan featured">
-          <span class="badge">Annual — save 2 months</span>
-          <div class="price">$300<span>/yr</span></div>
-          <p class="note">Billed yearly. Equivalent to $25/mo.</p>
+          <span class="badge">Annual — save 15%</span>
+          <div class="price">$204<span>/yr</span></div>
+          <p class="note">Billed yearly. Equivalent to $17/mo.</p>
           <button class="btn btn-primary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('annual')">Get started</button>
           <button class="btn btn-secondary" id="polar-btn-annual" style="width:100%; text-align:center; display:none; font: inherit; margin-top:8px;" onclick="buyPlanWithPolar('annual')">Pay with Polar instead</button>
         </div>
@@ -403,7 +316,7 @@
       var errorEl = document.getElementById("checkout-error");
       errorEl.style.display = "none";
       try {
-        var res = await fetch(TRY_UPLOAD_API_BASE + "/billing/polar/checkout", {
+        var res = await fetch(API_BASE + "/billing/polar/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
           body: JSON.stringify({ interval: interval }),
@@ -421,16 +334,17 @@
       }
     }
 
-    // Public https:// tunnel (ngrok) to the demo machine's local backend.
-    // Free-tier ngrok URLs are ephemeral -- this needs updating whenever the
-    // tunnel is restarted. Swap for the real deployed backend URL once the
-    // app is hosted publicly.
-    var TRY_UPLOAD_API_BASE = "https://disobey-battered-deploy.ngrok-free.dev/api";
+    // Public https:// tunnel (ngrok) to the backend, used for billing calls
+    // (Polar checkout + config check) from this static page. Free-tier ngrok
+    // URLs are ephemeral -- this needs updating whenever the tunnel is
+    // restarted. Swap for the real deployed backend URL once the app is
+    // hosted publicly.
+    var API_BASE = "https://disobey-battered-deploy.ngrok-free.dev/api";
 
     // Reveal the Polar buttons only once the backend confirms it's actually
     // configured -- stays hidden (not just non-functional) otherwise, since
     // Polar isn't set up on this deployment yet.
-    fetch(TRY_UPLOAD_API_BASE + "/billing/config", { headers: { "ngrok-skip-browser-warning": "true" } })
+    fetch(API_BASE + "/billing/config", { headers: { "ngrok-skip-browser-warning": "true" } })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (config) {
         if (config && config.polar_available) {
@@ -440,244 +354,6 @@
       })
       .catch(function () { /* leave Polar buttons hidden */ });
 
-    var bucketLabels = { hot: "Hot", warm: "Warm", cold: "Cold" };
-    var selectedFile = null;
-    var lastResultType = null; // "leads" | "churn"
-    var lastResults = null;
-
-    // Free tries on the public demo, tracked per-browser (no login here) --
-    // after this many successful scores, the widget blocks further uploads
-    // and points at pricing instead of scoring for free indefinitely.
-    var TRY_LIMIT = 2;
-    var TRY_COUNT_KEY = "crmscoring_demo_tries";
-
-    function getTryCount() {
-      return Number(localStorage.getItem(TRY_COUNT_KEY) || "0");
-    }
-
-    function recordTry() {
-      localStorage.setItem(TRY_COUNT_KEY, String(getTryCount() + 1));
-    }
-
-    function showTryLimitReached() {
-      document.getElementById("try-choose-btn").disabled = true;
-      document.getElementById("try-score-btn").disabled = true;
-      document.getElementById("try-score-btn").textContent = "Score it";
-      var statusEl = document.getElementById("try-upload-status");
-      statusEl.innerHTML =
-        "You've used your " + TRY_LIMIT + " free scores on this demo — " +
-        "<a href=\"#pricing\" style=\"color:var(--accent); font-weight:600;\">upgrade to keep scoring</a>.";
-      statusEl.style.display = "block";
-    }
-
-    if (getTryCount() >= TRY_LIMIT) {
-      showTryLimitReached();
-    }
-
-    document.getElementById("try-upload-input").addEventListener("change", function (e) {
-      if (getTryCount() >= TRY_LIMIT) {
-        showTryLimitReached();
-        return;
-      }
-      var file = e.target.files[0];
-      if (!file) return;
-      selectedFile = file;
-      document.getElementById("try-upload-filename").textContent = file.name;
-      document.getElementById("try-upload-status").style.display = "none";
-      document.getElementById("try-score-btn").disabled = false;
-    });
-
-    var LEADS_TABLE_HEAD =
-      "<tr><th>Company</th><th>Industry</th><th>Fit</th><th>LLM</th><th>Combined</th><th>Bucket</th></tr>";
-    var CHURN_TABLE_HEAD =
-      "<tr><th>Contract</th><th>Tenure</th><th>Monthly charges</th><th>Services</th><th>Risk score</th><th>Bucket</th></tr>";
-    var churnBucketLabels = { high: "High", medium: "Medium", low: "Low" };
-    var churnBucketClass = { high: "hot", medium: "warm", low: "cold" };
-
-    function looksLikeLeadShapeError(detail) {
-      return typeof detail === "string" &&
-        detail.toLowerCase().indexOf("company name") !== -1 &&
-        detail.toLowerCase().indexOf("domain") !== -1;
-    }
-
-    function renderLeadsResults(leads) {
-      lastResultType = "leads";
-      lastResults = leads;
-      document.getElementById("try-download-btn").style.display = "";
-      document.querySelector("#example-table thead").innerHTML = LEADS_TABLE_HEAD;
-      document.getElementById("example-lede").textContent = "Your file, scored just now:";
-      var tbody = document.querySelector("#example-table tbody");
-      tbody.innerHTML = "";
-      leads.forEach(function (lead) {
-        var tr = document.createElement("tr");
-        var bucket = lead.bucket || "cold";
-        tr.innerHTML =
-          "<td class=\"company\">" + escapeHtml(lead.company_name) +
-          (lead.contact_name ? "<span>" + escapeHtml(lead.contact_name) + (lead.contact_title ? " · " + escapeHtml(lead.contact_title) : "") + "</span>" : "") +
-          "</td>" +
-          "<td>" + escapeHtml(lead.industry || "—") + "</td>" +
-          "<td>" + Math.round(lead.fit_score) + "</td>" +
-          "<td>" + Math.round(lead.conversion_likelihood) + "</td>" +
-          "<td><strong>" + Math.round(lead.combined_score) + "</strong></td>" +
-          "<td><span class=\"bucket-badge bucket-" + bucket + "\">" + (bucketLabels[bucket] || bucket) + "</span></td>";
-        tbody.appendChild(tr);
-      });
-    }
-
-    function renderChurnResults(customers) {
-      lastResultType = "churn";
-      lastResults = customers;
-      document.getElementById("try-download-btn").style.display = "";
-      document.querySelector("#example-table thead").innerHTML = CHURN_TABLE_HEAD;
-      document.getElementById("example-lede").textContent =
-        "That's a customer/subscriber file, not a lead list — here's churn-risk scoring on it instead:";
-      var tbody = document.querySelector("#example-table tbody");
-      tbody.innerHTML = "";
-      customers.forEach(function (c) {
-        var tr = document.createElement("tr");
-        var bucket = c.bucket || "low";
-        var services = [];
-        if (c.internet_service) services.push(c.internet_service);
-        if ((c.tech_support || "").toLowerCase() === "no") services.push("no tech support");
-        if ((c.online_security || "").toLowerCase() === "no") services.push("no online security");
-        tr.innerHTML =
-          "<td class=\"company\">" + escapeHtml(c.contract) + "</td>" +
-          "<td>" + Math.round(c.tenure_months) + " mo</td>" +
-          "<td>$" + Number(c.monthly_charges).toFixed(2) + "</td>" +
-          "<td>" + escapeHtml(services.join(", ") || "—") + "</td>" +
-          "<td><strong>" + Math.round(c.risk_score) + "</strong></td>" +
-          "<td><span class=\"bucket-badge bucket-" + (churnBucketClass[bucket] || "cold") + "\">" + (churnBucketLabels[bucket] || bucket) + "</span></td>";
-        tbody.appendChild(tr);
-      });
-    }
-
-    async function handleTryUpload() {
-      if (!selectedFile) return;
-      if (getTryCount() >= TRY_LIMIT) {
-        showTryLimitReached();
-        return;
-      }
-      var file = selectedFile;
-      var statusEl = document.getElementById("try-upload-status");
-      var btn = document.getElementById("try-score-btn");
-
-      statusEl.style.display = "none";
-      btn.disabled = true;
-      btn.textContent = "Scoring…";
-
-      try {
-        var form = new FormData();
-        form.append("file", file);
-        var res = await fetch(TRY_UPLOAD_API_BASE + "/leads/upload", {
-          method: "POST",
-          body: form,
-          headers: { "ngrok-skip-browser-warning": "true" },
-        });
-        var body = await res.json().catch(function () { return null; });
-
-        if (!res.ok) {
-          var detail = (body && body.detail) || "Upload failed (" + res.status + ").";
-
-          // Not a lead list -- try it as a customer/subscriber churn export
-          // before giving up, since that's a data shape this demo also scores.
-          if (looksLikeLeadShapeError(detail)) {
-            var churnForm = new FormData();
-            churnForm.append("file", file);
-            var churnRes = await fetch(TRY_UPLOAD_API_BASE + "/churn/upload", {
-              method: "POST",
-              body: churnForm,
-              headers: { "ngrok-skip-browser-warning": "true" },
-            });
-            var churnBody = await churnRes.json().catch(function () { return null; });
-
-            if (churnRes.ok) {
-              recordTry();
-              renderChurnResults(churnBody);
-              return;
-            }
-          }
-
-          statusEl.textContent = detail;
-          statusEl.style.display = "block";
-          return;
-        }
-
-        recordTry();
-        var limitedRows = res.headers.get("X-Trial-Limited-Rows");
-        var totalRows = res.headers.get("X-Trial-Total-Rows");
-        if (limitedRows && totalRows) {
-          statusEl.textContent = "Trial scores the first " + limitedRows + " of " + totalRows + " rows — upgrade for the full file.";
-          statusEl.style.display = "block";
-        }
-
-        renderLeadsResults(body);
-      } catch (err) {
-        statusEl.textContent =
-          "Couldn't reach the demo backend — the ngrok tunnel may be down. Try again shortly.";
-        statusEl.style.display = "block";
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Score it";
-        // Re-checked last so a try that just used up the last free score
-        // ends in the blocked state, not re-enabled by the reset above.
-        if (getTryCount() >= TRY_LIMIT) {
-          showTryLimitReached();
-        }
-      }
-    }
-
-    function escapeHtml(str) {
-      var div = document.createElement("div");
-      div.textContent = str == null ? "" : str;
-      return div.innerHTML;
-    }
-
-    function csvEscape(value) {
-      var str = value == null ? "" : String(value);
-      if (/[",\n]/.test(str)) {
-        return "\"" + str.replace(/"/g, "\"\"") + "\"";
-      }
-      return str;
-    }
-
-    function toCsv(headers, rows) {
-      var lines = [headers.map(csvEscape).join(",")];
-      rows.forEach(function (row) {
-        lines.push(row.map(csvEscape).join(","));
-      });
-      return lines.join("\n");
-    }
-
-    function downloadTryResults() {
-      if (!lastResults || !lastResults.length) return;
-      var csv, filename;
-      if (lastResultType === "churn") {
-        csv = toCsv(
-          ["Contract", "Tenure (months)", "Monthly Charges", "Internet Service", "Tech Support", "Online Security", "Payment Method", "Risk Score", "Bucket"],
-          lastResults.map(function (c) {
-            return [c.contract, c.tenure_months, c.monthly_charges, c.internet_service, c.tech_support, c.online_security, c.payment_method, c.risk_score, c.bucket];
-          })
-        );
-        filename = "churn-risk-scores.csv";
-      } else {
-        csv = toCsv(
-          ["Company", "Domain", "Contact", "Title", "Industry", "Employees", "Revenue", "Geography", "Fit Score", "Conversion Likelihood", "Combined Score", "Bucket"],
-          lastResults.map(function (l) {
-            return [l.company_name, l.domain, l.contact_name, l.contact_title, l.industry, l.employee_count, l.revenue_usd, l.geography, l.fit_score, l.conversion_likelihood, l.combined_score, l.bucket];
-          })
-        );
-        filename = "scored-leads.csv";
-      }
-      var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      var url = URL.createObjectURL(blob);
-      var link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }
   </script>
 </body>
 </html>

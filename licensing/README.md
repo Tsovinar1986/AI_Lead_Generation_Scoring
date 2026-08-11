@@ -30,8 +30,8 @@ Checkout → Payment methods if it isn't already on.
    approval step once you're ready to take real payments.
 
 3. **Create a product with two recurring prices** — monthly and annual, e.g.
-   $30/mo and ~$300/yr (a "2 months free" discount is a standard anchor and
-   reads better than an arbitrary percentage off). In the Paddle dashboard:
+   $20/mo and $204/yr (15% off the monthly rate, i.e. 12 × $20 × 0.85). In
+   the Paddle dashboard:
    Catalog → Products → your product → Add price, once for each interval —
    each price ID looks like `pri_...`. Then set in your `.env`:
    `PADDLE_API_KEY` (Developer Tools → Authentication → **API keys** tab —
@@ -180,8 +180,8 @@ comps — a one-time or annual self-hosted license reads as "buy the tool,"
 which is a different (and for this buyer, often easier) purchase decision
 than "add another monthly subscription."
 
-**Current pricing**: $30/mo, or an annual plan priced at roughly 2 months
-free (~$300/yr) to reward the lower-churn commitment — both set up as
+**Current pricing**: $20/mo, or an annual plan at 15% off (~$204/yr) to
+reward the lower-churn commitment — both set up as
 separate recurring Paddle prices (`PADDLE_PRICE_ID_MONTHLY`/`_ANNUAL`),
 opened via Paddle's overlay checkout (`frontend/src/paddle.ts`). A 3-day
 unlicensed trial (`TRIAL_DAYS`) runs automatically before either plan is

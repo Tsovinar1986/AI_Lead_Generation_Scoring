@@ -121,7 +121,7 @@ PADDLE_CLIENT_TOKEN = os.getenv("PADDLE_CLIENT_TOKEN", "")
 # completely separate account/API host from production) or "production".
 PADDLE_ENVIRONMENT = os.getenv("PADDLE_ENVIRONMENT", "sandbox")
 # Two recurring Paddle Prices (format pri_...) on the same product -- see
-# licensing/README.md for suggested amounts ($30/mo, discounted annual) and
+# licensing/README.md for suggested amounts ($20/mo, 15% off annual) and
 # how to create them.
 PADDLE_PRICE_ID_MONTHLY = os.getenv("PADDLE_PRICE_ID_MONTHLY", "")
 PADDLE_PRICE_ID_ANNUAL = os.getenv("PADDLE_PRICE_ID_ANNUAL", "")

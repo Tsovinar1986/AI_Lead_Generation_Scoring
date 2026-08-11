@@ -154,10 +154,10 @@ export function LicenseBanner() {
         {showBuyButtons && (
           <>
             <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("monthly")}>
-              {busyKey === "paddle-monthly" ? "Opening checkout…" : "$30/mo"}
+              {busyKey === "paddle-monthly" ? "Opening checkout…" : "$20/mo"}
             </button>
             <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("annual")}>
-              {busyKey === "paddle-annual" ? "Opening checkout…" : "Buy annual (save 2 months)"}
+              {busyKey === "paddle-annual" ? "Opening checkout…" : "Buy annual (save 15%)"}
             </button>
             {polarAvailable && (
               <>
@@ -166,7 +166,7 @@ export function LicenseBanner() {
                   disabled={busyKey !== null}
                   onClick={() => handleBuyWithPolar("monthly")}
                 >
-                  {busyKey === "polar-monthly" ? "Opening checkout…" : "Pay with Polar — $30/mo"}
+                  {busyKey === "polar-monthly" ? "Opening checkout…" : "Pay with Polar — $20/mo"}
                 </button>
                 <button
                   className={btnSecondary}

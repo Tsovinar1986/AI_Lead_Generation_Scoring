@@ -53,8 +53,8 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     # Authorization: tenant API key. Content-Type: JSON bodies + multipart
     # uploads. ngrok-skip-browser-warning: only needed by the GitHub Pages
-    # demo widget (docs/index.html) calling through an ngrok tunnel; drop
-    # it once that's on real hosting.
+    # landing page (docs/index.html) calling billing endpoints through an
+    # ngrok tunnel; drop it once that's on real hosting.
     allow_headers=["Authorization", "Content-Type", "ngrok-skip-browser-warning"],
     # Browsers hide all response headers from JS by default except a small
     # built-in safelist -- these carry the trial upload cap so the frontend

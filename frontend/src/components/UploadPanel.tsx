@@ -183,15 +183,15 @@ export function UploadPanel({ onUploaded }: Props) {
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4 text-sm text-hot">
           <p>Your trial has expired — a license is required to keep scoring leads.</p>
           <button className={btnPrimary} disabled={busy} onClick={() => handleBuy("monthly")}>
-            $30/mo
+            $20/mo
           </button>
           <button className={btnPrimary} disabled={busy} onClick={() => handleBuy("annual")}>
-            Buy annual (save 2 months)
+            Buy annual (save 15%)
           </button>
           {polarAvailable && (
             <>
               <button className={btnSecondary} disabled={busy} onClick={() => handleBuyWithPolar("monthly")}>
-                Pay with Polar — $30/mo
+                Pay with Polar — $20/mo
               </button>
               <button className={btnSecondary} disabled={busy} onClick={() => handleBuyWithPolar("annual")}>
                 Pay with Polar — annual

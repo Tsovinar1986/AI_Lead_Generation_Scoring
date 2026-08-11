@@ -191,7 +191,7 @@ export function TenantSwitcher({ onChange }: Props) {
             className={inputClasses}
           />
           <p className="text-[11px] text-text/60">
-            8+ characters, with at least one letter, one number, and one symbol.
+            8+ characters, with at least one uppercase letter, one lowercase letter, one number, and one symbol.
           </p>
           {error && <p className="text-xs text-hot">{error}</p>}
           <div className="flex items-center gap-2">

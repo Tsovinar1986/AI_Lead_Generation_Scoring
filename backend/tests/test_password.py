@@ -29,9 +29,10 @@ def test_verify_rejects_garbage_stored_hash():
     "password,expected_fragment",
     [
         ("short1!", "at least 8 characters"),
-        ("nonumbersymbol", "at least one number"),
-        ("12345678!", "at least one letter"),
-        ("noSymbolHere1", "at least one symbol"),
+        ("nouppercase1!", "at least one uppercase letter"),
+        ("NOLOWERCASE1!", "at least one lowercase letter"),
+        ("NoNumberSymbol", "at least one number"),
+        ("NoSymbolHere1", "at least one symbol"),
     ],
 )
 def test_validate_password_strength_rejects_each_missing_rule(password, expected_fragment):

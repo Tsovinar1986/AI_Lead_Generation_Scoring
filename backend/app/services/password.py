@@ -44,8 +44,10 @@ def validate_password_strength(password: str) -> None:
         raise ValueError("Password must be at least 8 characters long.")
     if len(password) > 200:
         raise ValueError("Password is too long.")
-    if not any(c.isalpha() for c in password):
-        raise ValueError("Password must include at least one letter.")
+    if not any(c.isupper() for c in password):
+        raise ValueError("Password must include at least one uppercase letter.")
+    if not any(c.islower() for c in password):
+        raise ValueError("Password must include at least one lowercase letter.")
     if not any(c.isdigit() for c in password):
         raise ValueError("Password must include at least one number.")
     if not any(not c.isalnum() for c in password):

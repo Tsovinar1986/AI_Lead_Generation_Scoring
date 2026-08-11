@@ -39,7 +39,7 @@ describe("LicenseBanner", () => {
 
     expect(await screen.findByText(/trial mode/i)).toBeInTheDocument();
     expect(screen.getByText(/2 days left/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /\$30\/mo/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /\$20\/mo/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /buy annual/i })).toBeInTheDocument();
   });
 
@@ -52,7 +52,7 @@ describe("LicenseBanner", () => {
 
     expect(await screen.findByText(/buyer@example.com/)).toBeInTheDocument();
     expect(screen.getByText(/pro plan/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /\$30\/mo/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /\$20\/mo/i })).not.toBeInTheDocument();
   });
 
   it("shows a distinct message once the trial has run out with no purchase", async () => {
@@ -63,7 +63,7 @@ describe("LicenseBanner", () => {
     render(<LicenseBanner />);
 
     expect(await screen.findByText(/trial has ended/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /\$30\/mo/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /\$20\/mo/i })).toBeInTheDocument();
     expect(screen.queryByText(/trial mode/i)).not.toBeInTheDocument();
   });
 
@@ -76,7 +76,7 @@ describe("LicenseBanner", () => {
 
     expect(await screen.findByText(/expired/i)).toBeInTheDocument();
     expect(screen.getByText(/buyer@example.com/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /\$30\/mo/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /\$20\/mo/i })).toBeInTheDocument();
     expect(screen.queryByText(/trial mode/i)).not.toBeInTheDocument();
   });
 
@@ -88,7 +88,7 @@ describe("LicenseBanner", () => {
     render(<LicenseBanner />);
 
     expect(await screen.findByText(/couldn't be verified/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /\$30\/mo/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /\$20\/mo/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/trial mode/i)).not.toBeInTheDocument();
   });
 
@@ -111,7 +111,7 @@ describe("LicenseBanner", () => {
     vi.mocked(paddle.openPaddleCheckout).mockRejectedValue(new Error("Paddle isn't configured on this deployment."));
 
     render(<LicenseBanner />);
-    await userEvent.click(await screen.findByRole("button", { name: /\$30\/mo/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /\$20\/mo/i }));
 
     expect(await screen.findByText("Paddle isn't configured on this deployment.")).toBeInTheDocument();
   });
@@ -123,7 +123,7 @@ describe("LicenseBanner", () => {
 
     render(<LicenseBanner />);
 
-    await screen.findByRole("button", { name: /\$30\/mo/i });
+    await screen.findByRole("button", { name: /\$20\/mo/i });
     expect(screen.queryByRole("button", { name: /pay with polar/i })).not.toBeInTheDocument();
   });
 

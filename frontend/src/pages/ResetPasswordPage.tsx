@@ -85,7 +85,7 @@ export function ResetPasswordPage() {
                   className="w-full rounded-md border border-border bg-panel px-3 py-1.5 text-sm text-heading outline-none focus:border-accent"
                 />
                 <p className="text-[11px] text-text/60">
-                  8+ characters, with at least one letter, one number, and one symbol.
+                  8+ characters, with at least one uppercase letter, one lowercase letter, one number, and one symbol.
                 </p>
                 {error && <p className="text-sm text-hot">{error}</p>}
                 <button
