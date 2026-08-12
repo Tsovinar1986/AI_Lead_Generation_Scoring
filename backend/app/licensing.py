@@ -28,7 +28,7 @@ from nacl.exceptions import BadSignatureError
 from nacl.signing import VerifyKey
 
 from . import storage
-from .config import LICENSE_KEY, LICENSE_PUBLIC_KEY, TRIAL_DAYS
+from .config import LICENSE_KEY, LICENSE_PUBLIC_KEY, TRIAL_DAYS, TRIAL_MAX_UPLOADS
 
 
 class LicenseState(Enum):
@@ -95,7 +95,20 @@ def trial_days_left() -> float:
     """Days remaining in the unlicensed grace period, floored at 0. Only
     meaningful when there's no valid license -- callers gate on
     verify_license() first and only consult this for the LICENSE_KEY-less
-    case, deployment-wide (see storage.get_or_start_trial)."""
+    case, deployment-wide (see storage.get_or_start_trial) and only ever for
+    the default tenant. Exhausting this ends the trial even if
+    trial_uploads_left() is still positive."""
     started_at = storage.get_or_start_trial()
     elapsed_days = (time.time() - started_at) / 86400
     return max(0.0, TRIAL_DAYS - elapsed_days)
+
+
+def trial_uploads_left() -> int:
+    """Free unlicensed uploads remaining, floored at 0. Only meaningful when
+    there's no valid license -- callers gate on verify_license() first and
+    only consult this for the LICENSE_KEY-less case, deployment-wide (see
+    storage.get_trial_uploads_used) and only ever for the default tenant.
+    Exhausting this ends the trial even if trial_days_left() is still
+    positive."""
+    used = storage.get_trial_uploads_used()
+    return max(0, TRIAL_MAX_UPLOADS - used)

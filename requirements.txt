@@ -42,3 +42,11 @@ apscheduler>=3.10,<4.0
 # --- Config & logging ---
 python-dotenv>=1.0,<2.0
 loguru>=0.7,<1.0
+
+# --- Database (app/db.py) ---
+# Only imported/used when DATABASE_URL is set to a postgres(ql):// URL --
+# the zero-config default is SQLite (Python stdlib, no dependency needed).
+# -binary bundles libpq so there's no separate system Postgres client
+# library to install; fine for this app's scale, swap for plain psycopg2 +
+# a system libpq if you're compiling for a specific platform anyway.
+psycopg2-binary>=2.9,<3.0

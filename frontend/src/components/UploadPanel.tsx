@@ -186,7 +186,7 @@ export function UploadPanel({ onUploaded }: Props) {
             $20/mo
           </button>
           <button className={btnPrimary} disabled={busy} onClick={() => handleBuy("annual")}>
-            Buy annual (save 15%)
+            Buy annual (save 20%)
           </button>
           {polarAvailable && (
             <>

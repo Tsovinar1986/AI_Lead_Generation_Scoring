@@ -58,7 +58,14 @@ export function LicenseBanner() {
     fetchLicenseStatus()
       .then(setStatus)
       .catch(() =>
-        setStatus({ licensed: false, reason: "trial", customer_email: null, plan: null, trial_days_left: null })
+        setStatus({
+          licensed: false,
+          reason: "trial",
+          customer_email: null,
+          plan: null,
+          trial_days_left: null,
+          trial_uploads_left: null,
+        })
       );
     fetchBillingConfig()
       .then((config) => setPolarAvailable(config.polar_available))
@@ -123,13 +130,14 @@ export function LicenseBanner() {
           }
         : status.reason === "trial_expired"
           ? {
-              message: "Your 3-day trial has ended — buy a license to keep scoring leads.",
+              message:
+                "Your free trial has ended — buy a license to keep scoring leads, or sign up for your own workspace (top right) to start fresh.",
               showBuyButtons: true,
             }
           : {
               message:
-                status.trial_days_left != null
-                  ? `Trial mode — full functionality for evaluation, ${status.trial_days_left} day${status.trial_days_left === 1 ? "" : "s"} left.`
+                status.trial_days_left != null && status.trial_uploads_left != null
+                  ? `Trial mode — ${status.trial_uploads_left} of 10 free uploads left, ${status.trial_days_left} day${status.trial_days_left === 1 ? "" : "s"} left.`
                   : "Running in trial mode — full functionality for evaluation.",
               showBuyButtons: true,
             };
@@ -157,7 +165,7 @@ export function LicenseBanner() {
               {busyKey === "paddle-monthly" ? "Opening checkout…" : "$20/mo"}
             </button>
             <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("annual")}>
-              {busyKey === "paddle-annual" ? "Opening checkout…" : "Buy annual (save 15%)"}
+              {busyKey === "paddle-annual" ? "Opening checkout…" : "Buy annual (save 20%)"}
             </button>
             {polarAvailable && (
               <>

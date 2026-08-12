@@ -5,9 +5,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # SQLite file leads/alerts persist to, relative to the backend/ working
-# directory by default. Single-file, single-tenant -- fine for one
-# self-hosted buyer's data, not a multi-user setup.
+# directory by default. Fine for one self-hosted buyer's data; a seller
+# running one shared multi-tenant instance (see storage.py's docstring)
+# should set DATABASE_URL below instead, for real concurrent write support.
 DATABASE_PATH = os.getenv("DATABASE_PATH", "data/app.db")
+# Optional: a postgres:// or postgresql:// connection string. When set,
+# db.py connects to that Postgres instance instead of the SQLite file above
+# -- DATABASE_PATH is then ignored entirely. Leave unset for the zero-config
+# SQLite default this app has always used; requires the optional psycopg2
+# dependency (see requirements.txt) only when actually set.
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 # "text" (human-readable, for local dev) or "json" (one JSON object per line
 # on stdout, for log aggregators like CloudWatch/Datadog/Loki when this runs
@@ -81,21 +88,33 @@ LICENSE_KEY = os.getenv("LICENSE_KEY", "")
 # instance can verify a license without contacting anything. Safe to commit;
 # it can only verify signatures, not create them.
 LICENSE_PUBLIC_KEY = os.getenv("LICENSE_PUBLIC_KEY", "")
-# When true, endpoints that do real work (lead upload/scoring) 402 immediately
-# without a valid LICENSE_KEY -- skips the TRIAL_DAYS grace period entirely.
-# Leave false (default) so a fresh deployment gets TRIAL_DAYS of unlicensed
-# use before it starts enforcing (see TRIAL_DAYS below).
+# When true, the default tenant's upload endpoint 402s immediately without a
+# valid LICENSE_KEY -- skips the TRIAL_DAYS/TRIAL_MAX_UPLOADS grace allowance
+# entirely. Leave false (default) so a fresh deployment gets both a grace
+# window and a free-upload allowance before it starts enforcing (see below).
+# Only ever applies to the default tenant (see routers/leads.py) -- a
+# self-serve tenant signed up via routers/accounts.py is a customer of
+# whoever runs this deployment, not a buyer of the software itself, so it's
+# never gated by this deployment's own license.
 LICENSE_REQUIRED = os.getenv("LICENSE_REQUIRED", "false").lower() == "true"
 # How many days a deployment with no LICENSE_KEY may keep using paid
-# endpoints before it starts 402ing. The clock starts on this deployment's
-# first request that checks it (storage.get_or_start_trial), not on install,
-# and persists in the same SQLite file as everything else -- so it survives
-# restarts and can't be reset by just restarting the process.
+# endpoints before it starts 402ing, regardless of how many of the
+# TRIAL_MAX_UPLOADS free uploads are left. The clock starts on this
+# deployment's first request that checks it (storage.get_or_start_trial),
+# not on install, and persists in the same SQLite file as everything else --
+# so it survives restarts and can't be reset by just restarting the process.
 TRIAL_DAYS = int(os.getenv("TRIAL_DAYS", "3"))
+# How many total /api/leads/upload calls the default tenant may make with no
+# valid LICENSE_KEY before it starts 402ing, regardless of TRIAL_DAYS -- a
+# use-based cap alongside the time-based one, so whichever limit is hit
+# first ends the free trial. The counter persists in the same SQLite file as
+# everything else (storage.increment_trial_uploads), so it survives restarts
+# and can't be reset by just restarting the process.
+TRIAL_MAX_UPLOADS = int(os.getenv("TRIAL_MAX_UPLOADS", "10"))
 # Caps each /api/leads/upload call to at most this many rows while
-# unlicensed (whether still within TRIAL_DAYS or not) -- lets a prospect
-# judge scoring quality on a real sample of their own data without getting
-# full free use of a large list. Licensed deployments have no cap.
+# unlicensed (whether or not TRIAL_MAX_UPLOADS is exhausted) -- lets a
+# prospect judge scoring quality on a real sample of their own data without
+# getting full free use of a large list. Licensed deployments have no cap.
 TRIAL_MAX_LEADS_PER_UPLOAD = int(os.getenv("TRIAL_MAX_LEADS_PER_UPLOAD", "10"))
 
 # --- Licensing (seller side) ---
@@ -121,7 +140,7 @@ PADDLE_CLIENT_TOKEN = os.getenv("PADDLE_CLIENT_TOKEN", "")
 # completely separate account/API host from production) or "production".
 PADDLE_ENVIRONMENT = os.getenv("PADDLE_ENVIRONMENT", "sandbox")
 # Two recurring Paddle Prices (format pri_...) on the same product -- see
-# licensing/README.md for suggested amounts ($20/mo, 15% off annual) and
+# licensing/README.md for suggested amounts ($20/mo, 20% off annual) and
 # how to create them.
 PADDLE_PRICE_ID_MONTHLY = os.getenv("PADDLE_PRICE_ID_MONTHLY", "")
 PADDLE_PRICE_ID_ANNUAL = os.getenv("PADDLE_PRICE_ID_ANNUAL", "")

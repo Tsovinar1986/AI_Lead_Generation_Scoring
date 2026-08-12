@@ -11,7 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from .config import CORS_ALLOWED_ORIGINS, FORCE_HTTPS
-from .licensing import LicenseState, check_license, trial_days_left, verify_license
+from .licensing import LicenseState, check_license, trial_days_left, trial_uploads_left, verify_license
 from .logging_config import configure_logging
 from .middleware import SecurityHeadersMiddleware, limiter
 from .routers import accounts, actions, billing, churn, leads
@@ -93,16 +93,19 @@ def license_status():
     # see the same "buy a license" copy as someone who never did. NONE further
     # splits into "trial" vs "trial_expired" so a still-evaluating prospect
     # doesn't see the same hard-stop copy as one whose grace period is over.
+    # Two independent limits end the trial -- whichever is hit first.
     days_left = trial_days_left() if check.state == LicenseState.NONE else None
+    uploads_left = trial_uploads_left() if check.state == LicenseState.NONE else None
     reason = check.state.value
     if check.state == LicenseState.NONE:
-        reason = "trial" if days_left > 0 else "trial_expired"
+        reason = "trial" if days_left > 0 and uploads_left > 0 else "trial_expired"
     return {
         "licensed": False,
         "reason": reason,
         "customer_email": check.info.customer_email if check.info else None,
         "plan": check.info.plan if check.info else None,
         "trial_days_left": round(days_left, 1) if days_left is not None else None,
+        "trial_uploads_left": uploads_left,
     }
 
 

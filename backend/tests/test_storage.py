@@ -1,12 +1,30 @@
 import sqlite3
 
-from app import storage
+from app import config, storage
 from app.models import Alert
 
 from .conftest import make_scored_lead
 
 TENANT = "tenant-a"
 OTHER_TENANT = "tenant-b"
+
+
+def test_reset_for_tests_actually_redirects_storage(tmp_path):
+    # Regression test: _reset_for_tests once set a module-level
+    # storage.DATABASE_PATH that nothing read anymore (db.py reads
+    # config.DATABASE_PATH), so every test silently wrote to whatever real
+    # database config.DATABASE_PATH pointed at instead of an isolated tmp
+    # file. This pins the fix: after reset, the connection must actually be
+    # backed by the requested path, and config.DATABASE_PATH must agree.
+    db_path = str(tmp_path / "isolated.db")
+    storage._reset_for_tests(db_path)
+
+    assert config.DATABASE_PATH == db_path
+    storage.upsert_leads(TENANT, [make_scored_lead()])
+    conn = sqlite3.connect(db_path)
+    count = conn.execute("SELECT count(*) FROM leads").fetchone()[0]
+    conn.close()
+    assert count == 1
 
 
 def test_migrates_pre_signup_schema_without_losing_data(tmp_path):
@@ -246,6 +264,28 @@ def test_get_or_start_trial_persists_across_reconnect(tmp_path):
     storage._conn = storage._connect()
 
     assert storage.get_or_start_trial() == started
+
+
+def test_trial_uploads_starts_at_zero():
+    assert storage.get_trial_uploads_used() == 0
+
+
+def test_increment_trial_uploads_counts_up():
+    assert storage.increment_trial_uploads() == 1
+    assert storage.increment_trial_uploads() == 2
+    assert storage.get_trial_uploads_used() == 2
+
+
+def test_trial_uploads_persists_across_reconnect(tmp_path):
+    db_path = str(tmp_path / "trial_uploads.db")
+    storage._reset_for_tests(db_path)
+    storage.increment_trial_uploads()
+    storage.increment_trial_uploads()
+
+    storage._conn.close()
+    storage._conn = storage._connect()
+
+    assert storage.get_trial_uploads_used() == 2
 
 
 # --- SQL injection: every query in storage.py uses ? placeholders, never

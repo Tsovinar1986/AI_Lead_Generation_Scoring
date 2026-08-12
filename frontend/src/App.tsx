@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { TenantAuthError, clearTenantApiKey, fetchLeads } from "./api";
+import { TenantAuthError, clearTenantApiKey, fetchLeads, getTenantApiKey } from "./api";
 import { LeadDetail } from "./components/LeadDetail";
 import { LeadsTable } from "./components/LeadsTable";
 import { LicenseBanner } from "./components/LicenseBanner";
@@ -42,6 +42,12 @@ function LeadScoringApp() {
   }
 
   const selectedLead = leads.find((l) => l.id === selectedId) ?? null;
+  // The license belongs to whoever runs this deployment, not to a
+  // self-serve tenant using it -- a signed-up workspace is that operator's
+  // customer, not a buyer of the software, so it never sees license/trial
+  // messaging. workspaceGeneration in the effect above already re-renders
+  // this on connect/disconnect, so re-reading the key here stays in sync.
+  const isDefaultWorkspace = !getTenantApiKey();
 
   return (
     <div className="min-h-screen bg-bg font-sans text-text antialiased">
@@ -69,9 +75,11 @@ function LeadScoringApp() {
           {authError && <p className="mt-3 text-sm text-hot">{authError}</p>}
         </header>
 
-        <div className="animate-fade-in-up mb-5" style={{ animationDelay: "60ms" }}>
-          <LicenseBanner />
-        </div>
+        {isDefaultWorkspace && (
+          <div className="animate-fade-in-up mb-5" style={{ animationDelay: "60ms" }}>
+            <LicenseBanner />
+          </div>
+        )}
 
         <main className="flex flex-col gap-5">
           <div className="animate-fade-in-up" style={{ animationDelay: "110ms" }}>

@@ -69,6 +69,7 @@ def test_license_status_endpoint_unlicensed(client):
     assert body["licensed"] is False
     assert body["reason"] == "trial"
     assert body["trial_days_left"] > 0
+    assert body["trial_uploads_left"] == 10
 
 
 def test_upload_blocked_when_license_required_and_missing(client, monkeypatch):
@@ -90,17 +91,59 @@ def test_upload_allowed_when_license_required_and_valid(client, monkeypatch):
 def test_upload_allowed_during_trial_with_no_license_required(client, monkeypatch):
     monkeypatch.setattr(leads_router, "verify_license", lambda: None)
     monkeypatch.setattr(leads_router, "trial_days_left", lambda: 1.0)
+    monkeypatch.setattr(leads_router, "trial_uploads_left", lambda: 5)
 
     resp = _upload(client)
     assert resp.status_code == 200
 
 
-def test_upload_blocked_once_trial_expires_even_without_license_required(client, monkeypatch):
+def test_upload_blocked_once_days_expire_even_with_uploads_left(client, monkeypatch):
     monkeypatch.setattr(leads_router, "verify_license", lambda: None)
     monkeypatch.setattr(leads_router, "trial_days_left", lambda: 0.0)
+    monkeypatch.setattr(leads_router, "trial_uploads_left", lambda: 5)
 
     resp = _upload(client)
     assert resp.status_code == 402
+
+
+def test_upload_blocked_once_uploads_exhausted_even_with_days_left(client, monkeypatch):
+    monkeypatch.setattr(leads_router, "verify_license", lambda: None)
+    monkeypatch.setattr(leads_router, "trial_days_left", lambda: 1.0)
+    monkeypatch.setattr(leads_router, "trial_uploads_left", lambda: 0)
+
+    resp = _upload(client)
+    assert resp.status_code == 402
+
+
+def test_upload_increments_trial_uploads_counter_for_default_tenant(client, monkeypatch):
+    from app import storage
+
+    monkeypatch.setattr(leads_router, "verify_license", lambda: None)
+    assert storage.get_trial_uploads_used() == 0
+
+    _upload(client)
+
+    assert storage.get_trial_uploads_used() == 1
+
+
+def test_signed_up_tenant_upload_never_gated_by_license(client, monkeypatch):
+    monkeypatch.setattr(leads_router, "LICENSE_REQUIRED", True)
+    monkeypatch.setattr(leads_router, "verify_license", lambda: None)
+    monkeypatch.setattr(leads_router, "trial_days_left", lambda: 0.0)
+    monkeypatch.setattr(leads_router, "trial_uploads_left", lambda: 0)
+
+    signup_resp = client.post(
+        "/api/accounts/signup",
+        json={"name": "Acme", "email": "buyer@acme.com", "password": "Correct-Horse9!"},
+    )
+    api_key = signup_resp.json()["api_key"]
+
+    resp = client.post(
+        "/api/leads/upload",
+        files={"file": ("leads.csv", io.BytesIO(SAMPLE_CSV), "text/csv")},
+        headers={"Authorization": f"Bearer {api_key}"},
+    )
+    assert resp.status_code == 200
 
 
 def _make_csv(row_count: int) -> bytes:

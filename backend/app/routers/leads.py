@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, Upload
 from .. import storage
 from ..auth import get_current_tenant
 from ..config import LICENSE_REQUIRED, RATE_LIMIT_UPLOAD, TRIAL_MAX_LEADS_PER_UPLOAD
-from ..licensing import trial_days_left, verify_license
+from ..licensing import trial_days_left, trial_uploads_left, verify_license
 from ..middleware import limiter
 from ..models import ScoredLead
 from ..services.alerts import maybe_alert
@@ -23,12 +23,18 @@ async def upload_leads(
     file: UploadFile,
     tenant: storage.Tenant = Depends(get_current_tenant),
 ):
-    licensed = verify_license() is not None
-    if not licensed and (LICENSE_REQUIRED or trial_days_left() <= 0):
+    # Only the default tenant (no Authorization header -- the self-hosted
+    # buyer using this instance directly) is ever gated by this deployment's
+    # own license. A self-serve tenant (routers/accounts.py) is a customer
+    # of whoever runs this deployment, not a buyer of the software itself,
+    # so their uploads are never blocked or capped here.
+    gated = tenant.id == storage.DEFAULT_TENANT_ID and verify_license() is None
+    if gated and (LICENSE_REQUIRED or trial_days_left() <= 0 or trial_uploads_left() <= 0):
         raise HTTPException(
             status_code=402,
-            detail="No valid license found and the trial period has ended. "
-            "Purchase one at /api/billing/checkout and set LICENSE_KEY in .env.",
+            detail="No valid license found and the free trial has ended. "
+            "Purchase one at /api/billing/checkout and set LICENSE_KEY in .env, "
+            "or sign up for your own workspace at /api/accounts/signup.",
         )
 
     content = await file.read()
@@ -44,12 +50,15 @@ async def upload_leads(
         raise HTTPException(status_code=400, detail="No leads found in file.")
     enforce_row_cap(len(raw_leads))
 
-    # Trial usage cap: judge scoring quality on a real sample without full
-    # free use of a large list. Doesn't apply once licensed.
-    if not licensed and len(raw_leads) > TRIAL_MAX_LEADS_PER_UPLOAD:
+    # Trial row cap: judge scoring quality on a real sample without full
+    # free use of a large list.
+    if gated and len(raw_leads) > TRIAL_MAX_LEADS_PER_UPLOAD:
         response.headers["X-Trial-Limited-Rows"] = str(TRIAL_MAX_LEADS_PER_UPLOAD)
         response.headers["X-Trial-Total-Rows"] = str(len(raw_leads))
         raw_leads = raw_leads[:TRIAL_MAX_LEADS_PER_UPLOAD]
+
+    if gated:
+        storage.increment_trial_uploads()
 
     scored: list[ScoredLead] = []
     for lead in raw_leads:

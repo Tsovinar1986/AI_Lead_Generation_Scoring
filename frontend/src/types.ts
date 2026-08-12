@@ -39,6 +39,7 @@ export type LicenseStatus =
       customer_email: string | null;
       plan: string | null;
       trial_days_left: number | null;
+      trial_uploads_left: number | null;
     }
   | { licensed: true; customer_email: string; plan: string; expires_at: number | null };
 

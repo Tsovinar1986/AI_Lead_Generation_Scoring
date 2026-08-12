@@ -32,8 +32,8 @@ EXPOSE 8081
 
 # --proxy-headers/--forwarded-allow-ips only added when TRUST_PROXY_HEADERS
 # is set -- needed so rate limiting (app/middleware.py) sees the real client
-# IP instead of the proxy's when this runs behind one (Render sets this to
-# true in render.yaml). Leave unset for a bare container with nothing
+# IP instead of the proxy's when this runs behind one. Leave unset for a
+# bare container with nothing
 # trusted in front of it, or any client could spoof X-Forwarded-For and
 # defeat rate limiting entirely.
 CMD ["sh", "-c", "if [ \"$TRUST_PROXY_HEADERS\" = \"true\" ]; then exec uvicorn app.main:app --host 0.0.0.0 --port 8081 --proxy-headers --forwarded-allow-ips='*'; else exec uvicorn app.main:app --host 0.0.0.0 --port 8081; fi"]

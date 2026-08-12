@@ -1,4 +1,7 @@
-"""SQLite-backed store, so leads/alerts survive a restart.
+"""SQLite- or PostgreSQL-backed store, so leads/alerts survive a restart.
+SQLite is the zero-config default; set DATABASE_URL to a postgres(ql)://
+URL to run against Postgres instead (see db.py, the only module that knows
+about the difference between the two).
 
 Multi-tenant: every lead/alert row carries a tenant_id, and every read/write
 here takes one. Requests with no Authorization header (see auth.py) are
@@ -16,13 +19,11 @@ just because a field was added there.
 
 import hashlib
 import secrets
-import sqlite3
 import time
 from dataclasses import dataclass
-from pathlib import Path
 from threading import Lock
 
-from .config import DATABASE_PATH
+from . import db as _db
 from .models import Alert, ScoredLead
 
 DEFAULT_TENANT_ID = "default"
@@ -36,42 +37,83 @@ class Tenant:
     name: str
 
 
-def _connect() -> sqlite3.Connection:
-    Path(DATABASE_PATH).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DATABASE_PATH, check_same_thread=False)
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS leads ("
-        "id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, domain TEXT NOT NULL, "
-        "combined_score REAL NOT NULL, data TEXT NOT NULL)"
-    )
+# The few statements below genuinely differ between SQLite and Postgres
+# (upsert syntax, autoincrement, schema introspection) -- everything else in
+# this file is plain SQL that db.py's connection wrapper runs unchanged on
+# either backend.
+_LEADS_TABLE_DDL = (
+    "CREATE TABLE IF NOT EXISTS leads ("
+    "id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, domain TEXT NOT NULL, "
+    + ("combined_score DOUBLE PRECISION NOT NULL, data TEXT NOT NULL)" if _db.IS_POSTGRES
+       else "combined_score REAL NOT NULL, data TEXT NOT NULL)")
+)
+_ALERTS_TABLE_DDL = (
+    "CREATE TABLE IF NOT EXISTS alerts ("
+    + ("seq SERIAL PRIMARY KEY, id TEXT NOT NULL, tenant_id TEXT NOT NULL, data TEXT NOT NULL)" if _db.IS_POSTGRES
+       else "seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL, tenant_id TEXT NOT NULL, data TEXT NOT NULL)")
+)
+_TENANTS_TABLE_DDL = (
+    "CREATE TABLE IF NOT EXISTS tenants ("
+    "id TEXT PRIMARY KEY, name TEXT NOT NULL, api_key_hash TEXT NOT NULL UNIQUE, "
+    + ("created_at DOUBLE PRECISION NOT NULL, email TEXT, password_hash TEXT)" if _db.IS_POSTGRES
+       else "created_at REAL NOT NULL, email TEXT, password_hash TEXT)")
+)
+_PASSWORD_RESETS_TABLE_DDL = (
+    "CREATE TABLE IF NOT EXISTS password_resets ("
+    "token_hash TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, "
+    + ("expires_at DOUBLE PRECISION NOT NULL)" if _db.IS_POSTGRES else "expires_at REAL NOT NULL)")
+)
+_UPSERT_LEAD_SQL = (
+    "INSERT INTO leads (id, tenant_id, domain, combined_score, data) VALUES (?, ?, ?, ?, ?) "
+    "ON CONFLICT (id) DO UPDATE SET tenant_id = EXCLUDED.tenant_id, domain = EXCLUDED.domain, "
+    "combined_score = EXCLUDED.combined_score, data = EXCLUDED.data"
+    if _db.IS_POSTGRES
+    else "INSERT OR REPLACE INTO leads (id, tenant_id, domain, combined_score, data) VALUES (?, ?, ?, ?, ?)"
+)
+_INSERT_IGNORE_APP_META_SQL = (
+    "INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING"
+    if _db.IS_POSTGRES
+    else "INSERT OR IGNORE INTO app_meta (key, value) VALUES (?, ?)"
+)
+_UPSERT_APP_META_SQL = (
+    "INSERT INTO app_meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
+    if _db.IS_POSTGRES
+    else "INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?)"
+)
+
+
+def _existing_tenant_columns(conn) -> set[str]:
+    if _db.IS_POSTGRES:
+        rows = conn.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = 'tenants'"
+        ).fetchall()
+        return {row[0] for row in rows}
+    rows = conn.execute("PRAGMA table_info(tenants)").fetchall()
+    return {row[1] for row in rows}
+
+
+def _connect():
+    conn = _db.connect()
+    conn.execute(_LEADS_TABLE_DDL)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_tenant ON leads (tenant_id)")
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS alerts ("
-        "seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL, tenant_id TEXT NOT NULL, data TEXT NOT NULL)"
-    )
+    conn.execute(_ALERTS_TABLE_DDL)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_alerts_tenant ON alerts (tenant_id)")
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS tenants ("
-        "id TEXT PRIMARY KEY, name TEXT NOT NULL, api_key_hash TEXT NOT NULL UNIQUE, created_at REAL NOT NULL, "
-        "email TEXT, password_hash TEXT)"
-    )
+    conn.execute(_TENANTS_TABLE_DDL)
     # Migration for DBs created before self-serve signup existed -- CREATE
-    # TABLE IF NOT EXISTS above only takes effect on a brand-new file.
-    existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(tenants)").fetchall()}
+    # TABLE IF NOT EXISTS above only takes effect on a brand-new database.
+    existing_cols = _existing_tenant_columns(conn)
     if "email" not in existing_cols:
         conn.execute("ALTER TABLE tenants ADD COLUMN email TEXT")
     if "password_hash" not in existing_cols:
         conn.execute("ALTER TABLE tenants ADD COLUMN password_hash TEXT")
     # Partial index: enforces uniqueness among real emails while still
     # allowing unlimited NULLs, since scripts/create_tenant.py-provisioned
-    # tenants have no email/login of their own.
+    # tenants have no email/login of their own. Supported the same way on
+    # both SQLite and Postgres.
     conn.execute(
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_email ON tenants (email) WHERE email IS NOT NULL"
     )
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS password_resets ("
-        "token_hash TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, expires_at REAL NOT NULL)"
-    )
+    conn.execute(_PASSWORD_RESETS_TABLE_DDL)
     conn.execute(
         "CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
     )
@@ -208,7 +250,7 @@ def upsert_leads(tenant_id: str, leads: list[ScoredLead]) -> None:
             "DELETE FROM leads WHERE tenant_id = ? AND domain = ?", [(tenant_id, d) for d in domains]
         )
         _conn.executemany(
-            "INSERT OR REPLACE INTO leads (id, tenant_id, domain, combined_score, data) VALUES (?, ?, ?, ?, ?)",
+            _UPSERT_LEAD_SQL,
             [
                 (lead.id, tenant_id, lead.domain, lead.combined_score, lead.model_dump_json())
                 for lead in leads
@@ -227,7 +269,7 @@ def get_lead(tenant_id: str, lead_id: str) -> ScoredLead | None:
 def update_lead(tenant_id: str, lead: ScoredLead) -> None:
     with _lock, _conn:
         _conn.execute(
-            "INSERT OR REPLACE INTO leads (id, tenant_id, domain, combined_score, data) VALUES (?, ?, ?, ?, ?)",
+            _UPSERT_LEAD_SQL,
             (lead.id, tenant_id, lead.domain, lead.combined_score, lead.model_dump_json()),
         )
 
@@ -264,24 +306,47 @@ def clear_all(tenant_id: str) -> None:
 
 def get_or_start_trial() -> float:
     """Deployment-wide (not tenant-scoped, matching /api/license), so this is
-    one clock per self-hosted instance, not per tenant. Set once on the
-    first call ever for this DB file and never overwritten after -- that's
-    what makes it a real trial window instead of something a restart resets.
+    one clock per self-hosted instance, not per tenant, and only the default
+    tenant is ever gated by it (see routers/leads.py). Set once on the first
+    call ever for this DB file and never overwritten after -- that's what
+    makes it a real trial window instead of something a restart resets.
     """
     with _lock, _conn:
-        _conn.execute(
-            "INSERT OR IGNORE INTO app_meta (key, value) VALUES ('trial_started_at', ?)",
-            (str(time.time()),),
-        )
+        _conn.execute(_INSERT_IGNORE_APP_META_SQL, ("trial_started_at", str(time.time())))
         row = _conn.execute("SELECT value FROM app_meta WHERE key = 'trial_started_at'").fetchone()
     return float(row[0])
 
 
-def _reset_for_tests(path: str) -> None:
-    """Test-only: repoints storage at a fresh DB file (e.g. ':memory:' or a
-    tmp_path fixture) so tests don't share state with a real dev database.
+def increment_trial_uploads() -> int:
+    """Deployment-wide (not tenant-scoped, matching /api/license -- only the
+    default tenant is ever gated by this, see routers/leads.py), so this is
+    one counter per self-hosted instance, not per tenant. Persists in the
+    same SQLite file as everything else, so it survives restarts and can't
+    be reset by just restarting the process. Returns the new total.
     """
-    global _conn, DATABASE_PATH
-    DATABASE_PATH = path
+    with _lock, _conn:
+        row = _conn.execute("SELECT value FROM app_meta WHERE key = 'trial_uploads_used'").fetchone()
+        count = int(row[0]) + 1 if row else 1
+        _conn.execute(_UPSERT_APP_META_SQL, ("trial_uploads_used", str(count)))
+    return count
+
+
+def get_trial_uploads_used() -> int:
+    with _lock:
+        row = _conn.execute("SELECT value FROM app_meta WHERE key = 'trial_uploads_used'").fetchone()
+    return int(row[0]) if row else 0
+
+
+def _reset_for_tests(path: str) -> None:
+    """Test-only: repoints storage at a fresh SQLite file (e.g. a tmp_path
+    fixture) so tests don't share state with a real dev database. Always
+    SQLite regardless of DATABASE_URL -- tests need a throwaway file, not
+    whatever Postgres instance a deployment might be configured against.
+    """
+    from . import config as _config
+
+    global _conn
+    _config.DATABASE_PATH = path
+    _db.IS_POSTGRES = False
     _conn.close()
     _conn = _connect()

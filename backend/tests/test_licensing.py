@@ -147,6 +147,27 @@ def test_trial_days_left_floors_at_zero_once_expired(monkeypatch):
     assert licensing.trial_days_left() == 0.0
 
 
+def test_trial_uploads_left_starts_at_full_allowance(monkeypatch):
+    monkeypatch.setattr(licensing, "TRIAL_MAX_UPLOADS", 10)
+    monkeypatch.setattr(licensing.storage, "get_trial_uploads_used", lambda: 0)
+
+    assert licensing.trial_uploads_left() == 10
+
+
+def test_trial_uploads_left_counts_down(monkeypatch):
+    monkeypatch.setattr(licensing, "TRIAL_MAX_UPLOADS", 10)
+    monkeypatch.setattr(licensing.storage, "get_trial_uploads_used", lambda: 4)
+
+    assert licensing.trial_uploads_left() == 6
+
+
+def test_trial_uploads_left_floors_at_zero_once_exhausted(monkeypatch):
+    monkeypatch.setattr(licensing, "TRIAL_MAX_UPLOADS", 10)
+    monkeypatch.setattr(licensing.storage, "get_trial_uploads_used", lambda: 25)
+
+    assert licensing.trial_uploads_left() == 0
+
+
 def test_check_license_state_valid(monkeypatch):
     signing_key, public_b64 = _make_keypair()
     key = _sign_license(signing_key, {
