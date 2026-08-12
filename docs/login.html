@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Log in — CRM Scoring</title>
+<meta name="description" content="Log in or create a workspace for CRM Scoring." />
+<style>
+  /* Same design tokens as docs/index.html / frontend/src/index.css -- kept
+     in sync so every page on this site reads as the same product. */
+  :root {
+    --text-h: #08060d; --text: #4b5563; --text-muted: #4b5563;
+    --bg: #f7f7f8; --bg-alt: #ffffff; --border: #e5e4e7;
+    --accent: #7c3aed; --accent-dark: #6d28d9; --accent-bg: rgba(124, 58, 237, 0.1);
+    --hot: #dc2626; --hot-bg: rgba(220, 38, 38, 0.1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --text-h: #f3f4f6; --text: #9ca3af; --text-muted: #9ca3af;
+      --bg: #16171d; --bg-alt: #1e1f27; --border: #2e303a;
+      --accent: #c084fc; --accent-dark: #d8b4fe; --accent-bg: rgba(192, 132, 252, 0.15);
+      --hot-bg: rgba(220, 38, 38, 0.2);
+    }
+  }
+  :root[data-theme="dark"] {
+    --text-h: #f3f4f6; --text: #9ca3af; --text-muted: #9ca3af;
+    --bg: #16171d; --bg-alt: #1e1f27; --border: #2e303a;
+    --accent: #c084fc; --accent-dark: #d8b4fe; --accent-bg: rgba(192, 132, 252, 0.15);
+    --hot-bg: rgba(220, 38, 38, 0.2);
+  }
+  :root[data-theme="light"] {
+    --text-h: #08060d; --text: #4b5563; --text-muted: #4b5563;
+    --bg: #f7f7f8; --bg-alt: #ffffff; --border: #e5e4e7;
+    --accent: #7c3aed; --accent-dark: #6d28d9; --accent-bg: rgba(124, 58, 237, 0.1);
+    --hot: #dc2626; --hot-bg: rgba(220, 38, 38, 0.1);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.5;
+  }
+  h1, .logo { color: var(--text-h); }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+  header.nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+  .logo { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; }
+  .logo a { color: inherit; text-decoration: none; }
+  .logo span { color: var(--accent); }
+
+  main.center {
+    min-height: calc(100vh - 140px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 380px;
+    border: 1px solid var(--border); border-radius: 12px;
+    background: var(--bg-alt); box-shadow: 0 8px 24px -8px rgba(0,0,0,0.15);
+    padding: 28px 26px;
+  }
+  .card h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .card p.lede { color: var(--text-muted); font-size: 0.88rem; margin: 0 0 20px; }
+  input {
+    width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg); color: var(--text-h); padding: 9px 12px; font-size: 0.92rem;
+    margin-bottom: 10px; font-family: inherit;
+  }
+  .hint { font-size: 0.76rem; color: var(--text-muted); margin: -4px 0 10px; }
+  .btn {
+    display: inline-block; padding: 10px 18px; border-radius: 6px; font-weight: 600;
+    text-decoration: none; font-size: 0.92rem; border: 1px solid transparent; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--accent); color: white; width: 100%; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .links { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 14px; }
+  .links button {
+    background: none; border: none; padding: 0; cursor: pointer; font: inherit;
+    font-size: 0.82rem; color: var(--accent); text-decoration: underline; text-underline-offset: 2px;
+  }
+  .error { color: var(--hot); font-size: 0.82rem; margin: 6px 0 0; }
+  .key-box {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 10px; word-break: break-all; margin: 10px 0;
+  }
+  footer { padding: 32px 0 40px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+  footer a { color: var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="nav">
+      <div class="logo"><a href="index.html">CRM<span>Scoring</span></a></div>
+    </header>
+  </div>
+
+  <main class="center">
+    <div class="card">
+      <div id="panel-login">
+        <h1>Log in</h1>
+        <p class="lede">Access your workspace.</p>
+        <input type="email" id="login-email" placeholder="Email" />
+        <input type="password" id="login-password" placeholder="Password" />
+        <p class="error" id="login-error" style="display:none;"></p>
+        <button class="btn btn-primary" id="login-btn" onclick="handleLogin()">Log in</button>
+        <div class="links">
+          <button onclick="showPanel('signup')">New here? Sign up</button>
+          <button onclick="showPanel('forgot')">Forgot password?</button>
+        </div>
+      </div>
+
+      <div id="panel-signup" style="display:none;">
+        <h1>Create a workspace</h1>
+        <p class="lede">Score your first leads in a couple of minutes.</p>
+        <input type="text" id="signup-name" placeholder="Company/workspace name" />
+        <input type="email" id="signup-email" placeholder="Email" />
+        <input type="password" id="signup-password" placeholder="Password" />
+        <p class="hint">8+ characters, with at least one uppercase letter, one lowercase letter, one number, and one symbol.</p>
+        <p class="error" id="signup-error" style="display:none;"></p>
+        <button class="btn btn-primary" id="signup-btn" onclick="handleSignup()">Sign up</button>
+        <div class="links">
+          <button onclick="showPanel('login')">Already have an account? Log in</button>
+        </div>
+      </div>
+
+      <div id="panel-forgot" style="display:none;">
+        <h1>Reset your password</h1>
+        <p class="lede">We'll email you a reset link.</p>
+        <input type="email" id="forgot-email" placeholder="Email" />
+        <p class="error" id="forgot-error" style="display:none;"></p>
+        <button class="btn btn-primary" id="forgot-btn" onclick="handleForgotPassword()">Send reset link</button>
+        <div class="links">
+          <button onclick="showPanel('login')">Back to log in</button>
+        </div>
+      </div>
+
+      <div id="panel-forgot-sent" style="display:none;">
+        <h1>Check your inbox</h1>
+        <p class="lede">If that email has an account, a reset link is on its way.</p>
+        <button class="btn btn-primary" onclick="showPanel('login')">Back to log in</button>
+      </div>
+
+      <div id="panel-key" style="display:none;">
+        <h1>Workspace ready</h1>
+        <p class="lede">Taking you to your workspace…</p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">&copy; 2026 CRM Scoring. <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a></div>
+  </footer>
+
+  <script>
+    // Same backend as index.html's billing calls, via an ngrok tunnel in
+    // dev -- see index.html for the fuller explanation. Swap for the real
+    // deployed backend URL once this site is on real hosting.
+    var API_BASE = "https://disobey-battered-deploy.ngrok-free.dev/api";
+    var WORKSPACE_KEY_STORAGE = "crmscoring_workspace_key";
+    var NEW_USER_STORAGE = "crmscoring_new_user";
+
+    function showPanel(name) {
+      ["login", "signup", "forgot", "forgot-sent", "key"].forEach(function (p) {
+        document.getElementById("panel-" + p).style.display = p === name ? "block" : "none";
+      });
+    }
+
+    function showError(panel, message) {
+      var el = document.getElementById(panel + "-error");
+      el.textContent = message;
+      el.style.display = "block";
+    }
+
+    async function authRequest(path, body) {
+      var res = await fetch(API_BASE + path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+        body: JSON.stringify(body),
+      });
+      var data = await res.json().catch(function () { return null; });
+      if (!res.ok) throw new Error((data && data.detail) || "Something went wrong.");
+      return data;
+    }
+
+    function enterWorkspace(apiKey, isNewUser) {
+      localStorage.setItem(WORKSPACE_KEY_STORAGE, apiKey);
+      localStorage.setItem(NEW_USER_STORAGE, isNewUser ? "1" : "0");
+      showPanel("key");
+      window.location.href = "app.html";
+    }
+
+    async function handleLogin() {
+      var email = document.getElementById("login-email").value.trim();
+      var password = document.getElementById("login-password").value;
+      var btn = document.getElementById("login-btn");
+      btn.disabled = true;
+      btn.textContent = "Logging in…";
+      try {
+        var auth = await authRequest("/accounts/login", { email: email, password: password });
+        enterWorkspace(auth.api_key, false);
+      } catch (err) {
+        showError("login", err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Log in";
+      }
+    }
+
+    async function handleSignup() {
+      var name = document.getElementById("signup-name").value.trim();
+      var email = document.getElementById("signup-email").value.trim();
+      var password = document.getElementById("signup-password").value;
+      var btn = document.getElementById("signup-btn");
+      btn.disabled = true;
+      btn.textContent = "Creating…";
+      try {
+        var auth = await authRequest("/accounts/signup", { name: name, email: email, password: password });
+        enterWorkspace(auth.api_key, true);
+      } catch (err) {
+        showError("signup", err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Sign up";
+      }
+    }
+
+    async function handleForgotPassword() {
+      var email = document.getElementById("forgot-email").value.trim();
+      var btn = document.getElementById("forgot-btn");
+      btn.disabled = true;
+      btn.textContent = "Sending…";
+      try {
+        await authRequest("/accounts/forgot-password", { email: email });
+        showPanel("forgot-sent");
+      } catch (err) {
+        showError("forgot", err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Send reset link";
+      }
+    }
+  </script>
+</body>
+</html>

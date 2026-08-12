@@ -203,45 +203,10 @@
   }
   footer a { color: var(--text-muted); }
 
-  /* Self-serve signup/login, mirroring frontend/src/components/TenantSwitcher.tsx --
-     this static page has no build step, so it's hand-rolled vanilla JS
-     hitting the same backend (via the ngrok API_BASE below) rather than a
-     shared component. */
-  .nav-controls { display: flex; align-items: center; gap: 14px; position: relative; }
+  .nav-controls { display: flex; align-items: center; gap: 14px; }
   .auth-link {
-    background: none; border: none; padding: 0; cursor: pointer;
-    font: inherit; font-size: 0.9rem; color: var(--accent); text-decoration: underline;
+    font-size: 0.9rem; color: var(--accent); text-decoration: underline;
     text-underline-offset: 2px;
-  }
-  .auth-panel {
-    position: absolute; top: calc(100% + 8px); right: 0; z-index: 20;
-    width: 280px; border: 1px solid var(--border); border-radius: 10px;
-    background: var(--bg-alt); box-shadow: 0 8px 24px -8px rgba(0,0,0,0.25);
-    padding: 14px; display: none;
-  }
-  .auth-panel.open { display: block; }
-  .auth-panel h3 {
-    font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--text-muted); margin: 0 0 10px;
-  }
-  .auth-panel input {
-    width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: 6px;
-    background: var(--bg); color: var(--text-h); padding: 7px 10px; font-size: 0.88rem;
-    margin-bottom: 8px; font-family: inherit;
-  }
-  .auth-panel .hint { font-size: 0.72rem; color: var(--text-muted); margin: -2px 0 8px; }
-  .auth-panel .row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
-  .auth-panel .links { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 10px; }
-  .auth-panel .links button {
-    background: none; border: none; padding: 0; cursor: pointer; font: inherit;
-    font-size: 0.76rem; color: var(--accent); text-decoration: underline; text-underline-offset: 2px;
-  }
-  .auth-panel .error { color: var(--hot); font-size: 0.8rem; margin: 4px 0 0; }
-  .auth-panel .btn { padding: 7px 14px; font-size: 0.85rem; }
-  .auth-key-box {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.76rem;
-    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-    padding: 8px; word-break: break-all; margin: 8px 0;
   }
 </style>
 </head>
@@ -250,66 +215,8 @@
     <header class="nav">
       <div class="logo">CRM<span>Scoring</span></div>
       <div class="nav-controls">
-        <button type="button" class="auth-link" id="auth-toggle" onclick="toggleAuthPanel()">Log in / Sign up</button>
+        <a class="auth-link" href="login.html">Log in / Sign up</a>
         <a class="btn btn-secondary" href="mailto:hello@crmscoring.com">Contact</a>
-
-        <div class="auth-panel" id="auth-panel">
-          <div id="auth-panel-login">
-            <h3>Log in</h3>
-            <input type="email" id="auth-login-email" placeholder="Email" />
-            <input type="password" id="auth-login-password" placeholder="Password" />
-            <p class="error" id="auth-login-error" style="display:none;"></p>
-            <div class="row">
-              <button class="btn btn-primary" id="auth-login-btn" onclick="handleAuthLogin()">Log in</button>
-              <button class="btn btn-secondary" onclick="closeAuthPanel()">Cancel</button>
-            </div>
-            <div class="links">
-              <button onclick="showAuthMode('signup')">New here? Sign up</button>
-              <button onclick="showAuthMode('forgot')">Forgot password?</button>
-            </div>
-          </div>
-
-          <div id="auth-panel-signup" style="display:none;">
-            <h3>Create a workspace</h3>
-            <input type="text" id="auth-signup-name" placeholder="Company/workspace name" />
-            <input type="email" id="auth-signup-email" placeholder="Email" />
-            <input type="password" id="auth-signup-password" placeholder="Password" />
-            <p class="hint">8+ characters, with at least one uppercase letter, one lowercase letter, one number, and one symbol.</p>
-            <p class="error" id="auth-signup-error" style="display:none;"></p>
-            <div class="row">
-              <button class="btn btn-primary" id="auth-signup-btn" onclick="handleAuthSignup()">Sign up</button>
-              <button class="btn btn-secondary" onclick="closeAuthPanel()">Cancel</button>
-            </div>
-            <div class="links">
-              <button onclick="showAuthMode('login')">Already have an account? Log in</button>
-            </div>
-          </div>
-
-          <div id="auth-panel-forgot" style="display:none;">
-            <h3>Reset your password</h3>
-            <input type="email" id="auth-forgot-email" placeholder="Email" />
-            <p class="error" id="auth-forgot-error" style="display:none;"></p>
-            <div class="row">
-              <button class="btn btn-primary" id="auth-forgot-btn" onclick="handleAuthForgotPassword()">Send reset link</button>
-              <button class="btn btn-secondary" onclick="showAuthMode('login')">Back</button>
-            </div>
-          </div>
-
-          <div id="auth-panel-forgot-sent" style="display:none;">
-            <p style="font-size:0.85rem; margin:0 0 10px;">If that email has an account, a reset link is on its way — check your inbox.</p>
-            <button class="btn btn-secondary" onclick="closeAuthPanel()">Done</button>
-          </div>
-
-          <div id="auth-panel-key" style="display:none;">
-            <h3>Workspace ready</h3>
-            <p style="font-size:0.85rem; margin:0;">Save this key — it's shown once. Paste it into the app under "Paste a key instead" to access this workspace.</p>
-            <div class="auth-key-box" id="auth-key-value"></div>
-            <div class="row">
-              <button class="btn btn-primary" id="auth-key-copy-btn" onclick="copyAuthKey()">Copy key</button>
-              <button class="btn btn-secondary" onclick="closeAuthPanel()">Done</button>
-            </div>
-          </div>
-        </div>
       </div>
     </header>
   </div>
@@ -455,132 +362,6 @@
         }
       })
       .catch(function () { /* leave Polar buttons hidden */ });
-
-    // --- Self-serve signup/login/forgot-password, vanilla JS mirror of
-    // frontend/src/components/TenantSwitcher.tsx (this static page has no
-    // build step). Hits the same backend as everything else on this page
-    // via API_BASE. Unlike the real app, this page has no localStorage the
-    // real app can read (different origin), so a successful login/signup
-    // shows the API key for the visitor to copy and paste into the app's
-    // "Paste a key instead" option.
-    var authMode = "login";
-
-    function toggleAuthPanel() {
-      var panel = document.getElementById("auth-panel");
-      if (panel.classList.contains("open")) {
-        closeAuthPanel();
-      } else {
-        panel.classList.add("open");
-        showAuthMode("login");
-      }
-    }
-
-    function closeAuthPanel() {
-      document.getElementById("auth-panel").classList.remove("open");
-    }
-
-    function showAuthMode(mode) {
-      authMode = mode;
-      ["login", "signup", "forgot", "forgot-sent", "key"].forEach(function (m) {
-        document.getElementById("auth-panel-" + m).style.display = m === mode ? "block" : "none";
-      });
-      ["login", "signup", "forgot"].forEach(function (m) {
-        var errorEl = document.getElementById("auth-" + m + "-error");
-        if (errorEl) errorEl.style.display = "none";
-      });
-    }
-
-    function showAuthError(mode, message) {
-      var errorEl = document.getElementById("auth-" + mode + "-error");
-      errorEl.textContent = message;
-      errorEl.style.display = "block";
-    }
-
-    function showAuthKey(apiKey) {
-      document.getElementById("auth-key-value").textContent = apiKey;
-      showAuthMode("key");
-    }
-
-    async function authRequest(path, body) {
-      var res = await fetch(API_BASE + path, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-        body: JSON.stringify(body),
-      });
-      var data = await res.json().catch(function () { return null; });
-      if (!res.ok) {
-        throw new Error((data && data.detail) || "Something went wrong.");
-      }
-      return data;
-    }
-
-    async function handleAuthLogin() {
-      var email = document.getElementById("auth-login-email").value.trim();
-      var password = document.getElementById("auth-login-password").value;
-      var btn = document.getElementById("auth-login-btn");
-      btn.disabled = true;
-      btn.textContent = "Logging in…";
-      try {
-        var auth = await authRequest("/accounts/login", { email: email, password: password });
-        showAuthKey(auth.api_key);
-      } catch (err) {
-        showAuthError("login", err.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Log in";
-      }
-    }
-
-    async function handleAuthSignup() {
-      var name = document.getElementById("auth-signup-name").value.trim();
-      var email = document.getElementById("auth-signup-email").value.trim();
-      var password = document.getElementById("auth-signup-password").value;
-      var btn = document.getElementById("auth-signup-btn");
-      btn.disabled = true;
-      btn.textContent = "Creating…";
-      try {
-        var auth = await authRequest("/accounts/signup", { name: name, email: email, password: password });
-        showAuthKey(auth.api_key);
-      } catch (err) {
-        showAuthError("signup", err.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Sign up";
-      }
-    }
-
-    async function handleAuthForgotPassword() {
-      var email = document.getElementById("auth-forgot-email").value.trim();
-      var btn = document.getElementById("auth-forgot-btn");
-      btn.disabled = true;
-      btn.textContent = "Sending…";
-      try {
-        await authRequest("/accounts/forgot-password", { email: email });
-        showAuthMode("forgot-sent");
-      } catch (err) {
-        showAuthError("forgot", err.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Send reset link";
-      }
-    }
-
-    function copyAuthKey() {
-      var key = document.getElementById("auth-key-value").textContent;
-      var btn = document.getElementById("auth-key-copy-btn");
-      navigator.clipboard.writeText(key).then(function () {
-        btn.textContent = "Copied!";
-        setTimeout(function () { btn.textContent = "Copy key"; }, 1500);
-      });
-    }
-
-    document.addEventListener("click", function (e) {
-      var panel = document.getElementById("auth-panel");
-      var toggle = document.getElementById("auth-toggle");
-      if (panel.classList.contains("open") && !panel.contains(e.target) && e.target !== toggle) {
-        closeAuthPanel();
-      }
-    });
   </script>
 </body>
 </html>

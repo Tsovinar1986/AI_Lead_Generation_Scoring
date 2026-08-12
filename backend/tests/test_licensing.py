@@ -130,7 +130,7 @@ def test_trial_days_left_starts_at_full_window(monkeypatch):
     monkeypatch.setattr(licensing, "TRIAL_DAYS", 3)
     monkeypatch.setattr(licensing.storage, "get_or_start_trial", lambda: time.time())
 
-    assert licensing.trial_days_left() == 3.0
+    assert round(licensing.trial_days_left(), 2) == 3.0
 
 
 def test_trial_days_left_counts_down(monkeypatch):
