@@ -5,67 +5,94 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Your workspace — CRM Scoring</title>
 <meta name="description" content="Upload leads, see them scored and ranked, download the results." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,440;0,9..144,600;0,9..144,680;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <style>
-  /* Same design tokens as docs/index.html / docs/login.html / frontend/src/index.css --
-     kept in sync so every page on this site reads as the same product. */
+  /* Same "Ledger" tokens as docs/index.html / docs/login.html -- kept in
+     sync so every page on this site reads as the same product. */
   :root {
-    --text-h: #08060d; --text: #4b5563; --text-muted: #4b5563;
-    --bg: #f7f7f8; --bg-alt: #ffffff; --border: #e5e4e7;
-    --accent: #7c3aed; --accent-dark: #6d28d9; --accent-bg: rgba(124, 58, 237, 0.1);
-    --hot: #dc2626; --hot-bg: rgba(220, 38, 38, 0.1);
-    --warm: #d97706; --warm-bg: rgba(217, 119, 6, 0.12);
-    --cold: #6b7280; --cold-bg: rgba(107, 114, 128, 0.12);
+    --text-h: #211b12; --text: #6b6152; --text-muted: #8a7e6d;
+    --bg: #f6f1e6; --bg-alt: #fffcf5; --border: #e6dbc3;
+    --accent: #b3401f; --accent-dark: #8f3018; --accent-bg: rgba(179, 64, 31, 0.1);
+    --hot: #c53a2c; --hot-bg: rgba(197, 58, 44, 0.1);
+    --warm: #a8710f; --warm-bg: rgba(168, 113, 15, 0.13);
+    --cold: #5b6472; --cold-bg: rgba(91, 100, 114, 0.12);
+    --dot: rgba(33, 27, 18, 0.07);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --text-h: #f3f4f6; --text: #9ca3af; --text-muted: #9ca3af;
-      --bg: #16171d; --bg-alt: #1e1f27; --border: #2e303a;
-      --accent: #c084fc; --accent-dark: #d8b4fe; --accent-bg: rgba(192, 132, 252, 0.15);
-      --hot-bg: rgba(220, 38, 38, 0.2); --warm-bg: rgba(217, 119, 6, 0.2); --cold-bg: rgba(107, 114, 128, 0.2);
+      --text-h: #f4ead9; --text: #b6a993; --text-muted: #8d8069;
+      --bg: #18130c; --bg-alt: #211a11; --border: #382d1e;
+      --accent: #e37a4c; --accent-dark: #ef9264; --accent-bg: rgba(227, 122, 76, 0.16);
+      --hot: #ea6a53; --hot-bg: rgba(234, 106, 83, 0.18);
+      --warm: #dba43b; --warm-bg: rgba(219, 164, 59, 0.18);
+      --cold: #8b93a3; --cold-bg: rgba(139, 147, 163, 0.18);
+      --dot: rgba(244, 234, 217, 0.06);
     }
   }
   :root[data-theme="dark"] {
-    --text-h: #f3f4f6; --text: #9ca3af; --text-muted: #9ca3af;
-    --bg: #16171d; --bg-alt: #1e1f27; --border: #2e303a;
-    --accent: #c084fc; --accent-dark: #d8b4fe; --accent-bg: rgba(192, 132, 252, 0.15);
-    --hot-bg: rgba(220, 38, 38, 0.2); --warm-bg: rgba(217, 119, 6, 0.2); --cold-bg: rgba(107, 114, 128, 0.2);
+    --text-h: #f4ead9; --text: #b6a993; --text-muted: #8d8069;
+    --bg: #18130c; --bg-alt: #211a11; --border: #382d1e;
+    --accent: #e37a4c; --accent-dark: #ef9264; --accent-bg: rgba(227, 122, 76, 0.16);
+    --hot: #ea6a53; --hot-bg: rgba(234, 106, 83, 0.18);
+    --warm: #dba43b; --warm-bg: rgba(219, 164, 59, 0.18);
+    --cold: #8b93a3; --cold-bg: rgba(139, 147, 163, 0.18);
+    --dot: rgba(244, 234, 217, 0.06);
   }
   :root[data-theme="light"] {
-    --text-h: #08060d; --text: #4b5563; --text-muted: #4b5563;
-    --bg: #f7f7f8; --bg-alt: #ffffff; --border: #e5e4e7;
-    --accent: #7c3aed; --accent-dark: #6d28d9; --accent-bg: rgba(124, 58, 237, 0.1);
-    --hot: #dc2626; --hot-bg: rgba(220, 38, 38, 0.1);
-    --warm: #d97706; --warm-bg: rgba(217, 119, 6, 0.12);
-    --cold: #6b7280; --cold-bg: rgba(107, 114, 128, 0.12);
+    --text-h: #211b12; --text: #6b6152; --text-muted: #8a7e6d;
+    --bg: #f6f1e6; --bg-alt: #fffcf5; --border: #e6dbc3;
+    --accent: #b3401f; --accent-dark: #8f3018; --accent-bg: rgba(179, 64, 31, 0.1);
+    --hot: #c53a2c; --hot-bg: rgba(197, 58, 44, 0.1);
+    --warm: #a8710f; --warm-bg: rgba(168, 113, 15, 0.13);
+    --cold: #5b6472; --cold-bg: rgba(91, 100, 114, 0.12);
+    --dot: rgba(33, 27, 18, 0.07);
   }
 
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
-  h1, h2, h3, .logo { color: var(--text-h); }
+  body {
+    margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif;
+    background-color: var(--bg);
+    background-image: radial-gradient(var(--dot) 1.4px, transparent 1.4px);
+    background-size: 26px 26px;
+    color: var(--text); line-height: 1.5;
+  }
+  h1, h2, h3, .logo-word { font-family: "Fraunces", ui-serif, Georgia, serif; color: var(--text-h); }
   .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px 64px; }
-  header.nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
-  .logo { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; }
-  .logo a { color: inherit; text-decoration: none; }
-  .logo span { color: var(--accent); }
-  .btn { display: inline-block; padding: 9px 16px; border-radius: 6px; font-weight: 600; text-decoration: none; font-size: 0.88rem; border: 1px solid transparent; cursor: pointer; font-family: inherit; }
-  .btn-primary { background: var(--accent); color: white; }
-  .btn-primary:hover { background: var(--accent-dark); }
-  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-  .btn-secondary { background: transparent; color: var(--text); border-color: var(--border); }
+  header.nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+  .logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+  .logo-dots { display: flex; gap: 3px; }
+  .logo-dots span { width: 7px; height: 7px; border-radius: 999px; display: block; }
+  .logo-dots span:nth-child(1) { background: var(--hot); }
+  .logo-dots span:nth-child(2) { background: var(--warm); }
+  .logo-dots span:nth-child(3) { background: var(--cold); }
+  .logo-word { font-weight: 600; font-size: 1.2rem; letter-spacing: -0.01em; }
+  .logo-word em { font-style: normal; color: var(--accent); }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .rise { opacity: 0; animation: rise 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  @media (prefers-reduced-motion: reduce) { .rise { opacity: 1; animation: none; } }
+
+  .btn { display: inline-block; padding: 9px 16px; border-radius: 4px; font-weight: 600; text-decoration: none; font-size: 0.88rem; border: 1px solid transparent; cursor: pointer; font-family: inherit; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .btn-primary { background: var(--accent); color: #fff8ef; }
+  .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 6px 16px -6px var(--accent); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-secondary { background: transparent; color: var(--text-h); border-color: var(--border); }
   .btn-secondary:hover { border-color: var(--accent); }
   .btn-secondary.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
 
-  .card { border: 1px solid var(--border); border-radius: 12px; background: var(--bg-alt); padding: 24px; margin-bottom: 20px; }
-  .card h2 { font-size: 1.1rem; margin: 0 0 4px; }
+  .card { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-alt); padding: 24px; margin-bottom: 20px; }
+  .card h2 { font-size: 1.15rem; font-weight: 600; margin: 0 0 4px; }
   .card p.lede { color: var(--text-muted); font-size: 0.88rem; margin: 0 0 18px; }
 
   .example-banner {
-    border: 1px solid var(--accent); background: var(--accent-bg); border-radius: 10px;
+    border: 1px solid var(--accent); background: var(--accent-bg); border-radius: 8px;
     padding: 14px 18px; margin-bottom: 20px; font-size: 0.88rem; color: var(--text-h);
     display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   }
 
-  .dropzone { border: 1px dashed var(--border); border-radius: 10px; padding: 32px; text-align: center; }
+  .dropzone { border: 1px dashed var(--border); border-radius: 8px; padding: 32px; text-align: center; }
   .dropzone .caption { font-size: 0.82rem; color: var(--text-muted); margin-top: 8px; }
   input[type="file"] { display: none; }
 
@@ -73,14 +100,15 @@
   .chart-picker .btn { padding: 6px 12px; font-size: 0.8rem; }
 
   .legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
-  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-muted); }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-muted); font-family: "IBM Plex Mono", monospace; }
   .swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
   table.results { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
   table.results th, table.results td { padding: 10px 12px; text-align: left; }
-  table.results thead th { color: var(--text-muted); font-weight: 600; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.03em; border-bottom: 1px solid var(--border); }
+  table.results thead th { color: var(--text-muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); font-family: "IBM Plex Mono", monospace; }
   table.results tbody tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
-  .bucket-badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+  table.results td.num { font-family: "IBM Plex Mono", monospace; }
+  .bucket-badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 10px; font-weight: 600; text-transform: uppercase; font-family: "IBM Plex Mono", monospace; letter-spacing: 0.03em; }
   .bucket-hot { background: var(--hot-bg); color: var(--hot); }
   .bucket-warm { background: var(--warm-bg); color: var(--warm); }
   .bucket-cold { background: var(--cold-bg); color: var(--cold); }
@@ -93,16 +121,19 @@
 <body>
   <div class="wrap">
     <header class="nav">
-      <div class="logo"><a href="index.html">CRM<span>Scoring</span></a></div>
+      <a class="logo" href="index.html">
+        <span class="logo-dots"><span></span><span></span><span></span></span>
+        <span class="logo-word">CRM <em>Scoring</em></span>
+      </a>
       <button class="btn btn-secondary" onclick="disconnect()">Log out</button>
     </header>
 
-    <div id="example-banner" class="example-banner" style="display:none;">
+    <div id="example-banner" class="example-banner rise" style="display:none;">
       <span>This is an example of what you'll get back — upload your own file below to replace it.</span>
       <button class="btn btn-secondary" onclick="dismissExample()">Got it</button>
     </div>
 
-    <div class="card">
+    <div class="card rise" style="animation-delay:40ms;">
       <h2>Upload leads</h2>
       <p class="lede">CSV or XLSX with at least a company name and domain column.</p>
       <div class="dropzone">
@@ -114,7 +145,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card rise" style="animation-delay:90ms;">
       <div class="toolbar">
         <h2 style="margin:0;">Results (<span id="results-count">0</span>)</h2>
         <button class="btn btn-secondary" id="download-btn" onclick="downloadCsv()" disabled>Download CSV</button>
@@ -202,9 +233,9 @@
         tr.innerHTML =
           "<td>" + escapeHtml(l.company_name) + "</td>" +
           "<td>" + escapeHtml(l.industry || "—") + "</td>" +
-          "<td>" + Math.round(l.fit_score) + "</td>" +
-          "<td>" + Math.round(l.conversion_likelihood) + "</td>" +
-          "<td><strong>" + Math.round(l.combined_score) + "</strong></td>" +
+          "<td class=\"num\">" + Math.round(l.fit_score) + "</td>" +
+          "<td class=\"num\">" + Math.round(l.conversion_likelihood) + "</td>" +
+          "<td class=\"num\"><strong>" + Math.round(l.combined_score) + "</strong></td>" +
           "<td><span class=\"bucket-badge bucket-" + l.bucket + "\">" + l.bucket + "</span></td>";
         tbody.appendChild(tr);
       });
@@ -232,10 +263,10 @@
         var y = i * 36 + 8;
         var w = Math.max((row.value / max) * 300, row.value > 0 ? 6 : 0);
         html +=
-          '<text x="0" y="' + (y + 14) + '" font-size="12" fill="var(--text-muted)">' + row.label + '</text>' +
-          '<rect x="52" y="' + y + '" width="300" height="18" rx="4" fill="var(--border)" opacity="0.35"></rect>' +
-          '<rect x="52" y="' + y + '" width="' + w + '" height="18" rx="4" fill="' + row.color + '"></rect>' +
-          '<text x="' + (52 + w + 8) + '" y="' + (y + 14) + '" font-size="12" fill="var(--text-h)">' + row.value + '</text>';
+          '<text x="0" y="' + (y + 14) + '" font-size="12" font-family="IBM Plex Mono, monospace" fill="var(--text-muted)">' + row.label + '</text>' +
+          '<rect x="52" y="' + y + '" width="300" height="18" rx="3" fill="var(--border)" opacity="0.5"></rect>' +
+          '<rect x="52" y="' + y + '" width="' + w + '" height="18" rx="3" fill="' + row.color + '"></rect>' +
+          '<text x="' + (52 + w + 8) + '" y="' + (y + 14) + '" font-size="12" font-family="IBM Plex Mono, monospace" fill="var(--text-h)">' + row.value + '</text>';
       });
       html += "</svg>";
       return html + legendHtml(counts);
@@ -253,7 +284,7 @@
       var offset = 0;
       var html =
         '<svg viewBox="0 0 42 42" width="160" height="160" role="img" aria-label="Lead share by bucket" style="display:block; margin: 0 auto;">' +
-        '<circle cx="21" cy="21" r="' + r + '" fill="transparent" stroke="var(--border)" stroke-width="6" opacity="0.35"></circle>';
+        '<circle cx="21" cy="21" r="' + r + '" fill="transparent" stroke="var(--border)" stroke-width="6" opacity="0.5"></circle>';
       if (total > 0) {
         segments.forEach(function (seg) {
           var frac = seg.value / total;
@@ -267,7 +298,7 @@
         });
       }
       html +=
-        '<text x="21" y="24" font-size="7" text-anchor="middle" fill="var(--text-h)" font-weight="700">' + total + '</text>' +
+        '<text x="21" y="24" font-size="7" font-family="IBM Plex Mono, monospace" text-anchor="middle" fill="var(--text-h)" font-weight="700">' + total + '</text>' +
         "</svg>";
       return html + legendHtml(counts);
     }
@@ -275,9 +306,9 @@
     function renderCountTable(counts) {
       return (
         '<table class="results" style="max-width:280px;"><thead><tr><th>Bucket</th><th>Count</th></tr></thead><tbody>' +
-        '<tr><td><span class="bucket-badge bucket-hot">Hot</span></td><td>' + counts.hot + '</td></tr>' +
-        '<tr><td><span class="bucket-badge bucket-warm">Warm</span></td><td>' + counts.warm + '</td></tr>' +
-        '<tr><td><span class="bucket-badge bucket-cold">Cold</span></td><td>' + counts.cold + '</td></tr>' +
+        '<tr><td><span class="bucket-badge bucket-hot">Hot</span></td><td class="num">' + counts.hot + '</td></tr>' +
+        '<tr><td><span class="bucket-badge bucket-warm">Warm</span></td><td class="num">' + counts.warm + '</td></tr>' +
+        '<tr><td><span class="bucket-badge bucket-cold">Cold</span></td><td class="num">' + counts.cold + '</td></tr>' +
         '</tbody></table>'
       );
     }

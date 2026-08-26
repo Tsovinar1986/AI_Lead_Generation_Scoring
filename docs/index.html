@@ -5,215 +5,174 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CRM Scoring — AI Lead Scoring, Self-Hosted</title>
 <meta name="description" content="Hybrid rule + LLM lead scoring you self-host. Your CRM data never leaves your infrastructure." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,440;0,9..144,600;0,9..144,680;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <style>
-  /* Same design tokens as frontend/src/index.css (the real app) --
-     the landing page is a different layout for a different job (marketing
-     splash vs. dense working UI), but the colors/font/radii it renders with
-     must be the same product, not a reskin. */
+  /* "Ledger" -- a warm paper-and-ink identity built around the product's own
+     Hot/Warm/Cold vocabulary instead of a generic brand-purple-on-white
+     scheme. Same tokens across every page in docs/ so the site reads as one
+     thing; the actual self-hosted app (frontend/src) keeps its own
+     system-font-only stack deliberately (no network fetch there), so this
+     bolder marketing-site identity is scoped to docs/ on purpose. */
   :root {
-    --text-h: #08060d;
-    --text: #4b5563;
-    --text-muted: #4b5563;
-    --bg: #f7f7f8;
-    --bg-alt: #ffffff;
-    --border: #e5e4e7;
-    --accent: #7c3aed;
-    --accent-dark: #6d28d9;
-    --accent-bg: rgba(124, 58, 237, 0.1);
-    --hot: #dc2626;
-    --hot-bg: rgba(220, 38, 38, 0.1);
-    --warm: #d97706;
-    --warm-bg: rgba(217, 119, 6, 0.12);
-    --cold: #6b7280;
-    --cold-bg: rgba(107, 114, 128, 0.12);
+    --text-h: #211b12;
+    --text: #6b6152;
+    --text-muted: #8a7e6d;
+    --bg: #f6f1e6;
+    --bg-alt: #fffcf5;
+    --border: #e6dbc3;
+    --accent: #b3401f;
+    --accent-dark: #8f3018;
+    --accent-bg: rgba(179, 64, 31, 0.1);
+    --hot: #c53a2c;
+    --hot-bg: rgba(197, 58, 44, 0.1);
+    --warm: #a8710f;
+    --warm-bg: rgba(168, 113, 15, 0.13);
+    --cold: #5b6472;
+    --cold-bg: rgba(91, 100, 114, 0.12);
+    --dot: rgba(33, 27, 18, 0.07);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --text-h: #f3f4f6;
-      --text: #9ca3af;
-      --text-muted: #9ca3af;
-      --bg: #16171d;
-      --bg-alt: #1e1f27;
-      --border: #2e303a;
-      --accent: #c084fc;
-      --accent-dark: #d8b4fe;
-      --accent-bg: rgba(192, 132, 252, 0.15);
-      --hot-bg: rgba(220, 38, 38, 0.2);
-      --warm-bg: rgba(217, 119, 6, 0.2);
-      --cold-bg: rgba(107, 114, 128, 0.2);
+      --text-h: #f4ead9;
+      --text: #b6a993;
+      --text-muted: #8d8069;
+      --bg: #18130c;
+      --bg-alt: #211a11;
+      --border: #382d1e;
+      --accent: #e37a4c;
+      --accent-dark: #ef9264;
+      --accent-bg: rgba(227, 122, 76, 0.16);
+      --hot: #ea6a53;
+      --hot-bg: rgba(234, 106, 83, 0.18);
+      --warm: #dba43b;
+      --warm-bg: rgba(219, 164, 59, 0.18);
+      --cold: #8b93a3;
+      --cold-bg: rgba(139, 147, 163, 0.18);
+      --dot: rgba(244, 234, 217, 0.06);
     }
   }
   :root[data-theme="dark"] {
-    --text-h: #f3f4f6;
-    --text: #9ca3af;
-    --text-muted: #9ca3af;
-    --bg: #16171d;
-    --bg-alt: #1e1f27;
-    --border: #2e303a;
-    --accent: #c084fc;
-    --accent-dark: #d8b4fe;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --hot-bg: rgba(220, 38, 38, 0.2);
-    --warm-bg: rgba(217, 119, 6, 0.2);
-    --cold-bg: rgba(107, 114, 128, 0.2);
+    --text-h: #f4ead9; --text: #b6a993; --text-muted: #8d8069;
+    --bg: #18130c; --bg-alt: #211a11; --border: #382d1e;
+    --accent: #e37a4c; --accent-dark: #ef9264; --accent-bg: rgba(227, 122, 76, 0.16);
+    --hot: #ea6a53; --hot-bg: rgba(234, 106, 83, 0.18);
+    --warm: #dba43b; --warm-bg: rgba(219, 164, 59, 0.18);
+    --cold: #8b93a3; --cold-bg: rgba(139, 147, 163, 0.18);
+    --dot: rgba(244, 234, 217, 0.06);
   }
   :root[data-theme="light"] {
-    --text-h: #08060d;
-    --text: #4b5563;
-    --text-muted: #4b5563;
-    --bg: #f7f7f8;
-    --bg-alt: #ffffff;
-    --border: #e5e4e7;
-    --accent: #7c3aed;
-    --accent-dark: #6d28d9;
-    --accent-bg: rgba(124, 58, 237, 0.1);
-    --hot: #dc2626;
-    --hot-bg: rgba(220, 38, 38, 0.1);
-    --warm: #d97706;
-    --warm-bg: rgba(217, 119, 6, 0.12);
-    --cold: #6b7280;
-    --cold-bg: rgba(107, 114, 128, 0.12);
+    --text-h: #211b12; --text: #6b6152; --text-muted: #8a7e6d;
+    --bg: #f6f1e6; --bg-alt: #fffcf5; --border: #e6dbc3;
+    --accent: #b3401f; --accent-dark: #8f3018; --accent-bg: rgba(179, 64, 31, 0.1);
+    --hot: #c53a2c; --hot-bg: rgba(197, 58, 44, 0.1);
+    --warm: #a8710f; --warm-bg: rgba(168, 113, 15, 0.13);
+    --cold: #5b6472; --cold-bg: rgba(91, 100, 114, 0.12);
+    --dot: rgba(33, 27, 18, 0.07);
   }
 
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: system-ui, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    background-color: var(--bg);
+    background-image: radial-gradient(var(--dot) 1.4px, transparent 1.4px);
+    background-size: 26px 26px;
     color: var(--text);
-    line-height: 1.5;
+    line-height: 1.55;
   }
-  h1, h2, h3, .logo { color: var(--text-h); }
+  h1, h2, h3, .logo-word { font-family: "Fraunces", ui-serif, Georgia, serif; color: var(--text-h); }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
   .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
 
-  header.nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 0;
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .rise { opacity: 0; animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  @media (prefers-reduced-motion: reduce) {
+    .rise { opacity: 1; animation: none; }
   }
-  .logo { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; }
-  .logo span { color: var(--accent); }
 
-  .hero {
-    padding: 64px 0 48px;
-    text-align: center;
+  header.nav {
+    display: flex; align-items: center; justify-content: space-between; padding: 22px 0;
   }
-  .hero h1 {
-    font-size: clamp(2rem, 5vw, 3rem);
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    margin: 0 0 20px;
-  }
-  .hero p {
-    font-size: 1.15rem;
-    color: var(--text-muted);
-    max-width: 640px;
-    margin: 0 auto 32px;
-  }
-  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .logo { display: flex; align-items: center; gap: 8px; }
+  .logo-dots { display: flex; gap: 3px; }
+  .logo-dots span { width: 7px; height: 7px; border-radius: 999px; display: block; }
+  .logo-dots span:nth-child(1) { background: var(--hot); }
+  .logo-dots span:nth-child(2) { background: var(--warm); }
+  .logo-dots span:nth-child(3) { background: var(--cold); }
+  .logo-word { font-weight: 600; font-size: 1.2rem; letter-spacing: -0.01em; }
+  .logo-word em { font-style: normal; color: var(--accent); }
+
+  .nav-controls { display: flex; align-items: center; gap: 16px; }
+  .auth-link { font-size: 0.9rem; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
   .btn {
-    display: inline-block;
-    padding: 12px 24px;
-    border-radius: 6px;
-    font-weight: 600;
-    text-decoration: none;
-    font-size: 0.95rem;
-    border: 1px solid transparent;
-    cursor: pointer;
+    display: inline-block; padding: 11px 22px; border-radius: 4px; font-weight: 600;
+    text-decoration: none; font-size: 0.92rem; border: 1px solid transparent; cursor: pointer;
+    font-family: inherit; transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
-  .btn-primary { background: var(--accent); color: white; }
-  .btn-primary:hover { background: var(--accent-dark); }
-  .btn-secondary { background: transparent; color: var(--text); border-color: var(--border); }
+  .btn-primary { background: var(--accent); color: #fff8ef; }
+  .btn-primary:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 6px 16px -6px var(--accent); }
+  .btn-secondary { background: transparent; color: var(--text-h); border-color: var(--border); }
   .btn-secondary:hover { border-color: var(--accent); }
 
-  section.features {
-    padding: 48px 0;
-    border-top: 1px solid var(--border);
+  .hero { padding: 76px 0 56px; text-align: center; }
+  .kicker {
+    display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 0.72rem;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+    border: 1px solid var(--border); border-radius: 999px; padding: 5px 14px; margin-bottom: 22px;
   }
-  .feature-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
+  .hero h1 {
+    font-weight: 600; font-size: clamp(2.3rem, 5.4vw, 3.4rem); line-height: 1.08;
+    letter-spacing: -0.01em; margin: 0 0 22px;
   }
-  @media (max-width: 720px) {
-    .feature-grid { grid-template-columns: 1fr; }
-  }
-  .feature h3 {
-    font-size: 1rem;
-    margin: 0 0 8px;
-  }
-  .feature p {
-    font-size: 0.92rem;
-    color: var(--text-muted);
-    margin: 0;
-  }
+  .hero h1 em { font-style: italic; color: var(--accent); }
+  .hero p { font-size: 1.15rem; color: var(--text-muted); max-width: 620px; margin: 0 auto 34px; }
+  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
-  section.pricing {
-    padding: 56px 0;
-    border-top: 1px solid var(--border);
-    text-align: center;
+  section.features { padding: 52px 0; border-top: 1px solid var(--border); }
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  @media (max-width: 720px) { .feature-grid { grid-template-columns: 1fr; } }
+  .feature-mark {
+    width: 30px; height: 4px; border-radius: 999px; margin-bottom: 16px;
   }
-  section.pricing h2 { font-size: 1.6rem; margin: 0 0 8px; }
-  section.pricing > .wrap > p { color: var(--text-muted); margin: 0 0 32px; }
-  .plans {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    max-width: 640px;
-    margin: 0 auto;
-  }
-  @media (max-width: 640px) {
-    .plans { grid-template-columns: 1fr; }
-  }
+  .feature:nth-child(1) .feature-mark { background: var(--hot); }
+  .feature:nth-child(2) .feature-mark { background: var(--warm); }
+  .feature:nth-child(3) .feature-mark { background: var(--cold); }
+  .feature h3 { font-size: 1.08rem; font-weight: 600; margin: 0 0 8px; }
+  .feature p { font-size: 0.93rem; color: var(--text-muted); margin: 0; }
+
+  section.pricing { padding: 60px 0; border-top: 1px solid var(--border); text-align: center; }
+  section.pricing h2 { font-size: 1.7rem; margin: 0 0 8px; }
+  section.pricing > .wrap > p.lede { color: var(--text-muted); margin: 0 0 36px; }
+  .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 640px; margin: 0 auto; }
+  @media (max-width: 640px) { .plans { grid-template-columns: 1fr; } }
   .plan {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 28px 24px;
-    background: var(--bg-alt);
-    text-align: left;
+    border: 1px solid var(--border); border-radius: 10px; padding: 30px 26px;
+    background: var(--bg-alt); text-align: left; transition: border-color 0.2s ease, transform 0.2s ease;
   }
-  .plan.featured { border-color: var(--accent); }
+  .plan:hover { transform: translateY(-2px); }
+  .plan.featured { border-color: var(--accent); position: relative; }
   .plan .badge {
-    display: inline-block;
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--accent);
-    background: var(--accent-bg);
-    padding: 3px 8px;
-    border-radius: 999px;
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 0.68rem; font-weight: 600;
+    color: var(--accent); background: var(--accent-bg); padding: 4px 10px; border-radius: 999px;
+    margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em;
   }
-  .plan .price {
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 4px 0;
-  }
-  .plan .price span { font-size: 0.95rem; font-weight: 400; color: var(--text-muted); }
-  .plan p.note { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 16px; }
+  .plan .price { font-family: "IBM Plex Mono", monospace; font-size: 2rem; font-weight: 600; margin: 4px 0; color: var(--text-h); }
+  .plan .price span { font-size: 0.9rem; font-weight: 400; color: var(--text-muted); font-family: "IBM Plex Sans", sans-serif; }
+  .plan p.note { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 18px; }
 
-  footer {
-    padding: 32px 0 48px;
-    border-top: 1px solid var(--border);
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.85rem;
-  }
+  footer { padding: 36px 0 48px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem; }
   footer a { color: var(--text-muted); }
-
-  .nav-controls { display: flex; align-items: center; gap: 14px; }
-  .auth-link {
-    font-size: 0.9rem; color: var(--accent); text-decoration: underline;
-    text-underline-offset: 2px;
-  }
 </style>
 </head>
 <body>
   <div class="wrap">
     <header class="nav">
-      <div class="logo">CRM<span>Scoring</span></div>
+      <div class="logo">
+        <span class="logo-dots"><span></span><span></span><span></span></span>
+        <span class="logo-word">CRM <em>Scoring</em></span>
+      </div>
       <div class="nav-controls">
         <a class="auth-link" href="login.html">Log in / Sign up</a>
         <a class="btn btn-secondary" href="mailto:hello@crmscoring.com">Contact</a>
@@ -223,13 +182,14 @@
 
   <div class="hero">
     <div class="wrap">
-      <h1>Score your leads without<br />shipping your data anywhere.</h1>
-      <p>
+      <span class="kicker rise" style="animation-delay:0ms;">Self-hosted · hybrid scoring</span>
+      <h1 class="rise" style="animation-delay:60ms;">Score your leads without<br />shipping your data <em>anywhere.</em></h1>
+      <p class="rise" style="animation-delay:130ms;">
         A hybrid rule + LLM lead scorer you self-host. Upload a CRM export,
         get every lead enriched, ranked Hot/Warm/Cold, and drafted for
         outreach — all inside your own infrastructure.
       </p>
-      <div class="cta-row">
+      <div class="cta-row rise" style="animation-delay:200ms;">
         <a class="btn btn-primary" href="#pricing">See pricing</a>
       </div>
     </div>
@@ -239,14 +199,17 @@
     <div class="wrap">
       <div class="feature-grid">
         <div class="feature">
+          <span class="feature-mark"></span>
           <h3>Self-hosted, always</h3>
           <p>Runs on your own infra. Your CRM export never touches a third-party server.</p>
         </div>
         <div class="feature">
+          <span class="feature-mark"></span>
           <h3>Hybrid scoring</h3>
           <p>Transparent rule-based fit score, plus an LLM rationale that catches what rules miss.</p>
         </div>
         <div class="feature">
+          <span class="feature-mark"></span>
           <h3>Acts on the hot ones</h3>
           <p>Drafted outreach, CRM push, and Slack alerts the moment a lead crosses your threshold.</p>
         </div>
@@ -257,7 +220,7 @@
   <section class="pricing" id="pricing">
     <div class="wrap">
       <h2>Simple pricing</h2>
-      <p>Every self-hosted deployment starts with a 3-day free trial — full functionality, no card required. Pick a plan when you're ready.</p>
+      <p class="lede">Every self-hosted deployment starts with a 3-day free trial — full functionality, no card required. Pick a plan when you're ready.</p>
       <div class="plans">
         <div class="plan">
           <span class="badge">Monthly</span>
