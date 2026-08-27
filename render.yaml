@@ -5,10 +5,10 @@ services:
     dockerfilePath: ./Dockerfile
     plan: starter
     healthCheckPath: /api/health
-    disks:
-      - name: app-data
-        mountPath: /app/backend/data
-        sizeGB: 1
+    disk:
+      name: app-data
+      mountPath: /app/backend/data
+      sizeGB: 1
     envVars:
       - key: CORS_ALLOWED_ORIGINS
         sync: false
