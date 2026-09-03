@@ -220,6 +220,92 @@ def test_subscription_canceled_issues_no_license(client, monkeypatch, tmp_path):
     assert not log_path.exists()
 
 
+def test_transaction_completed_retry_does_not_issue_a_second_license(client, monkeypatch, tmp_path):
+    """Paddle delivers at-least-once -- a retried delivery for the same
+    transaction_id must not mint (and email) a second license."""
+    monkeypatch.setattr(billing, "PADDLE_WEBHOOK_SECRET", "pdl_ntfset_test")
+    monkeypatch.setattr(billing, "PADDLE_API_KEY", "pdl_test")
+    monkeypatch.setattr(billing, "LICENSE_PRIVATE_KEY", "exqa9gnLag9xfbgoe_m4nVAxgpHw6H7b53OutEcHCmY")
+    log_path = tmp_path / "issued_licenses.jsonl"
+    monkeypatch.setattr(billing, "_ISSUED_LICENSES_LOG", log_path)
+    monkeypatch.setattr(
+        billing.requests, "get", lambda *a, **k: FakeResponse(200, {"data": {"email": "buyer@example.com"}})
+    )
+
+    data = {"id": "txn_retry_1", "customer_id": "ctm_123", "items": [{"price": {"id": "pri_monthly"}}]}
+    payload, sig = _event("transaction.completed", data)
+    first = client.post("/api/billing/webhook", content=payload, headers={"paddle-signature": sig})
+    assert first.status_code == 200
+    assert first.json()["status"] == "ok"
+
+    # Same transaction, redelivered (Paddle retries on anything but a 2xx,
+    # and can also just deliver twice) -- re-sign since the signature covers
+    # a fresh timestamp, but the event body/transaction id is identical.
+    payload2, sig2 = _event("transaction.completed", data)
+    second = client.post("/api/billing/webhook", content=payload2, headers={"paddle-signature": sig2})
+    assert second.status_code == 200
+    assert second.json()["status"] == "duplicate"
+
+    lines = log_path.read_text().splitlines()
+    assert len(lines) == 1
+
+
+def test_subscription_created_and_updated_are_logged_without_issuing_a_license(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(billing, "PADDLE_WEBHOOK_SECRET", "pdl_ntfset_test")
+    log_path = tmp_path / "issued_licenses.jsonl"
+    monkeypatch.setattr(billing, "_ISSUED_LICENSES_LOG", log_path)
+
+    payload, sig = _event(
+        "subscription.created",
+        {"id": "sub_1", "customer_id": "ctm_123", "status": "trialing", "items": [{"price": {"id": "pri_monthly"}}]},
+    )
+    resp = client.post("/api/billing/webhook", content=payload, headers={"paddle-signature": sig})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
+    assert not log_path.exists()
+
+    payload, sig = _event(
+        "subscription.updated",
+        {
+            "id": "sub_1",
+            "customer_id": "ctm_123",
+            "status": "active",
+            "scheduled_change": {"action": "cancel", "effective_at": "2027-01-01T00:00:00Z"},
+        },
+    )
+    resp = client.post("/api/billing/webhook", content=payload, headers={"paddle-signature": sig})
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ok"
+    assert not log_path.exists()
+
+
+def test_customer_created_and_updated_are_logged_without_issuing_a_license(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(billing, "PADDLE_WEBHOOK_SECRET", "pdl_ntfset_test")
+    log_path = tmp_path / "issued_licenses.jsonl"
+    monkeypatch.setattr(billing, "_ISSUED_LICENSES_LOG", log_path)
+
+    for event_type in ("customer.created", "customer.updated"):
+        payload, sig = _event(event_type, {"id": "ctm_123", "email": "buyer@example.com"})
+        resp = client.post("/api/billing/webhook", content=payload, headers={"paddle-signature": sig})
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ok"
+
+    assert not log_path.exists()
+
+
+def test_unknown_event_type_is_ignored(client, monkeypatch, tmp_path):
+    monkeypatch.setattr(billing, "PADDLE_WEBHOOK_SECRET", "pdl_ntfset_test")
+    log_path = tmp_path / "issued_licenses.jsonl"
+    monkeypatch.setattr(billing, "_ISSUED_LICENSES_LOG", log_path)
+
+    payload, sig = _event("some.future.event.paddle.adds.later", {"id": "whatever"})
+    resp = client.post("/api/billing/webhook", content=payload, headers={"paddle-signature": sig})
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "ignored"
+    assert not log_path.exists()
+
+
 # --- Polar ---
 
 

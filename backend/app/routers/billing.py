@@ -22,12 +22,22 @@ every later renewal (Paddle represents each charge as its own transaction),
 so there's only one issuance path instead of separate
 checkout.session.completed / invoice.paid handlers. The plan (and its
 validity window) is determined from the completed transaction's line-item
-price id.
+price id. Verified events are routed to typed handlers (_PADDLE_EVENT_
+HANDLERS below) covering transaction.completed/payment_failed and
+subscription/customer created/updated/canceled; anything else is safely
+ignored. transaction.completed is idempotent against Paddle's at-least-once
+delivery -- a retried delivery for a transaction_id already recorded in
+issued_licenses.jsonl is skipped rather than minting a second license.
 
-subscription.canceled / transaction.payment_failed: logged only, no new key
-issued. An offline-verified key can't be actively revoked once issued, so
-the existing key simply lapses at its expiry -- this is why the validity
-windows are deliberately short rather than perpetual.
+subscription.created/updated/canceled and customer.created/updated are
+logged for visibility only and never mint or revoke a license -- this app's
+entitlement model is the offline LICENSE_KEY a buyer holds in their own
+.env (app/licensing.py), verified locally with no server-side subscription
+lookup, not a live-checked customers/subscriptions database. A canceled or
+payment-failed subscription doesn't revoke anything: an offline-verified
+key can't be actively revoked once issued, so the existing key simply
+lapses at its own expiry -- this is why the validity windows are
+deliberately short rather than perpetual.
 
 transaction.completed does not include the buyer's email directly (only
 customer_id), so a verified webhook makes one follow-up authenticated call
@@ -51,7 +61,7 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 
 import requests
 from fastapi import APIRouter, HTTPException, Request
@@ -103,7 +113,27 @@ def _interval_for_price_id(price_id: str | None) -> str:
     return "annual" if price_id == PADDLE_PRICE_ID_ANNUAL else "monthly"
 
 
-def _issue_and_deliver(email: str, plan: str) -> str:
+def _already_issued_for_transaction(transaction_id: str) -> bool:
+    """Guards _issue_and_deliver against Paddle's at-least-once delivery --
+    a retried transaction.completed for the same transaction must not mint
+    (and email) a second license. Scans the append-only log rather than a DB
+    index: this deployment's issuance volume doesn't warrant one, and adding
+    a database here is exactly the scope this was deliberately kept out of.
+    """
+    if not _ISSUED_LICENSES_LOG.exists():
+        return False
+    with _ISSUED_LICENSES_LOG.open() as f:
+        for line in f:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if record.get("transaction_id") == transaction_id:
+                return True
+    return False
+
+
+def _issue_and_deliver(email: str, plan: str, transaction_id: str | None = None) -> str:
     if not LICENSE_PRIVATE_KEY:
         logger.error("Payment received for {} but LICENSE_PRIVATE_KEY isn't set — can't issue a license.", email)
         raise HTTPException(status_code=500, detail="License signing key not configured on this deployment.")
@@ -113,7 +143,17 @@ def _issue_and_deliver(email: str, plan: str) -> str:
 
     _ISSUED_LICENSES_LOG.parent.mkdir(parents=True, exist_ok=True)
     with _ISSUED_LICENSES_LOG.open("a") as f:
-        f.write(json.dumps({"email": email, "license_key": license_key, "issued_at": time.time()}) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "email": email,
+                    "license_key": license_key,
+                    "issued_at": time.time(),
+                    "transaction_id": transaction_id,
+                }
+            )
+            + "\n"
+        )
 
     emailed = send_license_email(email, license_key, plan)
     logger.info(
@@ -164,6 +204,100 @@ def _verify_paddle_signature(raw_body: bytes, signature_header: str) -> bool:
     return hmac.compare_digest(computed, h1)
 
 
+def _handle_transaction_completed(data: dict) -> dict:
+    transaction_id = data.get("id")
+    if transaction_id and _already_issued_for_transaction(transaction_id):
+        logger.info("transaction.completed {} already processed — skipping duplicate delivery.", transaction_id)
+        return {"status": "duplicate"}
+
+    customer_id = data.get("customer_id")
+    if not customer_id:
+        logger.warning("transaction.completed with no customer_id; can't issue a license.")
+        return {"status": "ignored"}
+
+    email = _fetch_customer_email(customer_id)
+    if not email:
+        logger.warning("Couldn't resolve an email for Paddle customer {}; can't issue a license.", customer_id)
+        return {"status": "ignored"}
+
+    line_price_id = ((data.get("items") or [{}])[0].get("price") or {}).get("id")
+    _issue_and_deliver(email, plan=_interval_for_price_id(line_price_id), transaction_id=transaction_id)
+    return {"status": "ok"}
+
+
+def _handle_transaction_payment_failed(data: dict) -> dict:
+    logger.info(
+        "transaction.payment_failed for customer {} — no new license issued, existing key lapses at its own expiry.",
+        data.get("customer_id", "(unknown customer)"),
+    )
+    return {"status": "ok"}
+
+
+def _handle_subscription_created(data: dict) -> dict:
+    logger.info(
+        "subscription.created: id={} customer_id={} status={} price_id={}",
+        data.get("id"),
+        data.get("customer_id"),
+        data.get("status"),
+        ((data.get("items") or [{}])[0].get("price") or {}).get("id"),
+    )
+    return {"status": "ok"}
+
+
+def _handle_subscription_updated(data: dict) -> dict:
+    # scheduled_change (a pending cancel/pause the customer hasn't hit yet)
+    # is logged for visibility only -- it must never trigger any action here.
+    # An offline-issued license can't be revoked once handed out, so acting
+    # early on a *scheduled* change would cut off access before the
+    # subscription the buyer already paid for has actually ended.
+    scheduled = data.get("scheduled_change")
+    logger.info(
+        "subscription.updated: id={} customer_id={} status={}{}",
+        data.get("id"),
+        data.get("customer_id"),
+        data.get("status"),
+        f" scheduled_change={scheduled.get('action')}@{scheduled.get('effective_at')}" if scheduled else "",
+    )
+    return {"status": "ok"}
+
+
+def _handle_subscription_canceled(data: dict) -> dict:
+    logger.info(
+        "subscription.canceled: id={} customer_id={} — no new license issued, existing key lapses at its own expiry.",
+        data.get("id"),
+        data.get("customer_id"),
+    )
+    return {"status": "ok"}
+
+
+def _handle_customer_created(data: dict) -> dict:
+    logger.info("customer.created: id={} email={}", data.get("id"), data.get("email"))
+    return {"status": "ok"}
+
+
+def _handle_customer_updated(data: dict) -> dict:
+    logger.info("customer.updated: id={} email={}", data.get("id"), data.get("email"))
+    return {"status": "ok"}
+
+
+# Explicit routing table rather than an if/elif chain -- makes exactly which
+# event types this deployment acts on (vs. safely ignores) visible at a
+# glance, and each handler stays independently testable. Every handler here
+# is read/log-only except _handle_transaction_completed, which is the sole
+# path that mints a license -- this app's entitlement model stays the
+# offline LICENSE_KEY file (see app/licensing.py), not a live-checked
+# subscription database, on purpose (see module docstring).
+_PADDLE_EVENT_HANDLERS: dict[str, Callable[[dict], dict]] = {
+    "transaction.completed": _handle_transaction_completed,
+    "transaction.payment_failed": _handle_transaction_payment_failed,
+    "subscription.created": _handle_subscription_created,
+    "subscription.updated": _handle_subscription_updated,
+    "subscription.canceled": _handle_subscription_canceled,
+    "customer.created": _handle_customer_created,
+    "customer.updated": _handle_customer_updated,
+}
+
+
 @router.post("/webhook")
 async def paddle_webhook(request: Request):
     if not PADDLE_WEBHOOK_SECRET:
@@ -183,28 +317,12 @@ async def paddle_webhook(request: Request):
     event_type = event["event_type"]
     data = event["data"]
 
-    if event_type == "transaction.completed":
-        customer_id = data.get("customer_id")
-        if not customer_id:
-            logger.warning("transaction.completed with no customer_id; can't issue a license.")
-            return {"status": "ignored"}
+    handler = _PADDLE_EVENT_HANDLERS.get(event_type)
+    if handler is None:
+        logger.debug("Ignoring unhandled Paddle event type: {}", event_type)
+        return {"status": "ignored"}
 
-        email = _fetch_customer_email(customer_id)
-        if not email:
-            logger.warning("Couldn't resolve an email for Paddle customer {}; can't issue a license.", customer_id)
-            return {"status": "ignored"}
-
-        line_price_id = ((data.get("items") or [{}])[0].get("price") or {}).get("id")
-        _issue_and_deliver(email, plan=_interval_for_price_id(line_price_id))
-
-    elif event_type in ("subscription.canceled", "transaction.payment_failed"):
-        logger.info(
-            "Subscription event {} for customer {} — no new license issued, existing key lapses at its own expiry.",
-            event_type,
-            data.get("customer_id", "(unknown customer)"),
-        )
-
-    return {"status": "ok"}
+    return handler(data)
 
 
 # --- Polar (alternative processor, see module docstring) ---
