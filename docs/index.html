@@ -144,23 +144,51 @@
 
   section.pricing { padding: 60px 0; border-top: 1px solid var(--border); text-align: center; }
   section.pricing h2 { font-size: 1.7rem; margin: 0 0 8px; }
-  section.pricing > .wrap > p.lede { color: var(--text-muted); margin: 0 0 36px; }
-  .plans { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 640px; margin: 0 auto; }
-  @media (max-width: 640px) { .plans { grid-template-columns: 1fr; } }
+  section.pricing > .wrap > p.lede { color: var(--text-muted); margin: 0 0 28px; }
+
+  /* Monthly/yearly toggle -- one shared control above all three cards, since
+     all three tiers check out against the same two Paddle prices. */
+  .billing-toggle {
+    display: inline-flex; align-items: center; gap: 2px; padding: 4px;
+    border: 1px solid var(--border); border-radius: 999px; background: var(--bg-alt);
+    margin-bottom: 36px;
+  }
+  .toggle-btn {
+    font-family: inherit; font-size: 0.86rem; font-weight: 600; color: var(--text-muted);
+    background: transparent; border: none; border-radius: 999px; padding: 8px 18px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .toggle-btn.active { background: var(--accent); color: #fff8ef; }
+  .toggle-btn .save-chip {
+    font-family: "IBM Plex Mono", monospace; font-size: 0.66rem; font-weight: 600;
+    padding: 2px 7px; border-radius: 999px; background: var(--warm-bg); color: var(--warm);
+  }
+  .toggle-btn.active .save-chip { background: rgba(255, 248, 239, 0.28); color: inherit; }
+
+  .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 920px; margin: 0 auto; }
+  @media (max-width: 860px) { .plans { grid-template-columns: 1fr; max-width: 420px; } }
   .plan {
     border: 1px solid var(--border); border-radius: 10px; padding: 30px 26px;
     background: var(--bg-alt); text-align: left; transition: border-color 0.2s ease, transform 0.2s ease;
+    display: flex; flex-direction: column;
   }
   .plan:hover { transform: translateY(-2px); }
   .plan.featured { border-color: var(--accent); position: relative; }
   .plan .badge {
     display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 0.68rem; font-weight: 600;
     color: var(--accent); background: var(--accent-bg); padding: 4px 10px; border-radius: 999px;
-    margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.06em; align-self: flex-start;
   }
+  .plan .plan-name { font-size: 1.15rem; margin: 0 0 6px; }
+  .plan .tagline { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 16px; min-height: 2.6em; }
   .plan .price { font-family: "IBM Plex Mono", monospace; font-size: 2rem; font-weight: 600; margin: 4px 0; color: var(--text-h); }
   .plan .price span { font-size: 0.9rem; font-weight: 400; color: var(--text-muted); font-family: "IBM Plex Sans", sans-serif; }
   .plan p.note { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 18px; }
+  .plan .features { list-style: none; margin: 4px 0 22px; padding: 0; font-size: 0.86rem; flex: 1; }
+  .plan .features li { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 9px; color: var(--text); }
+  .plan .features li::before { content: "✓"; color: var(--accent); font-weight: 700; flex-shrink: 0; }
+  .polar-alt { margin-top: 24px; font-size: 0.85rem; }
 
   footer { padding: 36px 0 48px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem; }
   footer a { color: var(--text-muted); }
@@ -221,22 +249,67 @@
     <div class="wrap">
       <h2>Simple pricing</h2>
       <p class="lede">Every self-hosted deployment starts with a 3-day free trial — full functionality, no card required. Pick a plan when you're ready.</p>
+
+      <div class="billing-toggle" role="group" aria-label="Billing interval">
+        <button type="button" class="toggle-btn active" id="toggle-monthly" onclick="selectInterval('monthly')">Monthly</button>
+        <button type="button" class="toggle-btn" id="toggle-annual" onclick="selectInterval('annual')">Yearly <span class="save-chip">Save 20%</span></button>
+      </div>
+
+      <!-- Three tiers, one real plan: every Subscribe button below checks
+           out against the same two Paddle prices (monthly/annual). The
+           tiers differ only in framing/audience, never in what's included
+           or what price is charged -- the backend (app/licensing.py) has no
+           per-tier entitlement gating, so showing different feature sets
+           per card would be false advertising. -->
       <div class="plans">
         <div class="plan">
-          <span class="badge">Monthly</span>
-          <div class="price">$20<span>/mo</span></div>
-          <p class="note">Billed monthly, cancel anytime.</p>
-          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('monthly')">Get started</button>
-          <button class="btn btn-secondary" id="polar-btn-monthly" style="width:100%; text-align:center; display:none; font: inherit; margin-top:8px;" onclick="buyPlanWithPolar('monthly')">Pay with Polar instead</button>
+          <h3 class="plan-name">Starter</h3>
+          <p class="tagline">Best for evaluating on a single CRM export.</p>
+          <div class="price" id="price-starter">…</div>
+          <p class="note">3-day free trial, then billed per your plan.</p>
+          <ul class="features">
+            <li>Hybrid rule + Claude lead scoring</li>
+            <li>Hot / Warm / Cold ranking with rationale</li>
+            <li>Outreach drafts (email &amp; LinkedIn)</li>
+            <li>One-click Salesforce push</li>
+            <li>Slack alerts the moment a lead goes hot</li>
+          </ul>
+          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan()">Subscribe</button>
         </div>
         <div class="plan featured">
-          <span class="badge">Annual — save 20%</span>
-          <div class="price">$192<span>/yr</span></div>
-          <p class="note">Billed yearly. Equivalent to $16/mo.</p>
-          <button class="btn btn-primary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('annual')">Get started</button>
-          <button class="btn btn-secondary" id="polar-btn-annual" style="width:100%; text-align:center; display:none; font: inherit; margin-top:8px;" onclick="buyPlanWithPolar('annual')">Pay with Polar instead</button>
+          <span class="badge">Most popular</span>
+          <h3 class="plan-name">Pro</h3>
+          <p class="tagline">Best for a sales team already running outreach.</p>
+          <div class="price" id="price-pro">…</div>
+          <p class="note">3-day free trial, then billed per your plan.</p>
+          <ul class="features">
+            <li>Hybrid rule + Claude lead scoring</li>
+            <li>Hot / Warm / Cold ranking with rationale</li>
+            <li>Outreach drafts (email &amp; LinkedIn)</li>
+            <li>One-click Salesforce push</li>
+            <li>Slack alerts the moment a lead goes hot</li>
+          </ul>
+          <button class="btn btn-primary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan()">Subscribe</button>
+        </div>
+        <div class="plan">
+          <h3 class="plan-name">Advanced</h3>
+          <p class="tagline">Best for agencies running it across multiple clients.</p>
+          <div class="price" id="price-advanced">…</div>
+          <p class="note">3-day free trial, then billed per your plan.</p>
+          <ul class="features">
+            <li>Hybrid rule + Claude lead scoring</li>
+            <li>Hot / Warm / Cold ranking with rationale</li>
+            <li>Outreach drafts (email &amp; LinkedIn)</li>
+            <li>One-click Salesforce push</li>
+            <li>Slack alerts the moment a lead goes hot</li>
+          </ul>
+          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan()">Subscribe</button>
         </div>
       </div>
+
+      <p class="polar-alt" id="polar-alt" style="display:none;">
+        Prefer Polar? <a href="javascript:void(0)" onclick="buyPlanWithPolar()">Pay with Polar instead</a>
+      </p>
       <p id="checkout-error" class="caption" style="display:none; color: var(--hot);"></p>
     </div>
   </section>
@@ -244,39 +317,119 @@
   <footer>
     <div class="wrap">
       &copy; 2026 CRM Scoring. <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a>
+      &nbsp;·&nbsp; <a href="terms.html">Terms</a>
       &nbsp;·&nbsp; <a href="privacy.html">Privacy</a>
+      &nbsp;·&nbsp; <a href="refunds.html">Refunds</a>
       &nbsp;·&nbsp; <a href="guardrails.html">AI Guardrails</a>
     </div>
   </footer>
 
   <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
   <script>
-    // Sandbox credentials for now -- non-secret client-side token, safe to
-    // ship in a static page (it can't create charges or read account data,
-    // only open a checkout). Swap for live values once Paddle is in
-    // production and this page is served from the real domain.
-    var PADDLE_ENVIRONMENT = "sandbox";
-    var PADDLE_CLIENT_TOKEN = "test_c38965b594b300bcd03e972cab7";
-    var PADDLE_PRICE_IDS = {
-      monthly: "pri_01kzrskdh909vmbev4bh8e14yj",
-      annual: "pri_01kzrst81dpc2mvrr51vfc853k"
-    };
+    // TODO(you): point this at your real deployed backend (e.g. your Render
+    // service or custom domain), not a throwaway tunnel. Everything else on
+    // this page -- Paddle environment, client token, both price IDs -- is
+    // read from that backend's GET /api/billing/config at load time, never
+    // hardcoded here, so this one line is the only thing to keep in sync.
+    var API_BASE = "https://YOUR-BACKEND-DOMAIN/api";
 
-    if (PADDLE_ENVIRONMENT === "sandbox") {
-      Paddle.Environment.set("sandbox");
-    }
-    Paddle.Initialize({ token: PADDLE_CLIENT_TOKEN });
+    var currentInterval = "monthly";
+    var paddlePriceIds = null;     // { monthly, annual } -- from /api/billing/config
+    var localizedTotals = null;    // { monthly, annual } formatted totals -- from Paddle.PricePreview
+    var paddleReady = false;
 
-    function buyPlan(interval) {
+    function showError(msg) {
       var errorEl = document.getElementById("checkout-error");
-      errorEl.style.display = "none";
-      var priceId = PADDLE_PRICE_IDS[interval];
-      if (!priceId) {
-        errorEl.textContent = "Checkout isn't configured for this plan yet.";
-        errorEl.style.display = "block";
+      errorEl.textContent = msg;
+      errorEl.style.display = "block";
+    }
+    function clearError() {
+      document.getElementById("checkout-error").style.display = "none";
+    }
+
+    function selectInterval(interval) {
+      currentInterval = interval;
+      document.getElementById("toggle-monthly").classList.toggle("active", interval === "monthly");
+      document.getElementById("toggle-annual").classList.toggle("active", interval === "annual");
+      renderPrices();
+    }
+
+    // Same total shown on all three cards -- there's only one real price per
+    // interval (see the comment above the .plans markup). Values come
+    // straight from Paddle's already-localized formattedTotals; nothing here
+    // re-formats or does price math client-side.
+    function renderPrices() {
+      ["starter", "pro", "advanced"].forEach(function (id) {
+        var el = document.getElementById("price-" + id);
+        if (!el) return;
+        if (!localizedTotals) { el.textContent = "…"; return; }
+        var total = currentInterval === "annual" ? localizedTotals.annual : localizedTotals.monthly;
+        var unit = currentInterval === "annual" ? "/yr" : "/mo";
+        el.innerHTML = total + "<span>" + unit + "</span>";
+      });
+    }
+
+    function initPaddleAndPricing(config) {
+      // Fail loudly and visibly rather than silently falling back to a
+      // stale/wrong Paddle account -- a missing field here means this
+      // deployment's billing isn't configured yet, not "use sandbox."
+      if (!config || !config.client_token || !config.price_id_monthly || !config.price_id_annual) {
+        showError("Checkout isn't configured on this deployment yet.");
         return;
       }
-      Paddle.Checkout.open({ items: [{ priceId: priceId, quantity: 1 }] });
+      paddlePriceIds = { monthly: config.price_id_monthly, annual: config.price_id_annual };
+
+      // Paddle.js defaults to live; only override for a genuinely sandbox
+      // deployment. This now always matches whatever PADDLE_ENVIRONMENT the
+      // backend actually has set -- no more manually keeping this page's
+      // credentials in sync with the backend's.
+      if (config.environment === "sandbox") {
+        Paddle.Environment.set("sandbox");
+      }
+      Paddle.Initialize({ token: config.client_token });
+      paddleReady = true;
+
+      Paddle.PricePreview({
+        items: [
+          { priceId: config.price_id_monthly, quantity: 1 },
+          { priceId: config.price_id_annual, quantity: 1 }
+        ]
+      }).then(function (preview) {
+        var lineItems = preview.data.details.lineItems;
+        var monthlyItem = lineItems.filter(function (li) { return li.price.id === config.price_id_monthly; })[0];
+        var annualItem = lineItems.filter(function (li) { return li.price.id === config.price_id_annual; })[0];
+        localizedTotals = {
+          monthly: monthlyItem ? monthlyItem.formattedTotals.total : null,
+          annual: annualItem ? annualItem.formattedTotals.total : null
+        };
+        renderPrices();
+      }).catch(function () {
+        // Degrade to the flat USD anchors from the page's own copy rather
+        // than leaving the price blank -- still not a client-side
+        // re-format of a Paddle value, just a static fallback string.
+        localizedTotals = { monthly: "$20.00", annual: "$192.00" };
+        renderPrices();
+      });
+
+      if (config.polar_available) {
+        document.getElementById("polar-alt").style.display = "block";
+      }
+    }
+
+    function buyPlan() {
+      clearError();
+      if (!paddleReady || !paddlePriceIds) {
+        showError("Checkout isn't ready yet -- try again in a moment.");
+        return;
+      }
+      Paddle.Checkout.open({
+        items: [{ priceId: paddlePriceIds[currentInterval], quantity: 1 }],
+        settings: {
+          displayMode: "overlay",
+          variant: "one-page",
+          successUrl: window.location.origin + "/thank-you.html"
+        }
+      });
     }
 
     // Polar is an alternative processor to Paddle (see backend/app/routers/
@@ -284,47 +437,31 @@
     // this calls the seller's own backend to create a session and redirects
     // there. Hidden by default; only shown once GET /api/billing/config
     // confirms it's actually configured on this deployment.
-    async function buyPlanWithPolar(interval) {
-      var errorEl = document.getElementById("checkout-error");
-      errorEl.style.display = "none";
+    async function buyPlanWithPolar() {
+      clearError();
       try {
         var res = await fetch(API_BASE + "/billing/polar/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-          body: JSON.stringify({ interval: interval }),
+          body: JSON.stringify({ interval: currentInterval }),
         });
         var body = await res.json().catch(function () { return null; });
         if (!res.ok) {
-          errorEl.textContent = (body && body.detail) || "Couldn't start Polar checkout.";
-          errorEl.style.display = "block";
+          showError((body && body.detail) || "Couldn't start Polar checkout.");
           return;
         }
         window.location.href = body.url;
       } catch (err) {
-        errorEl.textContent = "Couldn't reach the checkout backend. Try again shortly.";
-        errorEl.style.display = "block";
+        showError("Couldn't reach the checkout backend. Try again shortly.");
       }
     }
 
-    // Public https:// tunnel (ngrok) to the backend, used for billing calls
-    // (Polar checkout + config check) from this static page. Free-tier ngrok
-    // URLs are ephemeral -- this needs updating whenever the tunnel is
-    // restarted. Swap for the real deployed backend URL once the app is
-    // hosted publicly.
-    var API_BASE = "https://disobey-battered-deploy.ngrok-free.dev/api";
-
-    // Reveal the Polar buttons only once the backend confirms it's actually
-    // configured -- stays hidden (not just non-functional) otherwise, since
-    // Polar isn't set up on this deployment yet.
     fetch(API_BASE + "/billing/config", { headers: { "ngrok-skip-browser-warning": "true" } })
       .then(function (res) { return res.ok ? res.json() : null; })
-      .then(function (config) {
-        if (config && config.polar_available) {
-          document.getElementById("polar-btn-monthly").style.display = "block";
-          document.getElementById("polar-btn-annual").style.display = "block";
-        }
-      })
-      .catch(function () { /* leave Polar buttons hidden */ });
+      .then(function (config) { initPaddleAndPricing(config); })
+      .catch(function () {
+        showError("Couldn't reach the checkout backend -- pricing and checkout are temporarily unavailable.");
+      });
   </script>
 </body>
 </html>

@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AI Guardrails — CRM Scoring</title>
+<title>Refund Policy — CRM Scoring</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,440;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
-  /* Same "Ledger" tokens as docs/index.html / docs/login.html / docs/app.html
-     -- kept in sync so every page on this site reads as the same product. */
+  /* Same "Ledger" tokens as every other page in docs/ -- kept in sync so
+     the site reads as one product. */
   :root {
     --bg: #f6f1e6; --bg-alt: #fffcf5; --text-h: #211b12; --text: #6b6152; --text-muted: #8a7e6d;
     --border: #e6dbc3; --accent: #b3401f; --hot: #c53a2c; --warm: #a8710f; --cold: #5b6472;
@@ -45,9 +45,6 @@
     background: var(--bg-alt); border: 1px solid var(--border); border-radius: 10px;
     padding: 16px 20px; margin: 20px 0; font-size: 0.9rem;
   }
-  .guardrail-list { padding-left: 20px; }
-  .guardrail-list li { margin-bottom: 12px; }
-  .guardrail-list strong { color: var(--text-h); }
   footer { padding: 32px 0 48px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem; }
   footer a { color: var(--text-muted); }
 </style>
@@ -63,71 +60,63 @@
   </div>
 
   <main class="wrap">
-    <h1>AI Guardrails</h1>
-    <p class="updated">How the LLM layer is scoped, and what it's deliberately not allowed to do.</p>
+    <h1>Refund Policy</h1>
+    <p class="updated">Last updated: September 2026</p>
 
     <div class="callout">
-      <strong>The short version:</strong> the AI layer scores and drafts —
-      it never sends, never overwrites your CRM on its own, and every
-      output it produces is meant to be reviewed by a human before it
-      affects a real prospect.
+      <strong>The short version:</strong> try it free for 3 days before you
+      ever pay. If something's still not right in your first 14 days as a
+      paying customer, email us for a full refund — no lengthy back-and-forth.
     </div>
 
-    <h2>Advisory, not authoritative</h2>
+    <h2>Try before you buy</h2>
     <p>
-      Every lead gets a transparent, rule-based <code>fit_score</code>
-      first — a plain weighted breakdown across industry, size, revenue,
-      tech stack, geography, and title seniority, fully auditable with no
-      LLM involved. The LLM layer adds a qualitative
-      <code>conversion_likelihood</code> and rationale on top, meant to
-      surface context the rules can't (recent funding, hiring surges,
-      competitor mentions) — not to replace the rule-based number or make
-      a final call on its own.
+      Every deployment gets a free trial — 3 days, no card required, full
+      functionality against a real sample of your own CRM export. Use it to
+      confirm the scoring quality and integrations work for you before a
+      subscription starts.
     </p>
 
-    <h2>Guardrails built into the product</h2>
-    <ul class="guardrail-list">
-      <li>
-        <strong>No autonomous outreach.</strong> Drafted emails/LinkedIn
-        messages are generated for human review and manual send only.
-        This is a deliberate scope decision, not a missing feature —
-        auto-sending risks real spam/compliance exposure (CAN-SPAM, GDPR,
-        CASL) that a human sender is accountable for and a script isn't.
-      </li>
-      <li>
-        <strong>No silent CRM writes.</strong> Scores, rationale, and
-        drafts only get pushed to Salesforce when you explicitly
-        click the push action for a specific lead — nothing syncs in the
-        background.
-      </li>
-      <li>
-        <strong>Mock output is always labeled.</strong> Without an
-        Anthropic API key configured, the scoring layer runs on
-        deterministic mock data instead of failing — and every mock
-        rationale is prefixed <code>[mock LLM]</code> so it's never
-        mistaken for a real assessment.
-      </li>
-      <li>
-        <strong>Self-hosted data path.</strong> When you do configure a
-        real API key, the enrichment data for each lead goes directly
-        from your own instance to Anthropic's API — it doesn't pass
-        through us, and we have no visibility into what's sent or
-        returned.
-      </li>
-    </ul>
-
-    <h2>Limitations you should know about</h2>
+    <h2>14-day refund window</h2>
     <p>
-      Conversion-likelihood estimates are probabilistic, not guarantees —
-      treat them as one input among several, particularly for high-stakes
-      or high-value accounts. The rationale text is generated, and
-      generated text can occasionally be wrong or miss context a human
-      rep would catch. Nothing here replaces your own judgment about a
-      specific prospect.
+      If you're not satisfied within the first 14 days after your <em>first</em>
+      payment on a plan, email
+      <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a> with the
+      email address you paid with and we'll issue a full refund, no
+      questions asked. Refunds are processed by whichever processor handled
+      your purchase — Paddle or Polar, both acting as merchant of record —
+      and typically appear on your statement within 5–10 business days.
     </p>
 
-    <h2>Questions</h2>
+    <h2>Renewals</h2>
     <p>
+      Subscriptions renew automatically at the interval you chose (monthly
+      or annual) until cancelled. The 14-day window above applies to your
+      first payment on a plan, not to every renewal — but if a renewal
+      charge was clearly a mistake (for example, you cancelled and were
+      still charged), contact us and we'll make it right.
+    </p>
+
+    <h2>What happens to your license after a refund</h2>
+    <p>
+      Once a refund is issued, your subscription is cancelled and no future
+      renewal will be charged. Because license keys are verified offline by
+      your own deployment and can't be remotely revoked, an already-issued
+      key remains valid through its existing expiry window rather than
+      being disabled immediately — see "How cancellation actually works" in
+      our <a href="terms.html">Terms of Service</a>.
+    </p>
+
+    <h2>Annual plans</h2>
+    <p>
+      Outside the initial 14-day window, an annual subscription isn't
+      eligible for a prorated refund for the unused portion of the year —
+      cancel before your next renewal date to avoid being charged again.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions about a charge or a refund request:
       <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a>
     </p>
   </main>

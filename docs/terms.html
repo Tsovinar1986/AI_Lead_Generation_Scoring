@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Terms of Service — CRM Scoring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,440;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* Same "Ledger" tokens as every other page in docs/ -- kept in sync so
+     the site reads as one product. */
+  :root {
+    --bg: #f6f1e6; --bg-alt: #fffcf5; --text-h: #211b12; --text: #6b6152; --text-muted: #8a7e6d;
+    --border: #e6dbc3; --accent: #b3401f; --hot: #c53a2c; --warm: #a8710f; --cold: #5b6472;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #18130c; --bg-alt: #211a11; --text-h: #f4ead9; --text: #b6a993; --text-muted: #8d8069; --border: #382d1e; --accent: #e37a4c; --hot: #ea6a53; --warm: #dba43b; --cold: #8b93a3; }
+  }
+  :root[data-theme="dark"] { --bg: #18130c; --bg-alt: #211a11; --text-h: #f4ead9; --text: #b6a993; --text-muted: #8d8069; --border: #382d1e; --accent: #e37a4c; --hot: #ea6a53; --warm: #dba43b; --cold: #8b93a3; }
+  :root[data-theme="light"] { --bg: #f6f1e6; --bg-alt: #fffcf5; --text-h: #211b12; --text: #6b6152; --text-muted: #8a7e6d; --border: #e6dbc3; --accent: #b3401f; --hot: #c53a2c; --warm: #a8710f; --cold: #5b6472; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "IBM Plex Sans", system-ui, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6;
+  }
+  h1, h2 { font-family: "Fraunces", ui-serif, Georgia, serif; color: var(--text-h); }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+  header.nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+  .logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+  .logo-dots { display: flex; gap: 3px; }
+  .logo-dots span { width: 7px; height: 7px; border-radius: 999px; display: block; }
+  .logo-dots span:nth-child(1) { background: var(--hot); }
+  .logo-dots span:nth-child(2) { background: var(--warm); }
+  .logo-dots span:nth-child(3) { background: var(--cold); }
+  .logo-word { font-family: "Fraunces", ui-serif, Georgia, serif; font-weight: 600; font-size: 1.15rem; color: var(--text-h); }
+  .logo-word em { font-style: normal; color: var(--accent); }
+  main { padding: 24px 0 64px; }
+  h1 { font-size: 1.8rem; margin-bottom: 4px; }
+  .updated { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 32px; }
+  h2 { font-size: 1.15rem; margin: 36px 0 8px; }
+  p, li { color: var(--text-muted); font-size: 0.95rem; }
+  a { color: var(--accent); }
+  .callout {
+    background: var(--bg-alt); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 20px; margin: 20px 0; font-size: 0.9rem;
+  }
+  footer { padding: 32px 0 48px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+  footer a { color: var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="nav">
+      <a class="logo" href="index.html">
+        <span class="logo-dots"><span></span><span></span><span></span></span>
+        <span class="logo-word">CRM <em>Scoring</em></span>
+      </a>
+    </header>
+  </div>
+
+  <main class="wrap">
+    <h1>Terms of Service</h1>
+    <p class="updated">Last updated: September 2026</p>
+
+    <div class="callout">
+      <strong>The short version:</strong> you're buying a license to run
+      self-hosted software on your own infrastructure, billed as a
+      subscription through Paddle or Polar. You can cancel anytime and
+      keep access through the end of what you already paid for. There's a
+      3-day free trial before any card is required.
+    </div>
+
+    <h2>1. Who this agreement is with</h2>
+    <p>
+      These terms are between you (the buyer) and CRM Scoring
+      ("we," "us"), governing your use of the crmscoring.com website and
+      your license to run the CRM Scoring software. They don't cover the
+      software's own runtime behavior once it's on your infrastructure —
+      that's governed by the license file shipped with the product
+      (<code>LICENSE</code> in the source repository).
+    </p>
+
+    <h2>2. The free trial</h2>
+    <p>
+      Every self-hosted deployment starts with a time- and upload-boxed free
+      trial (3 days, a capped number of uploads, and a capped number of rows
+      per upload while unlicensed) — full functionality, no card required.
+      Use it to evaluate the product on your own CRM export before paying
+      anything.
+    </p>
+
+    <h2>3. License grant</h2>
+    <p>
+      Once you subscribe, we grant you a non-exclusive, non-transferable
+      license to run the CRM Scoring software on infrastructure you control,
+      for as long as your subscription remains active (or until your
+      currently-issued license key's validity window ends, whichever is
+      later — see "How cancellation actually works" below). You may not
+      resell, sublicense, or redistribute the software or a license key
+      issued to you.
+    </p>
+
+    <h2>4. Billing</h2>
+    <p>
+      Paddle and Polar are our payment processors, and each acts as
+      <strong>merchant of record</strong> for purchases made through it —
+      meaning your transaction is legally with Paddle or Polar, not
+      directly with us, and their own terms govern the purchase itself:
+      <a href="https://www.paddle.com/legal/checkout-buyer-terms" target="_blank" rel="noopener">paddle.com/legal/checkout-buyer-terms</a>
+      or
+      <a href="https://polar.sh/legal/terms" target="_blank" rel="noopener">polar.sh/legal/terms</a>.
+      Subscriptions are monthly or annual and renew automatically at the
+      price shown at checkout until cancelled. All prices are shown
+      localized to your region before you pay — nothing is charged beyond
+      what's displayed on that screen.
+    </p>
+
+    <h2>5. License delivery</h2>
+    <p>
+      After a successful payment, a signed license key is emailed to the
+      address you paid with, usually within a minute or two. You add it to
+      your deployment's own configuration — we never access, log in to, or
+      otherwise touch your infrastructure to install it.
+    </p>
+
+    <h2>6. How cancellation actually works</h2>
+    <p>
+      Cancel anytime — through Paddle/Polar's own billing management, or by
+      emailing us. Cancelling stops future renewal charges; it does not
+      immediately cut off access. Your license key is verified offline by
+      your own deployment and can't be remotely revoked, so it simply
+      remains valid through its existing expiry window (a short buffer past
+      your paid period, to tolerate billing retries) rather than being
+      disabled the moment you cancel.
+    </p>
+
+    <h2>7. Refunds</h2>
+    <p>
+      See our <a href="refunds.html">Refund Policy</a> for the specifics.
+    </p>
+
+    <h2>8. Acceptable use</h2>
+    <p>
+      Don't attempt to circumvent license verification, redistribute a
+      license key issued to you, or use the software to violate applicable
+      law (including anti-spam regulations for any outreach drafts you
+      choose to send). We reserve the right to decline to issue or renew a
+      license for abusive use.
+    </p>
+
+    <h2>9. Third-party services you connect</h2>
+    <p>
+      If you configure your own Anthropic, Apollo, Salesforce, or Slack
+      credentials, those integrations run under your own agreements with
+      those providers. We have no visibility into or responsibility for
+      that usage or its costs.
+    </p>
+
+    <h2>10. Disclaimer &amp; limitation of liability</h2>
+    <p>
+      The software is provided "as is," without warranty of any kind. Lead
+      scores, LLM-generated rationale, and drafted outreach are decision
+      support, not guarantees of accuracy or outcome — you're responsible
+      for reviewing outreach before sending it. To the maximum extent
+      permitted by law, we aren't liable for indirect, incidental, or
+      consequential damages arising from use of the software.
+    </p>
+
+    <h2>11. Changes to these terms</h2>
+    <p>
+      If these terms change, we'll update the date at the top of this page.
+      Material changes will be noted here.
+    </p>
+
+    <h2>12. Contact</h2>
+    <p>
+      Questions about these terms: <a href="mailto:hello@crmscoring.com">hello@crmscoring.com</a>
+    </p>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      &copy; 2026 CRM Scoring. <a href="index.html">Home</a> ·
+      <a href="terms.html">Terms</a> · <a href="privacy.html">Privacy</a> ·
+      <a href="refunds.html">Refunds</a> · <a href="guardrails.html">AI Guardrails</a>
+    </div>
+  </footer>
+</body>
+</html>
