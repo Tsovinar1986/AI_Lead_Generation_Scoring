@@ -1,6 +1,16 @@
 import io
 
+from app.licensing import LicenseInfo
 from app.routers import leads as leads_router
+
+
+def _pro_license() -> LicenseInfo:
+    return LicenseInfo(customer_email="buyer@example.com", plan="monthly", tier="pro", expires_at=None)
+
+
+def _starter_license() -> LicenseInfo:
+    return LicenseInfo(customer_email="buyer@example.com", plan="monthly", tier="starter", expires_at=None)
+
 
 SAMPLE_CSV = (
     b"company_name,domain,contact_name,contact_title,industry,employees,revenue,country\n"
@@ -68,7 +78,6 @@ def test_license_status_endpoint_unlicensed(client):
     body = resp.json()
     assert body["licensed"] is False
     assert body["reason"] == "trial"
-    assert body["trial_days_left"] > 0
     assert body["trial_uploads_left"] == 10
 
 
@@ -82,7 +91,7 @@ def test_upload_blocked_when_license_required_and_missing(client, monkeypatch):
 
 def test_upload_allowed_when_license_required_and_valid(client, monkeypatch):
     monkeypatch.setattr(leads_router, "LICENSE_REQUIRED", True)
-    monkeypatch.setattr(leads_router, "verify_license", lambda: object())
+    monkeypatch.setattr(leads_router, "verify_license", lambda: _pro_license())
 
     resp = _upload(client)
     assert resp.status_code == 200
@@ -90,25 +99,22 @@ def test_upload_allowed_when_license_required_and_valid(client, monkeypatch):
 
 def test_upload_allowed_during_trial_with_no_license_required(client, monkeypatch):
     monkeypatch.setattr(leads_router, "verify_license", lambda: None)
-    monkeypatch.setattr(leads_router, "trial_days_left", lambda: 1.0)
     monkeypatch.setattr(leads_router, "trial_uploads_left", lambda: 5)
 
     resp = _upload(client)
     assert resp.status_code == 200
 
 
-def test_upload_blocked_once_days_expire_even_with_uploads_left(client, monkeypatch):
+def test_upload_blocked_once_uploads_exhausted(client, monkeypatch):
     monkeypatch.setattr(leads_router, "verify_license", lambda: None)
-    monkeypatch.setattr(leads_router, "trial_days_left", lambda: 0.0)
-    monkeypatch.setattr(leads_router, "trial_uploads_left", lambda: 5)
+    monkeypatch.setattr(leads_router, "trial_uploads_left", lambda: 0)
 
     resp = _upload(client)
     assert resp.status_code == 402
 
 
-def test_upload_blocked_once_uploads_exhausted_even_with_days_left(client, monkeypatch):
-    monkeypatch.setattr(leads_router, "verify_license", lambda: None)
-    monkeypatch.setattr(leads_router, "trial_days_left", lambda: 1.0)
+def test_upload_blocked_when_license_tier_is_starter_and_uploads_exhausted(client, monkeypatch):
+    monkeypatch.setattr(leads_router, "verify_license", lambda: _starter_license())
     monkeypatch.setattr(leads_router, "trial_uploads_left", lambda: 0)
 
     resp = _upload(client)
@@ -129,7 +135,6 @@ def test_upload_increments_trial_uploads_counter_for_default_tenant(client, monk
 def test_signed_up_tenant_upload_never_gated_by_license(client, monkeypatch):
     monkeypatch.setattr(leads_router, "LICENSE_REQUIRED", True)
     monkeypatch.setattr(leads_router, "verify_license", lambda: None)
-    monkeypatch.setattr(leads_router, "trial_days_left", lambda: 0.0)
     monkeypatch.setattr(leads_router, "trial_uploads_left", lambda: 0)
 
     signup_resp = client.post(
@@ -179,7 +184,7 @@ def test_trial_upload_under_cap_gets_no_limit_headers(client, monkeypatch):
 
 
 def test_licensed_upload_is_never_capped(client, monkeypatch):
-    monkeypatch.setattr(leads_router, "verify_license", lambda: object())
+    monkeypatch.setattr(leads_router, "verify_license", lambda: _pro_license())
     monkeypatch.setattr(leads_router, "TRIAL_MAX_LEADS_PER_UPLOAD", 10)
 
     resp = _upload(client, content=_make_csv(25), filename="big.csv")

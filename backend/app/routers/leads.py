@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, Upload
 from .. import storage
 from ..auth import get_current_tenant
 from ..config import LICENSE_REQUIRED, RATE_LIMIT_UPLOAD, TRIAL_MAX_LEADS_PER_UPLOAD
-from ..licensing import trial_days_left, trial_uploads_left, verify_license
+from ..licensing import trial_uploads_left, verify_license
 from ..middleware import limiter
 from ..models import ScoredLead
 from ..services.alerts import maybe_alert
@@ -28,12 +28,19 @@ async def upload_leads(
     # own license. A self-serve tenant (routers/accounts.py) is a customer
     # of whoever runs this deployment, not a buyer of the software itself,
     # so their uploads are never blocked or capped here.
-    gated = tenant.id == storage.DEFAULT_TENANT_ID and verify_license() is None
-    if gated and (LICENSE_REQUIRED or trial_days_left() <= 0 or trial_uploads_left() <= 0):
+    #
+    # No LICENSE_KEY at all (or one whose tier is "starter") both land on the
+    # free Starter tier -- permanently capped by TRIAL_MAX_UPLOADS/
+    # TRIAL_MAX_LEADS_PER_UPLOAD below, no time limit. A valid Pro or
+    # Advanced license removes both caps entirely.
+    license_info = verify_license()
+    tier = license_info.tier if license_info else "starter"
+    gated = tenant.id == storage.DEFAULT_TENANT_ID and tier == "starter"
+    if gated and (LICENSE_REQUIRED or trial_uploads_left() <= 0):
         raise HTTPException(
             status_code=402,
-            detail="No valid license found and the free trial has ended. "
-            "Purchase one at /api/billing/checkout and set LICENSE_KEY in .env, "
+            detail="Starter's free upload allowance is used up. "
+            "Upgrade to Pro or Advanced at /api/billing/checkout and set LICENSE_KEY in .env, "
             "or sign up for your own workspace at /api/accounts/signup.",
         )
 

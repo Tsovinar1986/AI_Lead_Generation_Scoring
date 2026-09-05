@@ -30,12 +30,13 @@ def _b64decode(value: str) -> bytes:
     return base64.urlsafe_b64decode(padded)
 
 
-def issue_license(email: str, plan: str, private_key_b64: str, days: int | None) -> str:
+def issue_license(email: str, plan: str, private_key_b64: str, days: int | None, tier: str = "pro") -> str:
     signing_key = SigningKey(_b64decode(private_key_b64))
 
     payload = {
         "customer_email": email,
         "plan": plan,
+        "tier": tier,
         "issued_at": time.time(),
         "expires_at": (time.time() + days * 86400) if days else None,
     }
@@ -49,6 +50,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--email", required=True)
     parser.add_argument("--plan", default="standard")
+    parser.add_argument("--tier", default="pro", choices=["starter", "pro", "advanced"])
     parser.add_argument("--days", type=int, default=None, help="omit for a perpetual license")
     args = parser.parse_args()
 
@@ -58,7 +60,7 @@ def main() -> None:
             "LICENSE_PRIVATE_KEY not set. Run generate_keypair.py once and export it."
         )
 
-    print(issue_license(args.email, args.plan, private_key_b64, args.days))
+    print(issue_license(args.email, args.plan, private_key_b64, args.days, tier=args.tier))
 
 
 if __name__ == "__main__":

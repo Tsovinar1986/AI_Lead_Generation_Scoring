@@ -58,6 +58,8 @@ def test_billing_config_exposes_non_secret_checkout_settings(client, monkeypatch
     monkeypatch.setattr(billing, "PADDLE_ENVIRONMENT", "sandbox")
     monkeypatch.setattr(billing, "PADDLE_PRICE_ID_MONTHLY", "pri_monthly")
     monkeypatch.setattr(billing, "PADDLE_PRICE_ID_ANNUAL", "pri_annual")
+    monkeypatch.setattr(billing, "PADDLE_PRICE_ID_ADVANCED_MONTHLY", "pri_advanced_monthly")
+    monkeypatch.setattr(billing, "PADDLE_PRICE_ID_ADVANCED_ANNUAL", "pri_advanced_annual")
     monkeypatch.setattr(billing, "POLAR_ACCESS_TOKEN", "")
 
     resp = client.get("/api/billing/config")
@@ -67,6 +69,8 @@ def test_billing_config_exposes_non_secret_checkout_settings(client, monkeypatch
         "environment": "sandbox",
         "price_id_monthly": "pri_monthly",
         "price_id_annual": "pri_annual",
+        "price_id_advanced_monthly": "pri_advanced_monthly",
+        "price_id_advanced_annual": "pri_advanced_annual",
         "polar_available": False,
     }
 

@@ -89,32 +89,25 @@ LICENSE_KEY = os.getenv("LICENSE_KEY", "")
 # it can only verify signatures, not create them.
 LICENSE_PUBLIC_KEY = os.getenv("LICENSE_PUBLIC_KEY", "")
 # When true, the default tenant's upload endpoint 402s immediately without a
-# valid LICENSE_KEY -- skips the TRIAL_DAYS/TRIAL_MAX_UPLOADS grace allowance
-# entirely. Leave false (default) so a fresh deployment gets both a grace
-# window and a free-upload allowance before it starts enforcing (see below).
-# Only ever applies to the default tenant (see routers/leads.py) -- a
+# valid Pro/Advanced LICENSE_KEY -- disables the free Starter tier entirely
+# for deployments that want to require purchase upfront. Leave false
+# (default) so a fresh deployment gets Starter's permanent free allowance
+# below. Only ever applies to the default tenant (see routers/leads.py) -- a
 # self-serve tenant signed up via routers/accounts.py is a customer of
 # whoever runs this deployment, not a buyer of the software itself, so it's
 # never gated by this deployment's own license.
 LICENSE_REQUIRED = os.getenv("LICENSE_REQUIRED", "false").lower() == "true"
-# How many days a deployment with no LICENSE_KEY may keep using paid
-# endpoints before it starts 402ing, regardless of how many of the
-# TRIAL_MAX_UPLOADS free uploads are left. The clock starts on this
-# deployment's first request that checks it (storage.get_or_start_trial),
-# not on install, and persists in the same SQLite file as everything else --
-# so it survives restarts and can't be reset by just restarting the process.
-TRIAL_DAYS = int(os.getenv("TRIAL_DAYS", "3"))
-# How many total /api/leads/upload calls the default tenant may make with no
-# valid LICENSE_KEY before it starts 402ing, regardless of TRIAL_DAYS -- a
-# use-based cap alongside the time-based one, so whichever limit is hit
-# first ends the free trial. The counter persists in the same SQLite file as
-# everything else (storage.increment_trial_uploads), so it survives restarts
-# and can't be reset by just restarting the process.
+# How many total /api/leads/upload calls the free Starter tier (no
+# Pro/Advanced LICENSE_KEY) gets before it starts 402ing -- Starter has no
+# time limit, only this lifetime cap; buying Pro or Advanced removes it
+# entirely. The counter persists in the same SQLite file as everything else
+# (storage.increment_trial_uploads), so it survives restarts and can't be
+# reset by just restarting the process.
 TRIAL_MAX_UPLOADS = int(os.getenv("TRIAL_MAX_UPLOADS", "10"))
-# Caps each /api/leads/upload call to at most this many rows while
-# unlicensed (whether or not TRIAL_MAX_UPLOADS is exhausted) -- lets a
-# prospect judge scoring quality on a real sample of their own data without
-# getting full free use of a large list. Licensed deployments have no cap.
+# Caps each /api/leads/upload call to at most this many rows on the Starter
+# tier (whether or not TRIAL_MAX_UPLOADS is exhausted) -- lets a prospect
+# judge scoring quality on a real sample of their own data without getting
+# full free use of a large list. Pro/Advanced have no cap.
 TRIAL_MAX_LEADS_PER_UPLOAD = int(os.getenv("TRIAL_MAX_LEADS_PER_UPLOAD", "10"))
 
 # --- Licensing (seller side) ---
@@ -144,6 +137,11 @@ PADDLE_ENVIRONMENT = os.getenv("PADDLE_ENVIRONMENT", "sandbox")
 # how to create them.
 PADDLE_PRICE_ID_MONTHLY = os.getenv("PADDLE_PRICE_ID_MONTHLY", "")
 PADDLE_PRICE_ID_ANNUAL = os.getenv("PADDLE_PRICE_ID_ANNUAL", "")
+# Advanced tier -- same feature set as the Pro prices above (no extra caps or
+# functionality yet), priced higher for agency/multi-client framing. See
+# licensing/README.md for how to create these in the Paddle dashboard.
+PADDLE_PRICE_ID_ADVANCED_MONTHLY = os.getenv("PADDLE_PRICE_ID_ADVANCED_MONTHLY", "")
+PADDLE_PRICE_ID_ADVANCED_ANNUAL = os.getenv("PADDLE_PRICE_ID_ADVANCED_ANNUAL", "")
 # Licenses are issued with an expiry this many days out, not a perpetual
 # one -- since an already-issued offline key can't be revoked if a payment
 # fails or a subscription is cancelled, this bounds how long a lapsed

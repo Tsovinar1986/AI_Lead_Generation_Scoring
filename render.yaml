@@ -48,6 +48,10 @@ services:
         sync: false
       - key: PADDLE_PRICE_ID_ANNUAL
         sync: false
+      - key: PADDLE_PRICE_ID_ADVANCED_MONTHLY
+        sync: false
+      - key: PADDLE_PRICE_ID_ADVANCED_ANNUAL
+        sync: false
       - key: SENDGRID_API_KEY
         sync: false
       - key: SENDGRID_FROM_EMAIL

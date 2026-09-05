@@ -28,7 +28,7 @@ from nacl.exceptions import BadSignatureError
 from nacl.signing import VerifyKey
 
 from . import storage
-from .config import LICENSE_KEY, LICENSE_PUBLIC_KEY, TRIAL_DAYS, TRIAL_MAX_UPLOADS
+from .config import LICENSE_KEY, LICENSE_PUBLIC_KEY, TRIAL_MAX_UPLOADS
 
 
 class LicenseState(Enum):
@@ -42,6 +42,7 @@ class LicenseState(Enum):
 class LicenseInfo:
     customer_email: str
     plan: str
+    tier: str
     expires_at: float | None
 
 
@@ -71,6 +72,7 @@ def check_license() -> LicenseCheck:
         info = LicenseInfo(
             customer_email=data["customer_email"],
             plan=data.get("plan", "standard"),
+            tier=data.get("tier", "pro"),
             expires_at=data.get("expires_at"),
         )
     except (ValueError, BadSignatureError, KeyError, json.JSONDecodeError):
@@ -91,24 +93,13 @@ def verify_license() -> LicenseInfo | None:
     return check.info if check.state == LicenseState.VALID else None
 
 
-def trial_days_left() -> float:
-    """Days remaining in the unlicensed grace period, floored at 0. Only
-    meaningful when there's no valid license -- callers gate on
-    verify_license() first and only consult this for the LICENSE_KEY-less
-    case, deployment-wide (see storage.get_or_start_trial) and only ever for
-    the default tenant. Exhausting this ends the trial even if
-    trial_uploads_left() is still positive."""
-    started_at = storage.get_or_start_trial()
-    elapsed_days = (time.time() - started_at) / 86400
-    return max(0.0, TRIAL_DAYS - elapsed_days)
-
-
 def trial_uploads_left() -> int:
-    """Free unlicensed uploads remaining, floored at 0. Only meaningful when
-    there's no valid license -- callers gate on verify_license() first and
-    only consult this for the LICENSE_KEY-less case, deployment-wide (see
-    storage.get_trial_uploads_used) and only ever for the default tenant.
-    Exhausting this ends the trial even if trial_days_left() is still
-    positive."""
+    """Uploads remaining on the permanent free Starter tier, floored at 0.
+    Only meaningful when there's no valid Pro/Advanced license -- callers gate
+    on verify_license() first and only consult this for the unlicensed
+    (Starter) case, deployment-wide (see storage.get_trial_uploads_used) and
+    only ever for the default tenant. Starter has no time limit -- this
+    lifetime upload count is its only cap, and buying Pro/Advanced is the
+    only way past it."""
     used = storage.get_trial_uploads_used()
     return max(0, TRIAL_MAX_UPLOADS - used)

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { fetchBillingConfig, fetchLicenseStatus } from "../api";
-import { openPaddleCheckout } from "../paddle";
+import { openPaddleCheckout, type PaidTier } from "../paddle";
 import { openPolarCheckout } from "../polar";
 import type { BillingInterval, LicenseStatus } from "../types";
 
-type BuyKey = `${"paddle" | "polar"}-${BillingInterval}`;
+type BuyKey = `paddle-${PaidTier}-${BillingInterval}` | `polar-${BillingInterval}`;
 
 const btnPrimary =
   "rounded-md bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-sm";
@@ -63,7 +63,7 @@ export function LicenseBanner() {
           reason: "trial",
           customer_email: null,
           plan: null,
-          trial_days_left: null,
+          tier: "starter",
           trial_uploads_left: null,
         })
       );
@@ -72,11 +72,11 @@ export function LicenseBanner() {
       .catch(() => setPolarAvailable(false));
   }, []);
 
-  async function handleBuy(interval: BillingInterval) {
-    setBusyKey(`paddle-${interval}`);
+  async function handleBuy(interval: BillingInterval, tier: PaidTier = "pro") {
+    setBusyKey(`paddle-${tier}-${interval}`);
     setError(null);
     try {
-      await openPaddleCheckout(interval);
+      await openPaddleCheckout(interval, tier);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start checkout");
     } finally {
@@ -103,7 +103,7 @@ export function LicenseBanner() {
       <div className="flex items-center gap-3 rounded-xl border border-border bg-panel px-5 py-3 text-sm shadow-sm">
         <CheckBadgeIcon className="h-4 w-4 shrink-0 text-accent" />
         <span className="text-text">
-          Licensed to <strong className="text-heading">{status.customer_email}</strong> ({status.plan} plan)
+          Licensed to <strong className="text-heading">{status.customer_email}</strong> ({status.tier} plan)
           {status.expires_at && (
             <span className="text-text/75"> — renews {new Date(status.expires_at * 1000).toLocaleDateString()}</span>
           )}
@@ -136,9 +136,9 @@ export function LicenseBanner() {
             }
           : {
               message:
-                status.trial_days_left != null && status.trial_uploads_left != null
-                  ? `Trial mode — ${status.trial_uploads_left} of 10 free uploads left, ${status.trial_days_left} day${status.trial_days_left === 1 ? "" : "s"} left.`
-                  : "Running in trial mode — full functionality for evaluation.",
+                status.trial_uploads_left != null
+                  ? `Starter (free) — ${status.trial_uploads_left} of 10 uploads left. Upgrade to Pro or Advanced for unlimited uploads.`
+                  : "Running on the free Starter tier.",
               showBuyButtons: true,
             };
 
@@ -161,11 +161,25 @@ export function LicenseBanner() {
       <div className="flex flex-wrap items-center gap-2">
         {showBuyButtons && (
           <>
-            <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("monthly")}>
-              {busyKey === "paddle-monthly" ? "Opening checkout…" : "$20/mo"}
+            <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("monthly", "pro")}>
+              {busyKey === "paddle-pro-monthly" ? "Opening checkout…" : "Pro — $20/mo"}
             </button>
-            <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("annual")}>
-              {busyKey === "paddle-annual" ? "Opening checkout…" : "Buy annual (save 20%)"}
+            <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("annual", "pro")}>
+              {busyKey === "paddle-pro-annual" ? "Opening checkout…" : "Pro annual (save 20%)"}
+            </button>
+            <button
+              className={btnSecondary}
+              disabled={busyKey !== null}
+              onClick={() => handleBuy("monthly", "advanced")}
+            >
+              {busyKey === "paddle-advanced-monthly" ? "Opening checkout…" : "Advanced — $40/mo"}
+            </button>
+            <button
+              className={btnSecondary}
+              disabled={busyKey !== null}
+              onClick={() => handleBuy("annual", "advanced")}
+            >
+              {busyKey === "paddle-advanced-annual" ? "Opening checkout…" : "Advanced annual (save 20%)"}
             </button>
             {polarAvailable && (
               <>

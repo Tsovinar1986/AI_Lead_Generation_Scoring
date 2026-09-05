@@ -248,40 +248,38 @@
   <section class="pricing" id="pricing">
     <div class="wrap">
       <h2>Simple pricing</h2>
-      <p class="lede">Every self-hosted deployment starts with a 3-day free trial — full functionality, no card required. Pick a plan when you're ready.</p>
+      <p class="lede">Starter is free forever — no card, no time limit. Upgrade to Pro or Advanced for unlimited uploads.</p>
 
       <div class="billing-toggle" role="group" aria-label="Billing interval">
         <button type="button" class="toggle-btn active" id="toggle-monthly" onclick="selectInterval('monthly')">Monthly</button>
         <button type="button" class="toggle-btn" id="toggle-annual" onclick="selectInterval('annual')">Yearly <span class="save-chip">Save 20%</span></button>
       </div>
 
-      <!-- Three tiers, one real plan: every Subscribe button below checks
-           out against the same two Paddle prices (monthly/annual). The
-           tiers differ only in framing/audience, never in what's included
-           or what price is charged -- the backend (app/licensing.py) has no
-           per-tier entitlement gating, so showing different feature sets
-           per card would be false advertising. -->
+      <!-- Three real tiers. Starter has no Paddle price at all -- it's the
+           unlicensed default (app/licensing.py), permanently capped at
+           TRIAL_MAX_UPLOADS/TRIAL_MAX_LEADS_PER_UPLOAD. Pro and Advanced are
+           functionally identical (no extra caps/features on Advanced yet) --
+           Advanced is priced higher for agency/multi-client framing only;
+           see backend/app/routers/billing.py's _tier_for_price_id. -->
       <div class="plans">
         <div class="plan">
           <h3 class="plan-name">Starter</h3>
           <p class="tagline">Best for evaluating on a single CRM export.</p>
-          <div class="price" id="price-starter">…</div>
-          <p class="note">3-day free trial, then billed per your plan.</p>
+          <div class="price">Free</div>
+          <p class="note">Free forever — up to 10 uploads, 10 rows each.</p>
           <ul class="features">
             <li>Hybrid rule + Claude lead scoring</li>
             <li>Hot / Warm / Cold ranking with rationale</li>
             <li>Outreach drafts (email &amp; LinkedIn)</li>
-            <li>One-click Salesforce push</li>
-            <li>Slack alerts the moment a lead goes hot</li>
           </ul>
-          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan()">Subscribe</button>
+          <a class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" href="https://github.com/Tsovinar1986/AI_Lead_Generation_Scoring">Get started free</a>
         </div>
         <div class="plan featured">
           <span class="badge">Most popular</span>
           <h3 class="plan-name">Pro</h3>
           <p class="tagline">Best for a sales team already running outreach.</p>
           <div class="price" id="price-pro">…</div>
-          <p class="note">3-day free trial, then billed per your plan.</p>
+          <p class="note">Unlimited uploads, billed per your plan.</p>
           <ul class="features">
             <li>Hybrid rule + Claude lead scoring</li>
             <li>Hot / Warm / Cold ranking with rationale</li>
@@ -289,13 +287,13 @@
             <li>One-click Salesforce push</li>
             <li>Slack alerts the moment a lead goes hot</li>
           </ul>
-          <button class="btn btn-primary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan()">Subscribe</button>
+          <button class="btn btn-primary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('pro')">Subscribe</button>
         </div>
         <div class="plan">
           <h3 class="plan-name">Advanced</h3>
           <p class="tagline">Best for agencies running it across multiple clients.</p>
           <div class="price" id="price-advanced">…</div>
-          <p class="note">3-day free trial, then billed per your plan.</p>
+          <p class="note">Unlimited uploads, billed per your plan.</p>
           <ul class="features">
             <li>Hybrid rule + Claude lead scoring</li>
             <li>Hot / Warm / Cold ranking with rationale</li>
@@ -303,7 +301,7 @@
             <li>One-click Salesforce push</li>
             <li>Slack alerts the moment a lead goes hot</li>
           </ul>
-          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan()">Subscribe</button>
+          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="buyPlan('advanced')">Subscribe</button>
         </div>
       </div>
 
@@ -334,8 +332,8 @@
     var API_BASE = "https://YOUR-BACKEND-DOMAIN/api";
 
     var currentInterval = "monthly";
-    var paddlePriceIds = null;     // { monthly, annual } -- from /api/billing/config
-    var localizedTotals = null;    // { monthly, annual } formatted totals -- from Paddle.PricePreview
+    var paddlePriceIds = null;     // { pro: {monthly, annual}, advanced: {monthly, annual} } -- from /api/billing/config
+    var localizedTotals = null;    // { pro: {monthly, annual}, advanced: {monthly, annual} } formatted totals -- from Paddle.PricePreview
     var paddleReady = false;
 
     function showError(msg) {
@@ -354,27 +352,29 @@
       renderPrices();
     }
 
-    // Same total shown on all three cards -- there's only one real price per
-    // interval (see the comment above the .plans markup). Values come
-    // straight from Paddle's already-localized formattedTotals; nothing here
-    // re-formats or does price math client-side.
+    // Starter's card shows a static "Free" (see .plans markup) and is never
+    // touched here -- only Pro and Advanced have a live Paddle price.
     function renderPrices() {
-      ["starter", "pro", "advanced"].forEach(function (id) {
-        var el = document.getElementById("price-" + id);
+      ["pro", "advanced"].forEach(function (tier) {
+        var el = document.getElementById("price-" + tier);
         if (!el) return;
-        if (!localizedTotals) { el.textContent = "…"; return; }
-        var total = currentInterval === "annual" ? localizedTotals.annual : localizedTotals.monthly;
+        if (!localizedTotals || !localizedTotals[tier]) { el.textContent = "…"; return; }
+        var totals = localizedTotals[tier];
+        var total = currentInterval === "annual" ? totals.annual : totals.monthly;
         var unit = currentInterval === "annual" ? "/yr" : "/mo";
         el.innerHTML = total + "<span>" + unit + "</span>";
       });
     }
 
     // Static anchors shown whenever the backend can't be reached at all (or
-    // hasn't been deployed yet) -- same flat USD numbers already used as the
+    // hasn't been deployed yet) -- same flat USD numbers used as the
     // Paddle.PricePreview fallback below, so a visitor always sees a real
     // price instead of a blank "…", even though Subscribe can't work yet.
     function showStaticFallbackPrices() {
-      localizedTotals = { monthly: "$20.00", annual: "$192.00" };
+      localizedTotals = {
+        pro: { monthly: "$20.00", annual: "$192.00" },
+        advanced: { monthly: "$40.00", annual: "$384.00" }
+      };
       renderPrices();
     }
 
@@ -382,12 +382,16 @@
       // Fail loudly and visibly rather than silently falling back to a
       // stale/wrong Paddle account -- a missing field here means this
       // deployment's billing isn't configured yet, not "use sandbox."
-      if (!config || !config.client_token || !config.price_id_monthly || !config.price_id_annual) {
+      if (!config || !config.client_token || !config.price_id_monthly || !config.price_id_annual ||
+          !config.price_id_advanced_monthly || !config.price_id_advanced_annual) {
         showError("Checkout isn't configured on this deployment yet.");
         showStaticFallbackPrices();
         return;
       }
-      paddlePriceIds = { monthly: config.price_id_monthly, annual: config.price_id_annual };
+      paddlePriceIds = {
+        pro: { monthly: config.price_id_monthly, annual: config.price_id_annual },
+        advanced: { monthly: config.price_id_advanced_monthly, annual: config.price_id_advanced_annual }
+      };
 
       // Paddle.js defaults to live; only override for a genuinely sandbox
       // deployment. This now always matches whatever PADDLE_ENVIRONMENT the
@@ -402,23 +406,26 @@
       Paddle.PricePreview({
         items: [
           { priceId: config.price_id_monthly, quantity: 1 },
-          { priceId: config.price_id_annual, quantity: 1 }
+          { priceId: config.price_id_annual, quantity: 1 },
+          { priceId: config.price_id_advanced_monthly, quantity: 1 },
+          { priceId: config.price_id_advanced_annual, quantity: 1 }
         ]
       }).then(function (preview) {
         var lineItems = preview.data.details.lineItems;
-        var monthlyItem = lineItems.filter(function (li) { return li.price.id === config.price_id_monthly; })[0];
-        var annualItem = lineItems.filter(function (li) { return li.price.id === config.price_id_annual; })[0];
+        function totalFor(priceId) {
+          var item = lineItems.filter(function (li) { return li.price.id === priceId; })[0];
+          return item ? item.formattedTotals.total : null;
+        }
         localizedTotals = {
-          monthly: monthlyItem ? monthlyItem.formattedTotals.total : null,
-          annual: annualItem ? annualItem.formattedTotals.total : null
+          pro: { monthly: totalFor(config.price_id_monthly), annual: totalFor(config.price_id_annual) },
+          advanced: { monthly: totalFor(config.price_id_advanced_monthly), annual: totalFor(config.price_id_advanced_annual) }
         };
         renderPrices();
       }).catch(function () {
         // Degrade to the flat USD anchors from the page's own copy rather
         // than leaving the price blank -- still not a client-side
         // re-format of a Paddle value, just a static fallback string.
-        localizedTotals = { monthly: "$20.00", annual: "$192.00" };
-        renderPrices();
+        showStaticFallbackPrices();
       });
 
       if (config.polar_available) {
@@ -426,14 +433,14 @@
       }
     }
 
-    function buyPlan() {
+    function buyPlan(tier) {
       clearError();
       if (!paddleReady || !paddlePriceIds) {
         showError("Checkout isn't ready yet -- try again in a moment.");
         return;
       }
       Paddle.Checkout.open({
-        items: [{ priceId: paddlePriceIds[currentInterval], quantity: 1 }],
+        items: [{ priceId: paddlePriceIds[tier][currentInterval], quantity: 1 }],
         settings: {
           displayMode: "overlay",
           variant: "one-page",

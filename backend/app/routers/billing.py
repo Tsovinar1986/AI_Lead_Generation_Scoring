@@ -75,6 +75,8 @@ from ..config import (
     PADDLE_API_KEY,
     PADDLE_CLIENT_TOKEN,
     PADDLE_ENVIRONMENT,
+    PADDLE_PRICE_ID_ADVANCED_ANNUAL,
+    PADDLE_PRICE_ID_ADVANCED_MONTHLY,
     PADDLE_PRICE_ID_ANNUAL,
     PADDLE_PRICE_ID_MONTHLY,
     PADDLE_WEBHOOK_SECRET,
@@ -110,7 +112,15 @@ def _validity_days_for_interval(interval: str) -> int:
 
 
 def _interval_for_price_id(price_id: str | None) -> str:
-    return "annual" if price_id == PADDLE_PRICE_ID_ANNUAL else "monthly"
+    return "annual" if price_id in (PADDLE_PRICE_ID_ANNUAL, PADDLE_PRICE_ID_ADVANCED_ANNUAL) else "monthly"
+
+
+def _tier_for_price_id(price_id: str | None) -> str:
+    """Advanced and Pro are functionally identical today (same features, no
+    extra caps) -- Advanced is priced higher for agency/multi-client framing
+    only. Starter never reaches this: it has no Paddle price at all (see
+    app/licensing.py's tier default)."""
+    return "advanced" if price_id in (PADDLE_PRICE_ID_ADVANCED_MONTHLY, PADDLE_PRICE_ID_ADVANCED_ANNUAL) else "pro"
 
 
 def _already_issued_for_transaction(transaction_id: str) -> bool:
@@ -133,13 +143,13 @@ def _already_issued_for_transaction(transaction_id: str) -> bool:
     return False
 
 
-def _issue_and_deliver(email: str, plan: str, transaction_id: str | None = None) -> str:
+def _issue_and_deliver(email: str, plan: str, tier: str = "pro", transaction_id: str | None = None) -> str:
     if not LICENSE_PRIVATE_KEY:
         logger.error("Payment received for {} but LICENSE_PRIVATE_KEY isn't set — can't issue a license.", email)
         raise HTTPException(status_code=500, detail="License signing key not configured on this deployment.")
 
     days = _validity_days_for_interval(plan)
-    license_key = issue_license(email, plan=plan, private_key_b64=LICENSE_PRIVATE_KEY, days=days)
+    license_key = issue_license(email, plan=plan, private_key_b64=LICENSE_PRIVATE_KEY, days=days, tier=tier)
 
     _ISSUED_LICENSES_LOG.parent.mkdir(parents=True, exist_ok=True)
     with _ISSUED_LICENSES_LOG.open("a") as f:
@@ -184,6 +194,8 @@ def billing_config():
         "environment": PADDLE_ENVIRONMENT,
         "price_id_monthly": PADDLE_PRICE_ID_MONTHLY or None,
         "price_id_annual": PADDLE_PRICE_ID_ANNUAL or None,
+        "price_id_advanced_monthly": PADDLE_PRICE_ID_ADVANCED_MONTHLY or None,
+        "price_id_advanced_annual": PADDLE_PRICE_ID_ADVANCED_ANNUAL or None,
         # Polar has no client-side token to expose (it's a redirect checkout,
         # not an overlay) -- the frontend just needs to know whether to show
         # the button at all.
@@ -221,7 +233,12 @@ def _handle_transaction_completed(data: dict) -> dict:
         return {"status": "ignored"}
 
     line_price_id = ((data.get("items") or [{}])[0].get("price") or {}).get("id")
-    _issue_and_deliver(email, plan=_interval_for_price_id(line_price_id), transaction_id=transaction_id)
+    _issue_and_deliver(
+        email,
+        plan=_interval_for_price_id(line_price_id),
+        tier=_tier_for_price_id(line_price_id),
+        transaction_id=transaction_id,
+    )
     return {"status": "ok"}
 
 

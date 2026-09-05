@@ -32,24 +32,29 @@ export interface ScoredLead {
   crm_pushed: boolean;
 }
 
+export type LicenseTier = "starter" | "pro" | "advanced";
+
 export type LicenseStatus =
   | {
       licensed: false;
       reason: "trial" | "trial_expired" | "invalid" | "expired";
       customer_email: string | null;
       plan: string | null;
-      trial_days_left: number | null;
+      tier: LicenseTier;
       trial_uploads_left: number | null;
     }
-  | { licensed: true; customer_email: string; plan: string; expires_at: number | null };
+  | { licensed: true; customer_email: string; plan: string; tier: LicenseTier; expires_at: number | null };
 
 export type BillingInterval = "monthly" | "annual";
+export type PlanTier = "starter" | "pro" | "advanced";
 
 export interface BillingConfig {
   client_token: string | null;
   environment: "sandbox" | "production";
   price_id_monthly: string | null;
   price_id_annual: string | null;
+  price_id_advanced_monthly: string | null;
+  price_id_advanced_annual: string | null;
   polar_available: boolean;
 }
 

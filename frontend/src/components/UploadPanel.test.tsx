@@ -23,7 +23,7 @@ describe("UploadPanel", () => {
   beforeEach(() => {
     vi.mocked(api.fetchBillingConfig).mockResolvedValue({
       client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
-      polar_available: false,
+      price_id_advanced_monthly: null, price_id_advanced_annual: null, polar_available: false,
     });
   });
 
@@ -72,7 +72,7 @@ describe("UploadPanel", () => {
   it("shows Polar as an alternative to Paddle when configured, on the license-expired CTA", async () => {
     vi.mocked(api.fetchBillingConfig).mockResolvedValue({
       client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
-      polar_available: true,
+      price_id_advanced_monthly: null, price_id_advanced_annual: null, polar_available: true,
     });
     vi.mocked(api.uploadLeads).mockRejectedValue(new api.LicenseRequiredError("No valid license found."));
     vi.mocked(polar.openPolarCheckout).mockResolvedValue(undefined);
