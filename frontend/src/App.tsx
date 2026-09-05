@@ -3,6 +3,7 @@ import { TenantAuthError, clearTenantApiKey, fetchLeads, getTenantApiKey } from 
 import { LeadDetail } from "./components/LeadDetail";
 import { LeadsTable } from "./components/LeadsTable";
 import { LicenseBanner } from "./components/LicenseBanner";
+import { ScoreDashboard } from "./components/ScoreDashboard";
 import { TenantSwitcher } from "./components/TenantSwitcher";
 import { UploadPanel } from "./components/UploadPanel";
 import { PurchaseComplete } from "./pages/PurchaseComplete";
@@ -85,6 +86,11 @@ function LeadScoringApp() {
           <div className="animate-fade-in-up" style={{ animationDelay: "110ms" }}>
             <UploadPanel onUploaded={handleUploaded} />
           </div>
+          {leads.length > 0 && (
+            <div className="animate-fade-in-up" style={{ animationDelay: "135ms" }}>
+              <ScoreDashboard leads={leads} />
+            </div>
+          )}
           <div className="animate-fade-in-up" style={{ animationDelay: "160ms" }}>
             <LeadsTable
               leads={leads}

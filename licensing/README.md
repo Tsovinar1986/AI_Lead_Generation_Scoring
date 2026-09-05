@@ -128,14 +128,15 @@ Drop the license key you send them into their `.env`:
 LICENSE_KEY=<the key you issued them>
 LICENSE_PUBLIC_KEY=<your public key, ship this with the product>
 ```
-A fresh deployment gets `TRIAL_DAYS` (default 3) of full-functionality
-evaluation with no `LICENSE_KEY` set at all — the whole point of shipping
+A fresh deployment gets the free Starter tier with no `LICENSE_KEY` set at
+all — permanent, not time-limited, capped at `TRIAL_MAX_UPLOADS` uploads of
+up to `TRIAL_MAX_LEADS_PER_UPLOAD` rows each — the whole point of shipping
 this as self-hosted software is that a prospect can run it unlocked to
-evaluate before you ever collect payment. Once those days are up,
-`/api/leads/upload` 402s until a valid `LICENSE_KEY` is set. Set
-`LICENSE_REQUIRED=true` instead to skip the trial and require a key from
-the first request (useful for your own storefront/demo instance, not
-typical for a buyer's copy).
+evaluate before you ever collect payment. Once that allowance is used up,
+`/api/leads/upload` 402s until a Pro or Advanced `LICENSE_KEY` is set. Set
+`LICENSE_REQUIRED=true` instead to disable Starter entirely and require a
+key from the first request (useful for your own storefront/demo instance,
+not typical for a buyer's copy).
 
 ---
 
@@ -180,9 +181,12 @@ comps — a one-time or annual self-hosted license reads as "buy the tool,"
 which is a different (and for this buyer, often easier) purchase decision
 than "add another monthly subscription."
 
-**Current pricing**: $20/mo, or an annual plan at 20% off (~$192/yr) to
-reward the lower-churn commitment — both set up as
-separate recurring Paddle prices (`PADDLE_PRICE_ID_MONTHLY`/`_ANNUAL`),
-opened via Paddle's overlay checkout (`frontend/src/paddle.ts`). A 3-day
-unlicensed trial (`TRIAL_DAYS`) runs automatically before either plan is
-required, so a prospect always gets a no-card-required look before buying.
+**Current pricing**: three tiers -- Starter is free forever (no Paddle
+price, no card, permanently capped by `TRIAL_MAX_UPLOADS`/
+`TRIAL_MAX_LEADS_PER_UPLOAD`), Pro is $20/mo or $192/yr (20% off), and
+Advanced is $40/mo or $384/yr (same 20% off, functionally identical to Pro
+today -- priced for agency/multi-client framing). Pro/Advanced are each two
+recurring Paddle prices (`PADDLE_PRICE_ID_MONTHLY`/`_ANNUAL` and
+`PADDLE_PRICE_ID_ADVANCED_MONTHLY`/`_ANNUAL`), opened via Paddle's overlay
+checkout (`frontend/src/paddle.ts`). Starter needs no purchase at all, so a
+prospect always gets a no-card-required look before buying.
