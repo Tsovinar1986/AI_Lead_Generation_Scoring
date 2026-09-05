@@ -369,12 +369,22 @@
       });
     }
 
+    // Static anchors shown whenever the backend can't be reached at all (or
+    // hasn't been deployed yet) -- same flat USD numbers already used as the
+    // Paddle.PricePreview fallback below, so a visitor always sees a real
+    // price instead of a blank "…", even though Subscribe can't work yet.
+    function showStaticFallbackPrices() {
+      localizedTotals = { monthly: "$20.00", annual: "$192.00" };
+      renderPrices();
+    }
+
     function initPaddleAndPricing(config) {
       // Fail loudly and visibly rather than silently falling back to a
       // stale/wrong Paddle account -- a missing field here means this
       // deployment's billing isn't configured yet, not "use sandbox."
       if (!config || !config.client_token || !config.price_id_monthly || !config.price_id_annual) {
         showError("Checkout isn't configured on this deployment yet.");
+        showStaticFallbackPrices();
         return;
       }
       paddlePriceIds = { monthly: config.price_id_monthly, annual: config.price_id_annual };
@@ -461,6 +471,7 @@
       .then(function (config) { initPaddleAndPricing(config); })
       .catch(function () {
         showError("Couldn't reach the checkout backend -- pricing and checkout are temporarily unavailable.");
+        showStaticFallbackPrices();
       });
   </script>
 </body>
