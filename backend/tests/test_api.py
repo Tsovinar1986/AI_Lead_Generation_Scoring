@@ -12,6 +12,10 @@ def _starter_license() -> LicenseInfo:
     return LicenseInfo(customer_email="buyer@example.com", plan="monthly", tier="starter", expires_at=None)
 
 
+def _advanced_license() -> LicenseInfo:
+    return LicenseInfo(customer_email="buyer@example.com", plan="monthly", tier="advanced", expires_at=None)
+
+
 SAMPLE_CSV = (
     b"company_name,domain,contact_name,contact_title,industry,employees,revenue,country\n"
     b"Acme Inc,acme.com,Jane Doe,VP of Sales,SaaS,200,20000000,United States\n"
@@ -133,9 +137,16 @@ def test_upload_increments_trial_uploads_counter_for_default_tenant(client, monk
 
 
 def test_signed_up_tenant_upload_never_gated_by_license(client, monkeypatch):
+    from app.routers import accounts as accounts_router
+
     monkeypatch.setattr(leads_router, "LICENSE_REQUIRED", True)
     monkeypatch.setattr(leads_router, "verify_license", lambda: None)
     monkeypatch.setattr(leads_router, "trial_uploads_left", lambda: 0)
+    # Signing up this tenant is a separate action from the deployment's own
+    # license check above -- it requires an Advanced license on this
+    # deployment (see routers/accounts.py), unrelated to whether the
+    # resulting tenant's own uploads are ever gated (they never are).
+    monkeypatch.setattr(accounts_router, "verify_license", lambda: _advanced_license())
 
     signup_resp = client.post(
         "/api/accounts/signup",

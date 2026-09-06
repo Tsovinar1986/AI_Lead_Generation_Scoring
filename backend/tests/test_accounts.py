@@ -1,11 +1,42 @@
 from unittest.mock import MagicMock
 
+import pytest
+
 from app import storage
+from app.licensing import LicenseInfo
 from app.routers import accounts
 
 
 def _signup(client, email="buyer@acme.com", password="Correct-Horse9", name="Acme Corp"):
     return client.post("/api/accounts/signup", json={"name": name, "email": email, "password": password})
+
+
+@pytest.fixture(autouse=True)
+def _advanced_license(monkeypatch):
+    """Signup requires an Advanced-tier license on this deployment (see
+    accounts.py's module docstring) -- default every test here to having
+    one, since the gating itself is covered by the dedicated tests below."""
+    monkeypatch.setattr(
+        accounts,
+        "verify_license",
+        lambda: LicenseInfo(customer_email="seller@example.com", plan="monthly", tier="advanced", expires_at=None),
+    )
+
+
+def test_signup_blocked_without_a_license(client, monkeypatch):
+    monkeypatch.setattr(accounts, "verify_license", lambda: None)
+    resp = _signup(client)
+    assert resp.status_code == 402
+
+
+def test_signup_blocked_with_a_pro_license(client, monkeypatch):
+    monkeypatch.setattr(
+        accounts,
+        "verify_license",
+        lambda: LicenseInfo(customer_email="seller@example.com", plan="monthly", tier="pro", expires_at=None),
+    )
+    resp = _signup(client)
+    assert resp.status_code == 402
 
 
 def test_signup_creates_a_usable_tenant(client):

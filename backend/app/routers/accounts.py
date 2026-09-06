@@ -12,6 +12,15 @@ storage.rotate_api_key), which invalidates whichever key was active before.
 That's a real tradeoff -- logging in on a second device signs the first one
 out -- documented rather than hidden, since it's the kind of thing that's
 confusing to hit by surprise.
+
+Signup itself is gated to an Advanced-tier license (see app/licensing.py) --
+onboarding new client workspaces is exactly what "best for agencies running
+it across multiple clients" (docs/index.html's Advanced card) promises,
+so it's the one real capability difference from Pro today. Login is
+deliberately NOT gated the same way: a tenant an agency already onboarded
+must keep working even if the agency's own license later lapses or expires
+mid-cycle -- only creating new workspaces requires a current Advanced
+license, not using ones that already exist.
 """
 
 from fastapi import APIRouter, HTTPException, Request
@@ -20,6 +29,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from .. import storage
 from ..config import APP_BASE_URL, PASSWORD_RESET_TTL_MINUTES, RATE_LIMIT_AUTH
+from ..licensing import verify_license
 from ..middleware import limiter
 from ..services.password import hash_password, validate_password_strength, verify_password
 from ..services.reset_email import send_password_reset_email
@@ -56,6 +66,12 @@ class TenantAuthResponse(BaseModel):
 @router.post("/signup", response_model=TenantAuthResponse)
 @limiter.limit(RATE_LIMIT_AUTH)
 def signup(request: Request, payload: SignupRequest):
+    license_info = verify_license()
+    if license_info is None or license_info.tier != "advanced":
+        raise HTTPException(
+            status_code=402,
+            detail="Onboarding new client workspaces requires an Advanced license on this deployment.",
+        )
     if storage.get_tenant_by_email(payload.email) is not None:
         raise HTTPException(status_code=409, detail="An account with that email already exists.")
     try:

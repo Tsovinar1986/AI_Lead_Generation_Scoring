@@ -324,12 +324,11 @@
 
   <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
   <script>
-    // TODO(you): point this at your real deployed backend (e.g. your Render
-    // service or custom domain), not a throwaway tunnel. Everything else on
-    // this page -- Paddle environment, client token, both price IDs -- is
-    // read from that backend's GET /api/billing/config at load time, never
-    // hardcoded here, so this one line is the only thing to keep in sync.
-    var API_BASE = "https://YOUR-BACKEND-DOMAIN/api";
+    // Everything else on this page -- Paddle environment, client token, all
+    // four price IDs -- is read from this backend's GET /api/billing/config
+    // at load time, never hardcoded here, so this one line is the only thing
+    // to keep in sync if the backend ever moves.
+    var API_BASE = "https://ai-lead-generation-scoring.onrender.com/api";
 
     var currentInterval = "monthly";
     var paddlePriceIds = null;     // { pro: {monthly, annual}, advanced: {monthly, annual} } -- from /api/billing/config
