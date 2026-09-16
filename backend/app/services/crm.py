@@ -1,7 +1,7 @@
 """Salesforce push.
 
-Writes combined_score, bucket, LLM rationale, and outreach draft back onto
-the CRM record. Falls back to a simulated (logged, no-op) push when the
+Writes combined_score, bucket, and LLM rationale back onto the CRM record.
+Falls back to a simulated (logged, no-op) push when the
 relevant credentials aren't configured, or if a live call fails — so the
 pipeline never breaks on a CRM outage.
 
@@ -34,7 +34,7 @@ def _mock_push(lead: ScoredLead, crm: str, reason: str) -> CrmPushResponse:
         detail=(
             f"{reason} — this is a mock push. Would have written "
             f"combined_score={lead.combined_score}, bucket={lead.bucket}, "
-            f"rationale, and outreach draft as custom fields/tasks on the "
+            f"and rationale as custom fields/tasks on the "
             f"{crm} record for {lead.company_name}."
         ),
     )
@@ -45,7 +45,6 @@ _SALESFORCE_LEAD_FIELDS = [
     {"name": "Combined_Score__c", "label": "Combined Score", "type": "Number", "precision": 5, "scale": 1},
     {"name": "Lead_Bucket__c", "label": "Lead Bucket", "type": "Text", "length": 20},
     {"name": "LLM_Rationale__c", "label": "LLM Rationale", "type": "LongTextArea", "length": 4096, "visibleLines": 6},
-    {"name": "Outreach_Draft__c", "label": "Outreach Draft", "type": "LongTextArea", "length": 4096, "visibleLines": 6},
 ]
 
 _salesforce_fields_ready = False
@@ -118,7 +117,6 @@ def _salesforce_push(lead: ScoredLead) -> CrmPushResponse:
         "Combined_Score__c": lead.combined_score,
         "Lead_Bucket__c": lead.bucket,
         "LLM_Rationale__c": lead.llm_rationale,
-        "Outreach_Draft__c": lead.outreach_draft or "",
     }
 
     if existing["totalSize"] > 0:

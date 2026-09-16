@@ -1,5 +1,5 @@
 import uuid
-from typing import Literal, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -45,31 +45,17 @@ class ScoreBreakdown(BaseModel):
     revenue_fit: float
     tech_stack_match: float
     geography_fit: float
-    title_seniority: float
     hiring_signal: float
 
 
 class ScoredLead(EnrichedLead):
     fit_score: float
     score_breakdown: ScoreBreakdown
-    conversion_likelihood: float
+    account_fit_score: float
     llm_rationale: str
     combined_score: float
     bucket: str  # "hot" | "warm" | "cold"
-    outreach_draft: Optional[str] = None
     crm_pushed: bool = False
-
-
-class OutreachRequest(BaseModel):
-    # Interpolated directly into the LLM prompt (services/outreach.py) --
-    # constrained to the two real channels rather than accepting any string.
-    channel: Literal["email", "linkedin"] = "email"
-
-
-class OutreachResponse(BaseModel):
-    lead_id: str
-    channel: str
-    draft: str
 
 
 class CrmPushResponse(BaseModel):

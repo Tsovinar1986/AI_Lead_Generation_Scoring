@@ -67,38 +67,38 @@
     <p class="updated">How the LLM layer is scoped, and what it's deliberately not allowed to do.</p>
 
     <div class="callout">
-      <strong>The short version:</strong> the AI layer scores and drafts —
-      it never sends, never overwrites your CRM on its own, and every
-      output it produces is meant to be reviewed by a human before it
-      affects a real prospect.
+      <strong>The short version:</strong> the AI layer scores companies,
+      not people — it evaluates firmographic account data against your
+      ICP, never a named individual, never sends anything on its own, and
+      every output it produces is meant to be reviewed by a human before
+      it affects a real account.
     </div>
 
-    <h2>Advisory, not authoritative</h2>
+    <h2>Scores accounts, not individuals</h2>
     <p>
-      Every lead gets a transparent, rule-based <code>fit_score</code>
-      first — a plain weighted breakdown across industry, size, revenue,
-      tech stack, geography, and title seniority, fully auditable with no
-      LLM involved. The LLM layer adds a qualitative
-      <code>conversion_likelihood</code> and rationale on top, meant to
-      surface context the rules can't (recent funding, hiring surges,
-      competitor mentions) — not to replace the rule-based number or make
-      a final call on its own.
+      Every account gets a transparent, rule-based <code>fit_score</code>
+      first — a plain weighted breakdown across industry, company size,
+      revenue, tech stack, and geography, fully auditable with no LLM
+      involved. The LLM layer adds a qualitative <code>account_fit_score</code>
+      and rationale on top, meant to surface context the rules can't
+      (recent funding, hiring surges, competitor mentions) — not to
+      replace the rule-based number or make a final call on its own.
+      The prompt sent to the LLM deliberately excludes the contact's name
+      and title; only company-level attributes are evaluated.
     </p>
 
     <h2>Guardrails built into the product</h2>
     <ul class="guardrail-list">
       <li>
-        <strong>No autonomous outreach.</strong> Drafted emails/LinkedIn
-        messages are generated for human review and manual send only.
-        This is a deliberate scope decision, not a missing feature —
-        auto-sending risks real spam/compliance exposure (CAN-SPAM, GDPR,
-        CASL) that a human sender is accountable for and a script isn't.
+        <strong>No outreach generation of any kind.</strong> The product
+        scores and ranks accounts and pushes the result to your CRM —
+        it does not draft, suggest, or send any email, LinkedIn message,
+        or other communication to anyone.
       </li>
       <li>
-        <strong>No silent CRM writes.</strong> Scores, rationale, and
-        drafts only get pushed to Salesforce when you explicitly
-        click the push action for a specific lead — nothing syncs in the
-        background.
+        <strong>No silent CRM writes.</strong> Scores and rationale only
+        get pushed to Salesforce when you explicitly click the push
+        action for a specific account — nothing syncs in the background.
       </li>
       <li>
         <strong>Mock output is always labeled.</strong> Without an
@@ -109,7 +109,7 @@
       </li>
       <li>
         <strong>Self-hosted data path.</strong> When you do configure a
-        real API key, the enrichment data for each lead goes directly
+        real API key, the enrichment data for each account goes directly
         from your own instance to Anthropic's API — it doesn't pass
         through us, and we have no visibility into what's sent or
         returned.
@@ -118,12 +118,12 @@
 
     <h2>Limitations you should know about</h2>
     <p>
-      Conversion-likelihood estimates are probabilistic, not guarantees —
-      treat them as one input among several, particularly for high-stakes
-      or high-value accounts. The rationale text is generated, and
-      generated text can occasionally be wrong or miss context a human
-      rep would catch. Nothing here replaces your own judgment about a
-      specific prospect.
+      Account-fit estimates are probabilistic, not guarantees — treat
+      them as one input among several, particularly for high-stakes or
+      high-value accounts. The rationale text is generated, and generated
+      text can occasionally be wrong or miss context a human rep would
+      catch. Nothing here replaces your own judgment about a specific
+      account.
     </p>
 
     <h2>Questions</h2>

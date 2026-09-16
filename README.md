@@ -1,9 +1,11 @@
 # AI Lead Generation & Scoring Agent
 
-A B2B lead-scoring pipeline: upload a CRM export, get every lead enriched
+A B2B lead-scoring pipeline: upload a CRM export, get every account enriched
 with firmographic/behavioral signals, scored by a hybrid rule-based + Claude
-model, ranked into Hot/Warm/Cold, and (for the hot ones) a drafted outreach
-message and a CRM push — all from one screen.
+model, ranked into Hot/Warm/Cold, and (for the hot ones) a one-click CRM
+push — all from one screen. Scoring is account/company-level only — the
+product never evaluates a named individual and never drafts or sends any
+outreach.
 
 FastAPI backend, React + Vite + TypeScript frontend. Every third-party
 integration (Claude, Apollo enrichment, Salesforce push, Slack
@@ -70,12 +72,12 @@ Leads/alerts persist to a local SQLite file (`DATABASE_PATH`, default
 ## What's in here
 
 - **`backend/`** — FastAPI app: ingestion, enrichment, hybrid scoring,
-  outreach drafting, CRM push, Slack alerts, Paddle/Polar-based licensing,
-  and self-serve tenant signup/login (`routers/accounts.py` — an
-  alternative to running `scripts/create_tenant.py` by hand).
+  CRM push, Slack alerts, Paddle/Polar-based licensing, and self-serve
+  tenant signup/login (`routers/accounts.py` — an alternative to running
+  `scripts/create_tenant.py` by hand).
 - **`frontend/`** — React SPA: upload panel, ranked/filterable leads table,
-  a detail drawer (firmographics, score breakdown, LLM rationale, outreach
-  draft, CRM push), and a license/billing banner. `TenantSwitcher` handles
+  a detail drawer (firmographics, score breakdown, LLM rationale, CRM
+  push), and a license/billing banner. `TenantSwitcher` handles
   signup/login/forgot-password for a shared multi-tenant deployment.
 - **`licensing/`** — Paddle Checkout + an offline-verifiable Ed25519 license
   key, for selling this app directly as self-hosted software.
@@ -125,7 +127,7 @@ one — see `.env.example` for what each variable unlocks.
 - **CORS**: locked to `CORS_ALLOWED_ORIGINS`, `GET`/`POST` only (the only
   methods this API has), and a specific header allow-list — not wildcarded.
 - **Rate limiting** (`slowapi`): a global default plus a tighter limit on
-  the upload/outreach/CRM-push endpoints (`RATE_LIMIT_DEFAULT`/
+  the upload/CRM-push endpoints (`RATE_LIMIT_DEFAULT`/
   `RATE_LIMIT_UPLOAD` in `.env.example`). Set `TRUST_PROXY_HEADERS=true`
   only when this genuinely runs behind a trusted reverse proxy (Render
   does) — otherwise a client could spoof its own IP via `X-Forwarded-For`
@@ -134,7 +136,7 @@ one — see `.env.example` for what each variable unlocks.
   (`MAX_UPLOAD_SIZE_MB`/`MAX_UPLOAD_ROWS`) and restricted to `.csv`/`.xlsx`/
   `.xls` before parsing; request bodies use `Literal` types instead of bare
   `str` wherever only a fixed set of values makes sense (billing interval,
-  outreach channel, CRM target); lead/customer text fields have length caps
+  CRM target); lead/customer text fields have length caps
   and numeric fields reject negatives.
 - **SQL**: every query in `storage.py` uses `?` placeholders — no
   string-built queries anywhere, so nothing from an upload or an API

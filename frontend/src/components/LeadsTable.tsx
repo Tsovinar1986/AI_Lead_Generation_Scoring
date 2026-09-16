@@ -154,7 +154,7 @@ export function LeadsTable({
                     {lead.fit_score.toFixed(0)}
                   </td>
                   <td className="border-b border-border px-3 py-3 align-top tabular-nums">
-                    {lead.conversion_likelihood.toFixed(0)}
+                    {lead.account_fit_score.toFixed(0)}
                   </td>
                   <td className="border-b border-border px-3 py-3 align-top">
                     <div className="flex items-center gap-2">

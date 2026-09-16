@@ -187,31 +187,28 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", "")
 
 # Ideal Customer Profile used by the rule-based scorer. Edit to match the
-# business this instance is generating leads for.
+# business this instance is generating leads for. Deliberately scoped to
+# company/account attributes only -- nothing here profiles the named
+# contact as an individual (see backend/app/services/scoring.py).
 ICP = {
     "target_industries": ["SaaS", "Fintech", "Healthcare Tech", "E-commerce"],
     "employee_range": (50, 1500),
     "revenue_range_usd": (5_000_000, 250_000_000),
     "target_tech_stack": ["Salesforce", "HubSpot", "AWS", "Snowflake", "Stripe"],
     "target_geographies": ["United States", "Canada", "United Kingdom"],
-    "decision_maker_titles": [
-        "ceo", "cfo", "coo", "cto", "cmo", "chief",
-        "vp", "vice president", "head of", "director",
-    ],
 }
 
 # Rule-based scoring weights, must sum to 100.
 SCORING_WEIGHTS = {
-    "industry_match": 20,
-    "company_size_fit": 20,
+    "industry_match": 25,
+    "company_size_fit": 25,
     "revenue_fit": 15,
     "tech_stack_match": 15,
     "geography_fit": 10,
-    "title_seniority": 10,
     "hiring_signal": 10,
 }
 
-# Blend of rule-based fit_score vs LLM conversion_likelihood into combined_score.
+# Blend of rule-based fit_score vs LLM account_fit_score into combined_score.
 RULE_WEIGHT = 0.6
 LLM_WEIGHT = 0.4
 

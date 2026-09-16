@@ -144,8 +144,8 @@ not typical for a buyer's copy).
 
 **Positioning**: not "another lead scoring tool" — a hybrid rule+LLM scorer
 a buyer can point at their own CRM export and get ranked, rationale-backed
-leads with drafted outreach in minutes, self-hosted so their lead data never
-leaves their infra. That data-residency angle is the differentiator against
+accounts in minutes, self-hosted so their lead data never leaves their
+infra. That data-residency angle is the differentiator against
 SaaS competitors for security-conscious B2B buyers (fintech, healthtech,
 anyone who'd balk at uploading a CRM export to a third party).
 

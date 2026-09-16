@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { generateOutreach, pushToCrm } from "../api";
+import { pushToCrm } from "../api";
 import type { ScoredLead } from "../types";
 
 interface Props {
@@ -14,7 +14,6 @@ const BREAKDOWN_LABELS: Record<string, string> = {
   revenue_fit: "Revenue fit",
   tech_stack_match: "Tech stack match",
   geography_fit: "Geography fit",
-  title_seniority: "Title seniority",
   hiring_signal: "Hiring signal",
 };
 
@@ -35,8 +34,6 @@ function breakdownSource(key: string, lead: ScoredLead): string {
       return lead.tech_stack.length ? `Tech stack: ${lead.tech_stack.join(", ")}` : "Tech stack: —";
     case "geography_fit":
       return lead.geography ? `Geography: ${lead.geography}` : "Geography: —";
-    case "title_seniority":
-      return lead.contact_title ? `Title: ${lead.contact_title}` : "Title: —";
     case "hiring_signal":
       return `Hiring: ${lead.is_hiring ? "Yes" : "No"}`;
     default:
@@ -59,21 +56,8 @@ function CloseIcon({ className }: { className?: string }) {
 }
 
 export function LeadDetail({ lead, onClose, onUpdate }: Props) {
-  const [channel, setChannel] = useState<"email" | "linkedin">("email");
-  const [draft, setDraft] = useState(lead.outreach_draft ?? "");
-  const [busy, setBusy] = useState<"outreach" | "crm" | null>(null);
+  const [busy, setBusy] = useState<"crm" | null>(null);
   const [crmStatus, setCrmStatus] = useState<string | null>(null);
-
-  async function handleDraft() {
-    setBusy("outreach");
-    try {
-      const res = await generateOutreach(lead.id, channel);
-      setDraft(res.draft);
-      onUpdate({ ...lead, outreach_draft: res.draft });
-    } finally {
-      setBusy(null);
-    }
-  }
 
   async function handleCrmPush() {
     setBusy("crm");
@@ -163,8 +147,8 @@ export function LeadDetail({ lead, onClose, onUpdate }: Props) {
               ))}
             </div>
             <p className="mt-3 rounded-lg bg-bg px-3 py-2.5 text-sm text-text">
-              Fit score <strong className="text-heading">{lead.fit_score}</strong> · LLM likelihood{" "}
-              <strong className="text-heading">{lead.conversion_likelihood}</strong> · Combined{" "}
+              Fit score <strong className="text-heading">{lead.fit_score}</strong> · Account fit (LLM){" "}
+              <strong className="text-heading">{lead.account_fit_score}</strong> · Combined{" "}
               <strong className="text-heading">{lead.combined_score}</strong>
             </p>
           </section>
@@ -172,40 +156,6 @@ export function LeadDetail({ lead, onClose, onUpdate }: Props) {
           <section>
             <h3 className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-text/70">LLM rationale</h3>
             <p className="text-sm leading-relaxed text-text">{lead.llm_rationale}</p>
-          </section>
-
-          <section>
-            <h3 className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-text/70">Outreach draft</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-all hover:-translate-y-px ${
-                  channel === "email" ? "border-accent bg-accent-soft text-accent" : "border-border text-text hover:border-accent/40"
-                }`}
-                onClick={() => setChannel("email")}
-              >
-                Email
-              </button>
-              <button
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-all hover:-translate-y-px ${
-                  channel === "linkedin" ? "border-accent bg-accent-soft text-accent" : "border-border text-text hover:border-accent/40"
-                }`}
-                onClick={() => setChannel("linkedin")}
-              >
-                LinkedIn
-              </button>
-              <button
-                className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
-                disabled={busy === "outreach"}
-                onClick={handleDraft}
-              >
-                {busy === "outreach" ? "Drafting…" : "Generate draft"}
-              </button>
-            </div>
-            {draft && (
-              <pre className="animate-fade-in mt-2.5 whitespace-pre-wrap rounded-lg bg-accent-soft p-3 font-mono text-xs text-heading">
-                {draft}
-              </pre>
-            )}
           </section>
 
           <section>

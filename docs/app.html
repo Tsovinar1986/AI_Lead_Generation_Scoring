@@ -189,11 +189,11 @@
     // scored result looks like before they've uploaded anything of their
     // own -- purely illustrative, never sent to/from the backend.
     var EXAMPLE_LEADS = [
-      { company_name: "Northwind Analytics", industry: "SaaS", fit_score: 81, conversion_likelihood: 88, combined_score: 84, bucket: "hot" },
-      { company_name: "Fintura Pay", industry: "Fintech", fit_score: 85, conversion_likelihood: 80, combined_score: 83, bucket: "hot" },
-      { company_name: "Vitalis Health", industry: "Healthcare Tech", fit_score: 81, conversion_likelihood: 74, combined_score: 78, bucket: "hot" },
-      { company_name: "Ledger Logistics", industry: "Logistics", fit_score: 62, conversion_likelihood: 65, combined_score: 63, bucket: "warm" },
-      { company_name: "Tiny Print Shop", industry: "Printing", fit_score: 50, conversion_likelihood: 43, combined_score: 47, bucket: "cold" },
+      { company_name: "Northwind Analytics", industry: "SaaS", fit_score: 81, account_fit_score: 88, combined_score: 84, bucket: "hot" },
+      { company_name: "Fintura Pay", industry: "Fintech", fit_score: 85, account_fit_score: 80, combined_score: 83, bucket: "hot" },
+      { company_name: "Vitalis Health", industry: "Healthcare Tech", fit_score: 81, account_fit_score: 74, combined_score: 78, bucket: "hot" },
+      { company_name: "Ledger Logistics", industry: "Logistics", fit_score: 62, account_fit_score: 65, combined_score: 63, bucket: "warm" },
+      { company_name: "Tiny Print Shop", industry: "Printing", fit_score: 50, account_fit_score: 43, combined_score: 47, bucket: "cold" },
     ];
 
     function disconnect() {
@@ -234,7 +234,7 @@
           "<td>" + escapeHtml(l.company_name) + "</td>" +
           "<td>" + escapeHtml(l.industry || "—") + "</td>" +
           "<td class=\"num\">" + Math.round(l.fit_score) + "</td>" +
-          "<td class=\"num\">" + Math.round(l.conversion_likelihood) + "</td>" +
+          "<td class=\"num\">" + Math.round(l.account_fit_score) + "</td>" +
           "<td class=\"num\"><strong>" + Math.round(l.combined_score) + "</strong></td>" +
           "<td><span class=\"bucket-badge bucket-" + l.bucket + "\">" + l.bucket + "</span></td>";
         tbody.appendChild(tr);
@@ -366,7 +366,7 @@
       var headers = ["Company", "Industry", "Fit Score", "Conversion Likelihood", "Combined Score", "Bucket"];
       var lines = [headers.map(csvEscape).join(",")];
       currentLeads.forEach(function (l) {
-        lines.push([l.company_name, l.industry, l.fit_score, l.conversion_likelihood, l.combined_score, l.bucket].map(csvEscape).join(","));
+        lines.push([l.company_name, l.industry, l.fit_score, l.account_fit_score, l.combined_score, l.bucket].map(csvEscape).join(","));
       });
       var blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
       var url = URL.createObjectURL(blob);

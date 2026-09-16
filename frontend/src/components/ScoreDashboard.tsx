@@ -5,12 +5,11 @@ import type { ScoreBreakdown, ScoredLead } from "../types";
 // is normalized to percent-of-its-own-max rather than compared on a shared
 // 0-100 scale it was never scored on.
 const DIMENSION_MAX: Record<keyof ScoreBreakdown, number> = {
-  industry_match: 20,
-  company_size_fit: 20,
+  industry_match: 25,
+  company_size_fit: 25,
   revenue_fit: 15,
   tech_stack_match: 15,
   geography_fit: 10,
-  title_seniority: 10,
   hiring_signal: 10,
 };
 
@@ -20,7 +19,6 @@ const DIMENSION_LABELS: Record<keyof ScoreBreakdown, string> = {
   revenue_fit: "Revenue fit",
   tech_stack_match: "Tech stack match",
   geography_fit: "Geography fit",
-  title_seniority: "Title seniority",
   hiring_signal: "Hiring signal",
 };
 
@@ -98,7 +96,7 @@ export function ScoreDashboard({ leads }: Props) {
   const warm = leads.filter((l) => l.bucket === "warm").length;
   const cold = leads.filter((l) => l.bucket === "cold").length;
   const avgCombined = leads.reduce((sum, l) => sum + l.combined_score, 0) / total;
-  const avgConversion = leads.reduce((sum, l) => sum + l.conversion_likelihood, 0) / total;
+  const avgAccountFit = leads.reduce((sum, l) => sum + l.account_fit_score, 0) / total;
 
   const buckets: { key: string; label: string; count: number; colorVar: string }[] = [
     { key: "hot", label: "Hot", count: hot, colorVar: "var(--color-hot)" },
@@ -122,7 +120,7 @@ export function ScoreDashboard({ leads }: Props) {
         <KpiTile label="Warm" value={String(warm)} sub={`${pct(warm, total)}%`} accentVar="var(--color-warm)" />
         <KpiTile label="Cold" value={String(cold)} sub={`${pct(cold, total)}%`} accentVar="var(--color-cold)" />
         <KpiTile label="Avg score" value={avgCombined.toFixed(0)} sub="/ 100" />
-        <KpiTile label="Avg conversion" value={`${avgConversion.toFixed(0)}%`} sub="likelihood" />
+        <KpiTile label="Avg account fit" value={`${avgAccountFit.toFixed(0)}%`} sub="LLM" />
       </div>
 
       <div className="mt-6 grid gap-x-8 gap-y-6 lg:grid-cols-2">

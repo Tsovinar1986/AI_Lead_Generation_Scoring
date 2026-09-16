@@ -1,8 +1,10 @@
 # AI Lead Generation & Scoring Agent (B2B)
 
-An agent pipeline that takes B2B leads from multiple sources, enriches them with
+An agent pipeline that takes B2B accounts from multiple sources, enriches them with
 firmographic and behavioral signals, scores them using a hybrid rule-based + LLM
-model, and acts on the top-ranked leads (outreach drafts, CRM sync, alerts).
+model, and acts on the top-ranked accounts (CRM sync, alerts). Scoring evaluates
+company/account attributes only — never a named individual — and the product
+does not draft or send outreach of any kind.
 
 ## Running it
 
@@ -48,33 +50,31 @@ back to the mock for that lead rather than breaking the run.
 
 **3. Scoring (hybrid)**
 - **Rule-based layer:** weighted scoring across configurable firmographic fit
-  criteria (industry match, company size band, revenue band, tech stack match,
-  geography, title seniority of contact). Produces a transparent numeric
-  `fit_score` (0–100) with a per-criterion breakdown.
-- **LLM layer:** Claude reads the enriched profile + rule-based breakdown and
-  produces a qualitative assessment — a `conversion_likelihood` rating and a
-  short rationale, catching context the rules can't (e.g. recent funding news,
-  hiring surges, competitor mentions).
-- Final `combined_score` blends both layers; leads are ranked and bucketed
-  (Hot / Warm / Cold).
+  criteria — industry match, company size band, revenue band, tech stack
+  match, geography, and a hiring signal. All company-level attributes;
+  nothing here evaluates the contact as an individual. Produces a
+  transparent numeric `fit_score` (0–100) with a per-criterion breakdown.
+- **LLM layer:** Claude reads the enriched account profile (company
+  attributes only — no contact name or title in the prompt) + rule-based
+  breakdown and produces a qualitative assessment — an `account_fit_score`
+  rating and a short rationale, catching context the rules can't (e.g.
+  recent funding news, hiring surges, competitor mentions).
+- Final `combined_score` blends both layers; accounts are ranked and
+  bucketed (Hot / Warm / Cold).
 
 **4. Output / Actions**
-- **Ranked report:** Streamlit dashboard + CSV export of all scored leads,
+- **Ranked report:** Streamlit dashboard + CSV export of all scored accounts,
   sortable/filterable by score, bucket, industry, source.
-- **Auto-drafted outreach:** for Hot/Warm leads, Claude drafts a personalized
-  first-touch email or LinkedIn message referencing the specific fit signals
-  found during enrichment.
-- **CRM push:** scores, bucket, rationale, and draft outreach get written back
-  to Salesforce as custom fields/tasks so sales has full context
-  in-platform.
-- **Alerts:** Slack (and/or email) notification the moment a lead crosses the
-  "Hot" threshold, so sales can act while the signal is fresh.
+- **CRM push:** scores, bucket, and rationale get written back to Salesforce
+  as custom fields/tasks so sales has full context in-platform.
+- **Alerts:** Slack (and/or email) notification the moment an account crosses
+  the "Hot" threshold, so sales can act while the signal is fresh.
 
 ## Required configuration (`.env`)
 
 | Variable | Purpose |
 |---|---|
-| `ANTHROPIC_API_KEY` | LLM scoring layer + outreach drafting |
+| `ANTHROPIC_API_KEY` | LLM scoring layer |
 | `APOLLO_API_KEY` (or chosen enrichment provider) | Firmographic/contact enrichment |
 | `SALESFORCE_*` | CRM read/write |
 | `SLACK_BOT_TOKEN` + channel ID | Hot-lead alerts |
@@ -90,8 +90,8 @@ current without manual re-triggering.
 
 - **backend/** — FastAPI app (`app/main.py`). Ingestion (`services/ingestion.py`),
   enrichment (`services/enrichment.py`, Apollo with mock fallback), hybrid
-  scoring (`services/scoring.py`), outreach drafting (`services/outreach.py`),
-  and CRM/Slack integrations (`services/crm.py`, `services/alerts.py`) are
+  scoring (`services/scoring.py`), and CRM/Slack integrations
+  (`services/crm.py`, `services/alerts.py`) are
   each isolated behind a single function that auto-switches between the live
   API and a mock based on which keys are present in `.env`. Leads/alerts
   persist to SQLite (`storage.py`, path set by `DATABASE_PATH`), scoped by
@@ -102,7 +102,7 @@ current without manual re-triggering.
   data. `backend/tests/` has the pytest suite (`pytest -q` from `backend/`).
 - **frontend/** — React + Vite + TypeScript SPA. Upload panel, a ranked/
   filterable leads table, a detail drawer (firmographics, score breakdown,
-  LLM rationale, outreach draft generation, CRM push button), a live
+  LLM rationale, CRM push button), a live
   Slack-alerts panel, a license/billing banner, and a small workspace
   switcher (top-right) for pasting a tenant API key — invisible/unused for
   a single self-hosted buyer, since no key means the default tenant.

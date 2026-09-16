@@ -52,9 +52,9 @@ def test_combined_score_blends_rule_and_llm_weights():
 
     # combined_score is a weighted blend, so it must land between the two
     # inputs (allowing for the mock LLM's jitter already being applied to
-    # conversion_likelihood before the blend).
-    lower = min(scored.fit_score, scored.conversion_likelihood)
-    upper = max(scored.fit_score, scored.conversion_likelihood)
+    # account_fit_score before the blend).
+    lower = min(scored.fit_score, scored.account_fit_score)
+    upper = max(scored.fit_score, scored.account_fit_score)
     assert lower - 0.1 <= scored.combined_score <= upper + 0.1
 
 
@@ -72,4 +72,4 @@ def test_score_is_deterministic_for_same_domain():
     second = score_lead(lead)
 
     assert first.fit_score == second.fit_score
-    assert first.conversion_likelihood == second.conversion_likelihood
+    assert first.account_fit_score == second.account_fit_score

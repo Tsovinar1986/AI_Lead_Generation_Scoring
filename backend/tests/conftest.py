@@ -51,10 +51,10 @@ def make_scored_lead(**overrides) -> ScoredLead:
         is_hiring=True,
         fit_score=80.0,
         score_breakdown=ScoreBreakdown(
-            industry_match=20, company_size_fit=20, revenue_fit=15,
-            tech_stack_match=15, geography_fit=10, title_seniority=10, hiring_signal=10,
+            industry_match=25, company_size_fit=25, revenue_fit=15,
+            tech_stack_match=15, geography_fit=10, hiring_signal=10,
         ),
-        conversion_likelihood=80.0,
+        account_fit_score=80.0,
         llm_rationale="strong fit",
         combined_score=80.0,
         bucket="hot",

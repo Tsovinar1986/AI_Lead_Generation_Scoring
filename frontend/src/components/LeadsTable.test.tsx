@@ -21,14 +21,13 @@ function makeLead(overrides: Partial<ScoredLead>): ScoredLead {
     enrichment_source: "mock",
     fit_score: 80,
     score_breakdown: {
-      industry_match: 20, company_size_fit: 20, revenue_fit: 15,
-      tech_stack_match: 15, geography_fit: 10, title_seniority: 10, hiring_signal: 10,
+      industry_match: 25, company_size_fit: 25, revenue_fit: 15,
+      tech_stack_match: 15, geography_fit: 10, hiring_signal: 10,
     },
-    conversion_likelihood: 80,
+    account_fit_score: 80,
     llm_rationale: "strong fit",
     combined_score: 80,
     bucket: "hot",
-    outreach_draft: null,
     crm_pushed: false,
     ...overrides,
   };

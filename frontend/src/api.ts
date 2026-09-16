@@ -71,18 +71,6 @@ export async function fetchLeads(): Promise<ScoredLead[]> {
   return handle(res);
 }
 
-export async function generateOutreach(
-  leadId: string,
-  channel: "email" | "linkedin"
-): Promise<{ draft: string }> {
-  const res = await fetch(`${BASE}/leads/${leadId}/outreach`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ channel }),
-  });
-  return handle(res);
-}
-
 export async function pushToCrm(
   leadId: string,
   crm: string

@@ -4,7 +4,6 @@ export interface ScoreBreakdown {
   revenue_fit: number;
   tech_stack_match: number;
   geography_fit: number;
-  title_seniority: number;
   hiring_signal: number;
 }
 
@@ -24,11 +23,10 @@ export interface ScoredLead {
   enrichment_source: string;
   fit_score: number;
   score_breakdown: ScoreBreakdown;
-  conversion_likelihood: number;
+  account_fit_score: number;
   llm_rationale: string;
   combined_score: number;
   bucket: "hot" | "warm" | "cold";
-  outreach_draft: string | null;
   crm_pushed: boolean;
 }
 
