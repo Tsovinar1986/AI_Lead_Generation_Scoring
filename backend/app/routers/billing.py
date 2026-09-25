@@ -141,7 +141,9 @@ def _issue_and_deliver(email: str, interval: str, tier: str, transaction_id: str
             )
             + "\n"
         )
-    emailed = send_license_email(email, license_key, interval)
+    # Checkout doesn't ask for an email, so the licensee may be a cardholder
+    # name or customer id -- those keys are only in the log above.
+    emailed = "@" in email and send_license_email(email, license_key, interval)
     logger.info(
         "Issued license for {} ({}){}",
         email,
@@ -161,18 +163,24 @@ def _get_subscription(subscription_id: str):
         raise HTTPException(status_code=502, detail="Couldn't look up the Braintree subscription.")
 
 
-def _subscriber_email(subscription) -> str | None:
-    """The buyer's email, stored on the Braintree customer at checkout."""
+def _licensee(subscription) -> str:
+    """Who the key is issued to: the customer's email if Braintree has one,
+    else the cardholder name, else the Braintree customer id."""
     try:
         gateway = _gateway()
         payment_method = gateway.payment_method.find(subscription.payment_method_token)
-        return gateway.customer.find(payment_method.customer_id).email
+        customer = gateway.customer.find(payment_method.customer_id)
+        return (
+            customer.email
+            or getattr(payment_method, "cardholder_name", None)
+            or f"Braintree customer {payment_method.customer_id}"
+        )
     except BraintreeError as exc:
         logger.warning("Couldn't look up the customer for subscription {}: {!r}", subscription.id, exc)
         raise HTTPException(status_code=502, detail="Couldn't look up the Braintree customer.")
 
 
-def _fulfil(subscription, email: str | None = None) -> dict:
+def _fulfil(subscription, licensee: str | None = None) -> dict:
     """Issue a key for the subscription's current billing period, at most once.
 
     A period is identified by (subscription id, paid-through date): checkout
@@ -189,9 +197,7 @@ def _fulfil(subscription, email: str | None = None) -> dict:
         raise HTTPException(status_code=400, detail="Braintree subscription is for an unknown plan.")
     tier, interval = plan
 
-    email = email or _subscriber_email(subscription)
-    if not email:
-        raise HTTPException(status_code=400, detail="The Braintree customer has no email address.")
+    email = licensee or _licensee(subscription)
 
     transaction_id = f"{subscription.id}@{subscription.paid_through_date}"
     with _fulfil_lock:
@@ -214,7 +220,9 @@ def _result_error(result) -> str:
 class SubscribeRequest(BaseModel):
     interval: Interval
     tier: Tier = "pro"
-    email: EmailStr
+    # Optional: checkout doesn't ask for it, but if given the key (and every
+    # renewal key) is emailed there too.
+    email: EmailStr | None = None
     payment_method_nonce: str = Field(min_length=1, max_length=512)
     device_data: str | None = Field(default=None, max_length=10_000)
 
@@ -255,28 +263,29 @@ def braintree_subscribe(request: Request, payload: SubscribeRequest):
     gateway = _gateway()
 
     customer_params = {
-        "email": payload.email,
         "payment_method_nonce": payload.payment_method_nonce,
         "credit_card": {"options": {"verify_card": True}},
     }
+    if payload.email:
+        customer_params["email"] = payload.email
     if payload.device_data:
         customer_params["device_data"] = payload.device_data
     try:
         customer = gateway.customer.create(customer_params)
         if not customer.is_success:
-            logger.info("Braintree customer create failed for {}: {}", payload.email, customer.message)
+            logger.info("Braintree customer create failed for {}: {}", payload.email or "(no email)", customer.message)
             raise HTTPException(status_code=402, detail=_result_error(customer))
 
         token = customer.customer.payment_methods[0].token
         created = gateway.subscription.create({"payment_method_token": token, "plan_id": plan_id})
     except BraintreeError as exc:
-        logger.warning("Braintree checkout failed for {}: {!r}", payload.email, exc)
+        logger.warning("Braintree checkout failed for {}: {!r}", payload.email or "(no email)", exc)
         raise HTTPException(status_code=502, detail="Couldn't connect to Braintree.")
     if not created.is_success:
-        logger.info("Braintree subscription create failed for {}: {}", payload.email, created.message)
+        logger.info("Braintree subscription create failed for {}: {}", payload.email or "(no email)", created.message)
         raise HTTPException(status_code=402, detail=_result_error(created))
 
-    return _fulfil(created.subscription, email=payload.email)
+    return _fulfil(created.subscription, licensee=payload.email)
 
 
 @router.post("/braintree/webhook")

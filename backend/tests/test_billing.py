@@ -57,7 +57,7 @@ def braintree_stub(monkeypatch, tmp_path):
     gateway = FakeGateway()
     monkeypatch.setattr(billing, "_ISSUED_LICENSES_LOG", tmp_path / "issued.jsonl")
     monkeypatch.setattr(billing, "_gateway", lambda: gateway)
-    monkeypatch.setattr(billing, "_subscriber_email", lambda sub: "buyer@example.com")
+    monkeypatch.setattr(billing, "_licensee", lambda sub: "buyer@example.com")
     monkeypatch.setattr(billing, "BRAINTREE_MERCHANT_ID", "merchant")
     monkeypatch.setattr(billing, "BRAINTREE_PUBLIC_KEY", "public")
     monkeypatch.setattr(billing, "BRAINTREE_PRIVATE_KEY", "top-secret")
@@ -138,6 +138,30 @@ def test_subscribe_vaults_card_and_returns_license(client, braintree_stub):
     }
     assert braintree_stub.subscription_params == {"payment_method_token": "pm1", "plan_id": "adv-a"}
     assert braintree_stub.issued == [("sub1@2026-10-25", "advanced", "annual")]
+
+
+def test_subscribe_without_email_uses_the_braintree_licensee(client, braintree_stub):
+    body = {"interval": "monthly", "tier": "pro", "payment_method_nonce": "nonce"}
+
+    response = client.post("/api/billing/braintree/subscribe", json=body)
+
+    assert response.json()["status"] == "ok"
+    assert response.json()["email"] == "buyer@example.com"
+    assert "email" not in braintree_stub.customer_params
+
+
+def test_issue_and_deliver_only_emails_real_addresses(monkeypatch, tmp_path):
+    sent = []
+    monkeypatch.setattr(billing, "_ISSUED_LICENSES_LOG", tmp_path / "issued.jsonl")
+    monkeypatch.setattr(billing, "LICENSE_PRIVATE_KEY", "unused")
+    monkeypatch.setattr(billing, "issue_license", lambda email, **kw: f"key-for-{email}")
+    monkeypatch.setattr(billing, "send_license_email", lambda email, key, interval: sent.append(email) or True)
+
+    billing._issue_and_deliver("Jane Doe", "monthly", "pro", "sub1@a")
+    billing._issue_and_deliver("jane@example.com", "monthly", "pro", "sub1@b")
+
+    assert sent == ["jane@example.com"]
+    assert "key-for-Jane Doe" in (tmp_path / "issued.jsonl").read_text()
 
 
 def test_subscribe_requires_plan(client, monkeypatch, braintree_stub):

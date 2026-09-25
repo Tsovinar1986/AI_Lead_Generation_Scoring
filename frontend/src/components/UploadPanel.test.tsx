@@ -84,12 +84,11 @@ describe("UploadPanel", () => {
     await selectFile();
 
     await userEvent.click(await screen.findByRole("button", { name: /buy annual/i }));
-    await userEvent.type(await screen.findByLabelText(/email for your license key/i), "buyer@example.com");
     const pay = await screen.findByRole("button", { name: /subscribe — \$192\/year/i });
     await waitFor(() => expect(pay).toBeEnabled());
     await userEvent.click(pay);
 
     expect(api.subscribeWithBraintree).toHaveBeenCalledWith(expect.objectContaining({ tier: "pro", interval: "annual" }));
-    expect(await screen.findByText(/license key has been emailed/i)).toBeInTheDocument();
+    expect(await screen.findByText(/email hello@crmscoring.com for your license key/i)).toBeInTheDocument();
   });
 });

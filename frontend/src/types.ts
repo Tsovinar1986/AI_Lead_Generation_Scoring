@@ -64,7 +64,8 @@ export interface BillingConfig {
 export interface SubscribeRequest {
   tier: PaidTier;
   interval: BillingInterval;
-  email: string;
+  // Optional -- checkout doesn't ask for it; renewal keys are emailed only if set.
+  email?: string;
   // From Braintree Drop-in's requestPaymentMethod() -- a one-time token for
   // the card, never the card details themselves.
   payment_method_nonce: string;

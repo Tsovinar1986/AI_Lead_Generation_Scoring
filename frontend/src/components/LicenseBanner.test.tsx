@@ -116,11 +116,10 @@ describe("LicenseBanner", () => {
 
     expect(await screen.findByText(/advanced — \$384\/year/i)).toBeInTheDocument();
     await waitFor(() => expect(fake.options()?.authorization).toBe("client-token"));
-    await userEvent.type(screen.getByLabelText(/email for your license key/i), "buyer@example.com");
     await userEvent.click(await screen.findByRole("button", { name: /subscribe — \$384\/year/i }));
 
     expect(api.subscribeWithBraintree).toHaveBeenCalledWith({
-      tier: "advanced", interval: "annual", email: "buyer@example.com", payment_method_nonce: "nonce-1", device_data: "dd",
+      tier: "advanced", interval: "annual", payment_method_nonce: "nonce-1", device_data: "dd",
     });
     expect(await screen.findByText("LK-123")).toBeInTheDocument();
     expect(screen.getByText("buyer@example.com")).toBeInTheDocument();
@@ -155,7 +154,6 @@ describe("LicenseBanner", () => {
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
-    await userEvent.type(await screen.findByLabelText(/email for your license key/i), "buyer@example.com");
     const pay = await screen.findByRole("button", { name: /subscribe — \$20\/month/i });
     await waitFor(() => expect(pay).toBeEnabled());
     await userEvent.click(pay);
@@ -171,7 +169,6 @@ describe("LicenseBanner", () => {
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
-    await userEvent.type(await screen.findByLabelText(/email for your license key/i), "buyer@example.com");
     const pay = await screen.findByRole("button", { name: /subscribe — \$20\/month/i });
     await waitFor(() => expect(pay).toBeEnabled());
     await userEvent.click(pay);

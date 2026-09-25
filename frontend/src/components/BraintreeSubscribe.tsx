@@ -32,7 +32,6 @@ export function BraintreeSubscribe({ config, tier, interval, onClose }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dropinRef = useRef<DropinInstance | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
-  const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -85,7 +84,6 @@ export function BraintreeSubscribe({ config, tier, interval, onClose }: Props) {
       const result = await subscribeWithBraintree({
         tier,
         interval,
-        email: email.trim(),
         payment_method_nonce: method.nonce,
         device_data: method.deviceData,
       });
@@ -132,7 +130,14 @@ export function BraintreeSubscribe({ config, tier, interval, onClose }: Props) {
           {phase.result.status === "ok" ? (
             <>
               <p className="text-heading">
-                You're subscribed. Your license key (also emailed to <strong>{phase.result.email}</strong>):
+                You're subscribed. Your license key
+                {phase.result.email.includes("@") && (
+                  <>
+                    {" "}
+                    (also emailed to <strong>{phase.result.email}</strong>)
+                  </>
+                )}
+                :
               </p>
               <div className="flex items-center gap-2">
                 <code className="block flex-1 truncate rounded bg-accent-soft px-2 py-1 font-mono text-xs text-heading">
@@ -147,11 +152,12 @@ export function BraintreeSubscribe({ config, tier, interval, onClose }: Props) {
               </div>
               <p className="text-xs text-text/75">
                 Set it as <code className="font-mono">LICENSE_KEY</code> in your <code className="font-mono">.env</code> and
-                restart. A fresh key is emailed on every renewal.
+                restart. Save it somewhere safe — you'll need a new key each billing period; email
+                hello@crmscoring.com for it.
               </p>
             </>
           ) : (
-            <p className="text-heading">You're subscribed. Your license key has been emailed to you.</p>
+            <p className="text-heading">You're subscribed. Email hello@crmscoring.com for your license key.</p>
           )}
         </div>
       )}
@@ -160,18 +166,6 @@ export function BraintreeSubscribe({ config, tier, interval, onClose }: Props) {
 
       {/* Stays mounted while loading/paying so Drop-in's iframes aren't torn down. */}
       <form onSubmit={pay} className={showForm ? "mt-3 max-w-sm space-y-2" : "hidden"}>
-        <label className="block text-xs font-medium text-heading">
-          Email for your license key
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={phase.kind !== "ready"}
-            className="mt-1 block w-full rounded-md border border-border bg-bg px-2 py-1.5 text-sm text-text"
-          />
-        </label>
         {phase.kind === "loading" && <p className="text-text/75">Loading secure checkout…</p>}
         <div ref={containerRef} data-testid="braintree-dropin" />
         {phase.kind === "ready" && phase.error && <p className="text-hot">{phase.error}</p>}
