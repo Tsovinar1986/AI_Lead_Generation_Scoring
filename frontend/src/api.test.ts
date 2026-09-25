@@ -3,6 +3,7 @@ import {
   LicenseRequiredError,
   TenantAuthError,
   clearTenantApiKey,
+  activatePayPalSubscription,
   createPayPalCheckout,
   fetchBillingConfig,
   fetchLeads,
@@ -110,10 +111,9 @@ describe("uploadLeads", () => {
 describe("fetchBillingConfig", () => {
   it("gets /billing/config and returns the parsed billing config", async () => {
     const config = {
-      client_token: "test_token",
       environment: "sandbox" as const,
-      price_id_monthly: "pri_monthly",
-      price_id_annual: "pri_annual",
+      client_id: "client-123",
+      plans: { pro_monthly: "P-PRO-M" },
       paypal_available: false,
     };
     mockFetchOnce(200, config);
@@ -127,15 +127,28 @@ describe("fetchBillingConfig", () => {
 });
 
 describe("createPayPalCheckout", () => {
-  it("posts the interval to /billing/paypal/checkout and returns the session url", async () => {
-    mockFetchOnce(200, { url: "https://sandbox.paypal.com/checkout/abc123" });
+  it("posts the interval to /billing/paypal/checkout and returns the approval url", async () => {
+    mockFetchOnce(200, { url: "https://sandbox.paypal.com/checkout/abc123", subscription_id: "I-1" });
 
     const result = await createPayPalCheckout("annual");
-    expect(result).toEqual({ url: "https://sandbox.paypal.com/checkout/abc123" });
+    expect(result).toEqual({ url: "https://sandbox.paypal.com/checkout/abc123", subscription_id: "I-1" });
 
     const [url, options] = vi.mocked(fetch).mock.calls[0];
     expect(url).toContain("/billing/paypal/checkout");
     expect(options?.method).toBe("POST");
     expect(JSON.parse(options?.body as string)).toEqual({ interval: "annual", tier: "pro" });
+  });
+});
+
+describe("activatePayPalSubscription", () => {
+  it("posts the subscription id and returns the activation result", async () => {
+    mockFetchOnce(200, { status: "duplicate" });
+
+    const result = await activatePayPalSubscription("I-1");
+    expect(result).toEqual({ status: "duplicate" });
+
+    const [url, options] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toContain("/billing/paypal/subscription/activate");
+    expect(JSON.parse(options?.body as string)).toEqual({ subscription_id: "I-1" });
   });
 });

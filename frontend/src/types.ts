@@ -46,20 +46,26 @@ export type LicenseStatus =
 export type BillingInterval = "monthly" | "annual";
 export type PlanTier = "starter" | "pro" | "advanced";
 
+export type PaidTier = "pro" | "advanced";
+export type PlanKey = `${PaidTier}_${BillingInterval}`;
+
 export interface BillingConfig {
   paypal_available: boolean;
+  // Public PayPal client id for the JS SDK -- never the secret.
+  client_id?: string | null;
+  // PayPal billing plan id (P-...) per paid tier/interval. Starter is free.
+  plans?: Partial<Record<PlanKey, string | null>>;
   currency?: string;
   environment: "sandbox" | "production";
   price_monthly?: string | null;
   price_annual?: string | null;
   price_advanced_monthly?: string | null;
   price_advanced_annual?: string | null;
-  client_token?: string | null;
-  price_id_monthly?: string | null;
-  price_id_annual?: string | null;
-  price_id_advanced_monthly?: string | null;
-  price_id_advanced_annual?: string | null;
 }
+
+export type SubscriptionActivation =
+  | { status: "ok"; email: string; tier: PaidTier; plan: BillingInterval; license_key: string }
+  | { status: "duplicate" };
 
 export interface TenantAuth {
   tenant_id: string;

@@ -113,43 +113,41 @@ TRIAL_MAX_LEADS_PER_UPLOAD = int(os.getenv("TRIAL_MAX_LEADS_PER_UPLOAD", "10"))
 # --- Licensing (seller side) ---
 # Only used by routers/billing.py, which the seller runs on their own
 # storefront deployment -- buyers' self-hosted instances never need these.
-# Paddle (not Stripe): Paddle is a merchant-of-record, so it also handles
-# global sales tax/VAT, and its seller-eligibility list is broader than
-# Stripe's -- notably it works for sellers Stripe doesn't support. Card,
-# PayPal, Apple Pay, and Google Pay all show up automatically on Paddle's
-# hosted checkout for eligible buyers; PayPal specifically may need enabling
-# once in Paddle's dashboard (Checkout > Payment methods) -- see
-# licensing/README.md.
+# PayPal Subscriptions: Pro and Advanced each have a monthly and an annual
+# billing plan; Starter is free and has none. Every activation/renewal
+# issues a fresh expiring license key. See licensing/README.md for setup.
 LICENSE_PRIVATE_KEY = os.getenv("LICENSE_PRIVATE_KEY", "")
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
 PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
+# "sandbox" (default, no real charges) or "production". Prices are decimal
+# amounts in PAYPAL_CURRENCY, used for display and by
+# scripts/create_paypal_plans.py; what's actually charged is set on each
+# PayPal plan. Advanced is functionally identical to Pro today, priced
+# higher for agency/multi-client framing.
 PAYPAL_ENVIRONMENT = os.getenv("PAYPAL_ENVIRONMENT", "sandbox")
 PAYPAL_CURRENCY = os.getenv("PAYPAL_CURRENCY", "USD")
 PAYPAL_PRICE_MONTHLY = os.getenv("PAYPAL_PRICE_MONTHLY", "20.00")
 PAYPAL_PRICE_ANNUAL = os.getenv("PAYPAL_PRICE_ANNUAL", "192.00")
 PAYPAL_PRICE_ADVANCED_MONTHLY = os.getenv("PAYPAL_PRICE_ADVANCED_MONTHLY", "40.00")
 PAYPAL_PRICE_ADVANCED_ANNUAL = os.getenv("PAYPAL_PRICE_ADVANCED_ANNUAL", "384.00")
-# Client-side token (Paddle dashboard: Developer Tools > Authentication >
-# Client-side tokens tab -- a different, non-secret credential from
-# the frontend reads to initialize Paddle.js's overlay checkout. Safe to
-# expose to the browser; it can't create charges or read account data.
-# "sandbox" (default, for testing against a Paddle sandbox account -- a
-# completely separate account/API host from production) or "production".
-# Two recurring Paddle Prices (format pri_...) on the same product -- see
-# licensing/README.md for suggested amounts ($20/mo, 20% off annual) and
-# how to create them.
-# Advanced tier -- same feature set as the Pro prices above (no extra caps or
-# functionality yet), priced higher for agency/multi-client framing. See
-# licensing/README.md for how to create these in the Paddle dashboard.
+# PayPal billing plan ids (P-...), printed by scripts/create_paypal_plans.py.
+# Sandbox and production plans are different -- set the matching four.
+PAYPAL_PLAN_PRO_MONTHLY = os.getenv("PAYPAL_PLAN_PRO_MONTHLY", "")
+PAYPAL_PLAN_PRO_ANNUAL = os.getenv("PAYPAL_PLAN_PRO_ANNUAL", "")
+PAYPAL_PLAN_ADVANCED_MONTHLY = os.getenv("PAYPAL_PLAN_ADVANCED_MONTHLY", "")
+PAYPAL_PLAN_ADVANCED_ANNUAL = os.getenv("PAYPAL_PLAN_ADVANCED_ANNUAL", "")
+# Webhook ID shown in the PayPal developer dashboard (your app -> Webhooks)
+# after adding https://<backend>/api/billing/paypal/webhook. Used to verify
+# each event's signature; webhooks are rejected while it's unset.
+PAYPAL_WEBHOOK_ID = os.getenv("PAYPAL_WEBHOOK_ID", "")
+# Public marketing site (docs/) -- buyers land on its thank-you.html after
+# paying and on its pricing section if they cancel.
+STOREFRONT_URL = os.getenv("STOREFRONT_URL", "https://crmscoring.com")
 # Licenses are issued with an expiry this many days out, not a perpetual
-# one -- since an already-issued offline key can't be revoked if a payment
-# fails or a subscription is cancelled, this bounds how long a lapsed
-# subscriber keeps working. Every transaction.completed webhook (fired for
-# both the first payment and every renewal) re-issues a fresh one, so an
-# active subscriber never notices; comfortably longer than one billing
-# period to tolerate retry/dunning delays. Separate windows for monthly vs.
-# annual since "comfortably longer than one billing period" means something
-# very different for each.
+# one -- an already-issued offline key can't be revoked, so this bounds
+# how long a cancelled subscriber keeps working. Every renewal issues a
+# fresh key, so the windows only need to run a little past one billing
+# period (to allow for PayPal's payment retries).
 LICENSE_VALIDITY_DAYS_MONTHLY = int(os.getenv("LICENSE_VALIDITY_DAYS_MONTHLY", "35"))
 LICENSE_VALIDITY_DAYS_ANNUAL = int(os.getenv("LICENSE_VALIDITY_DAYS_ANNUAL", "380"))
 

@@ -39,11 +39,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self'; "
+            # PayPal's JS SDK (in-page checkout buttons) loads its script,
+            # button images and popup/iframe from these PayPal hosts.
+            "script-src 'self' https://www.paypal.com https://www.sandbox.paypal.com; "
             "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data:; "
-            "connect-src 'self' https://api-m.paypal.com https://api-m.sandbox.paypal.com; "
-            "frame-src https://www.paypal.com https://www.sandbox.paypal.com; "
+            "img-src 'self' data: https://*.paypal.com https://*.paypalobjects.com; "
+            "connect-src 'self' https://*.paypal.com; "
+            "frame-src https://*.paypal.com; "
             "object-src 'none'; "
             "base-uri 'self'"
         )

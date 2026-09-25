@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LicenseRequiredError, fetchBillingConfig, uploadLeads } from "../api";
-import { openPayPalCheckout } from "../paypal";
-import type { BillingInterval, ScoredLead } from "../types";
+import type { BillingConfig, BillingInterval, ScoredLead } from "../types";
+import { PayPalSubscribe } from "./PayPalSubscribe";
 
 interface Props {
   onUploaded: (leads: ScoredLead[]) => void;
@@ -39,10 +39,14 @@ export function UploadPanel({ onUploaded }: Props) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [trialLimitNotice, setTrialLimitNotice] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [billing, setBilling] = useState<BillingConfig | null>(null);
+  const [buyInterval, setBuyInterval] = useState<BillingInterval | null>(null);
   const dragDepth = useRef(0);
 
   useEffect(() => {
-    fetchBillingConfig().catch(() => undefined);
+    fetchBillingConfig()
+      .then(setBilling)
+      .catch(() => setBilling({ paypal_available: false, environment: "sandbox" }));
   }, []);
 
   async function handleFile(file: File) {
@@ -65,17 +69,6 @@ export function UploadPanel({ onUploaded }: Props) {
       } else {
         setError(err instanceof Error ? err.message : "Upload failed");
       }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleBuy(interval: BillingInterval) {
-    setBusy(true);
-    try {
-      await openPayPalCheckout(interval);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't start checkout");
     } finally {
       setBusy(false);
     }
@@ -165,12 +158,21 @@ export function UploadPanel({ onUploaded }: Props) {
       {licenseRequired && (
         <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4 text-sm text-hot">
           <p>Your trial has expired — a license is required to keep scoring leads.</p>
-          <button className={btnPrimary} disabled={busy} onClick={() => handleBuy("monthly")}>
+          <button className={btnPrimary} disabled={busy} onClick={() => setBuyInterval("monthly")}>
             $20/mo
           </button>
-          <button className={btnPrimary} disabled={busy} onClick={() => handleBuy("annual")}>
+          <button className={btnPrimary} disabled={busy} onClick={() => setBuyInterval("annual")}>
             Buy annual (save 20%)
           </button>
+          {buyInterval && billing && (
+            <PayPalSubscribe
+              key={buyInterval}
+              config={billing}
+              tier="pro"
+              interval={buyInterval}
+              onClose={() => setBuyInterval(null)}
+            />
+          )}
         </div>
       )}
     </div>

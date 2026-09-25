@@ -1,4 +1,12 @@
-import type { BillingConfig, BillingInterval, LicenseStatus, ScoredLead, TenantAuth } from "./types";
+import type {
+  BillingConfig,
+  BillingInterval,
+  LicenseStatus,
+  PaidTier,
+  ScoredLead,
+  SubscriptionActivation,
+  TenantAuth,
+} from "./types";
 
 // Same-origin by default -- works unmodified both in merged production mode
 // (backend serves the built frontend, so "same origin" IS the backend) and
@@ -95,14 +103,29 @@ export async function fetchBillingConfig(): Promise<BillingConfig> {
   return handle(res);
 }
 
+// Redirect-style fallback: creates the subscription server-side and returns
+// PayPal's approval URL. The in-page SDK buttons (PayPalSubscribe) are the
+// normal path; this is used only if PayPal's script can't load.
 export async function createPayPalCheckout(
   interval: BillingInterval,
-  tier: "pro" | "advanced" = "pro",
-): Promise<{ url: string; order_id: string }> {
+  tier: PaidTier = "pro",
+): Promise<{ url: string; subscription_id: string }> {
   const res = await fetch(`${BASE}/billing/paypal/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ interval, tier }),
+  });
+  return handle(res);
+}
+
+// Called after the buyer approves in PayPal's popup. Returns the license key
+// the first time; later calls (or the webhook having got there first) say
+// "duplicate" and the key arrives by email instead.
+export async function activatePayPalSubscription(subscriptionId: string): Promise<SubscriptionActivation> {
+  const res = await fetch(`${BASE}/billing/paypal/subscription/activate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subscription_id: subscriptionId }),
   });
   return handle(res);
 }

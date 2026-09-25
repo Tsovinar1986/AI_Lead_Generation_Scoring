@@ -52,6 +52,18 @@ services:
         sync: false
       - key: PAYPAL_PRICE_ADVANCED_ANNUAL
         sync: false
+      - key: PAYPAL_PLAN_PRO_MONTHLY
+        sync: false
+      - key: PAYPAL_PLAN_PRO_ANNUAL
+        sync: false
+      - key: PAYPAL_PLAN_ADVANCED_MONTHLY
+        sync: false
+      - key: PAYPAL_PLAN_ADVANCED_ANNUAL
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: STOREFRONT_URL
+        value: https://crmscoring.com
       - key: SENDGRID_API_KEY
         sync: false
       - key: SENDGRID_FROM_EMAIL

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { fetchBillingConfig, fetchLicenseStatus } from "../api";
-import { openPayPalCheckout, type PaidTier } from "../paypal";
-import type { BillingInterval, LicenseStatus } from "../types";
+import type { BillingConfig, BillingInterval, LicenseStatus, PaidTier } from "../types";
+import { PayPalSubscribe } from "./PayPalSubscribe";
 
-type BuyKey = `paypal-${PaidTier}-${BillingInterval}`;
+type Selection = { tier: PaidTier; interval: BillingInterval };
 
 const btnPrimary =
   "rounded-md bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-sm";
@@ -49,9 +49,8 @@ function CheckBadgeIcon({ className }: { className?: string }) {
 
 export function LicenseBanner() {
   const [status, setStatus] = useState<LicenseStatus | null>(null);
-  const [paypalAvailable, setPaypalAvailable] = useState(false);
-  const [busyKey, setBusyKey] = useState<BuyKey | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [billing, setBilling] = useState<BillingConfig | null>(null);
+  const [selected, setSelected] = useState<Selection | null>(null);
 
   useEffect(() => {
     fetchLicenseStatus()
@@ -67,20 +66,12 @@ export function LicenseBanner() {
         })
       );
     fetchBillingConfig()
-      .then((config) => setPaypalAvailable(config.paypal_available))
-      .catch(() => setPaypalAvailable(false));
+      .then(setBilling)
+      .catch(() => setBilling({ paypal_available: false, environment: "sandbox" }));
   }, []);
 
-  async function handleBuy(interval: BillingInterval, tier: PaidTier = "pro") {
-    setBusyKey(`paypal-${tier}-${interval}`);
-    setError(null);
-    try {
-      await openPayPalCheckout(interval, tier);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't start checkout");
-    } finally {
-      setBusyKey(null);
-    }
+  function isSelected(tier: PaidTier, interval: BillingInterval) {
+    return selected?.tier === tier && selected.interval === interval;
   }
 
   if (status === null) return null;
@@ -148,31 +139,39 @@ export function LicenseBanner() {
       <div className="flex flex-wrap items-center gap-2">
         {showBuyButtons && (
           <>
-            <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("monthly", "pro")}>
-              {busyKey === "paypal-pro-monthly" ? "Opening checkout…" : "Pro — $20/mo"}
+            <button className={btnPrimary} aria-pressed={isSelected("pro", "monthly")} onClick={() => setSelected({ tier: "pro", interval: "monthly" })}>
+              Pro — $20/mo
             </button>
-            <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("annual", "pro")}>
-              {busyKey === "paypal-pro-annual" ? "Opening checkout…" : "Pro annual (save 20%)"}
-            </button>
-            <button
-              className={btnSecondary}
-              disabled={busyKey !== null}
-              onClick={() => handleBuy("monthly", "advanced")}
-            >
-              {busyKey === "paypal-advanced-monthly" ? "Opening checkout…" : "Advanced — $40/mo"}
+            <button className={btnPrimary} aria-pressed={isSelected("pro", "annual")} onClick={() => setSelected({ tier: "pro", interval: "annual" })}>
+              Pro annual (save 20%)
             </button>
             <button
               className={btnSecondary}
-              disabled={busyKey !== null}
-              onClick={() => handleBuy("annual", "advanced")}
+              aria-pressed={isSelected("advanced", "monthly")}
+              onClick={() => setSelected({ tier: "advanced", interval: "monthly" })}
             >
-              {busyKey === "paypal-advanced-annual" ? "Opening checkout…" : "Advanced annual (save 20%)"}
+              Advanced — $40/mo
             </button>
-            {paypalAvailable && <span className="text-xs text-text/70">Secure checkout with PayPal</span>}
+            <button
+              className={btnSecondary}
+              aria-pressed={isSelected("advanced", "annual")}
+              onClick={() => setSelected({ tier: "advanced", interval: "annual" })}
+            >
+              Advanced annual (save 20%)
+            </button>
+            {billing?.paypal_available && <span className="text-xs text-text/70">Secure checkout with PayPal</span>}
           </>
         )}
-        {error && <span className="text-hot">{error}</span>}
       </div>
+      {showBuyButtons && selected && billing && (
+        <PayPalSubscribe
+          key={`${selected.tier}-${selected.interval}`}
+          config={billing}
+          tier={selected.tier}
+          interval={selected.interval}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }

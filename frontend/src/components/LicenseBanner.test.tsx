@@ -4,22 +4,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LicenseBanner } from "./LicenseBanner";
 import * as api from "../api";
 import * as paypal from "../paypal";
+import { configured, fakePayPal } from "../test/paypalFixtures";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
-  return { ...actual, fetchLicenseStatus: vi.fn(), fetchBillingConfig: vi.fn() };
+  return {
+    ...actual,
+    fetchLicenseStatus: vi.fn(),
+    fetchBillingConfig: vi.fn(),
+    activatePayPalSubscription: vi.fn(),
+  };
 });
 
-vi.mock("../paypal", () => ({ openPayPalCheckout: vi.fn() }));
+vi.mock("../paypal", () => ({ loadPayPalSdk: vi.fn(), openPayPalCheckout: vi.fn() }));
+
+const trial = {
+  licensed: false as const, reason: "trial" as const, customer_email: null, plan: null, tier: "starter" as const, trial_uploads_left: 5,
+};
 
 describe("LicenseBanner", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     // Most tests don't care about PayPal -- default it "off" so the extra
     // buttons don't show up unless a test explicitly opts in.
-    vi.mocked(api.fetchBillingConfig).mockResolvedValue({
-      client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
-      price_id_advanced_monthly: null, price_id_advanced_annual: null, paypal_available: false,
-    });
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({ environment: "sandbox", paypal_available: false });
   });
 
   it("renders nothing until the license status has loaded", () => {
@@ -92,82 +100,66 @@ describe("LicenseBanner", () => {
     expect(screen.queryByText(/starter \(free\)/i)).not.toBeInTheDocument();
   });
 
-  it("opens the PayPal checkout overlay for the selected tier/interval when a buy button is clicked", async () => {
-    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
-      licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
+  it("renders PayPal subscription buttons for the chosen plan and shows the key on approval", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
+    const fake = fakePayPal();
+    vi.mocked(paypal.loadPayPalSdk).mockResolvedValue(fake.namespace);
+    vi.mocked(api.activatePayPalSubscription).mockResolvedValue({
+      status: "ok", email: "buyer@example.com", tier: "advanced", plan: "annual", license_key: "LK-123",
     });
-    vi.mocked(paypal.openPayPalCheckout).mockResolvedValue(undefined);
 
     render(<LicenseBanner />);
-    await userEvent.click(await screen.findByRole("button", { name: /pro annual/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /advanced annual/i }));
 
-    await waitFor(() => expect(paypal.openPayPalCheckout).toHaveBeenCalledWith("annual", "pro"));
+    expect(await screen.findByText(/advanced — \$384\/year/i)).toBeInTheDocument();
+    await waitFor(() => expect(fake.options()).toBeDefined());
+    expect(paypal.loadPayPalSdk).toHaveBeenCalledWith("client-123", "USD");
+    await expect(fake.createSubscription()).resolves.toBe("I-NEW");
+    expect(fake.createdWith()).toEqual({ plan_id: "P-ADV-A" });
+
+    await fake.approve("I-NEW");
+
+    expect(api.activatePayPalSubscription).toHaveBeenCalledWith("I-NEW");
+    expect(await screen.findByText("LK-123")).toBeInTheDocument();
+    expect(screen.getByText("buyer@example.com")).toBeInTheDocument();
   });
 
-  it("opens the PayPal checkout overlay for Advanced when its buy button is clicked", async () => {
-    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
-      licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
-    });
-    vi.mocked(paypal.openPayPalCheckout).mockResolvedValue(undefined);
-
-    render(<LicenseBanner />);
-    await userEvent.click(await screen.findByRole("button", { name: /advanced — \$40\/mo/i }));
-
-    await waitFor(() => expect(paypal.openPayPalCheckout).toHaveBeenCalledWith("monthly", "advanced"));
-  });
-
-  it("shows an error message when PayPal checkout fails to open", async () => {
-    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
-      licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
-    });
-    vi.mocked(paypal.openPayPalCheckout).mockRejectedValue(new Error("PayPal isn't configured on this deployment."));
+  it("says PayPal isn't configured instead of loading PayPal when plans are missing", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
 
     expect(await screen.findByText("PayPal isn't configured on this deployment.")).toBeInTheDocument();
+    expect(paypal.loadPayPalSdk).not.toHaveBeenCalled();
   });
 
-  it("does not show PayPal buttons when PayPal isn't configured on this deployment", async () => {
-    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
-      licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
-    });
-
-    render(<LicenseBanner />);
-
-    await screen.findByRole("button", { name: /pro — \$20\/mo/i });
-    expect(screen.queryByRole("button", { name: /pay with paypal/i })).not.toBeInTheDocument();
-  });
-
-  it("shows PayPal buttons and opens PayPal checkout when PayPal is configured", async () => {
-    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
-      licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
-    });
-    vi.mocked(api.fetchBillingConfig).mockResolvedValue({
-      client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
-      price_id_advanced_monthly: null, price_id_advanced_annual: null, paypal_available: true,
-    });
+  it("offers the redirect checkout when PayPal's script can't load", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
+    vi.mocked(paypal.loadPayPalSdk).mockRejectedValue(new Error("Couldn't load PayPal."));
     vi.mocked(paypal.openPayPalCheckout).mockResolvedValue(undefined);
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro annual/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /continue on paypal/i }));
 
-    await waitFor(() => expect(paypal.openPayPalCheckout).toHaveBeenCalledWith("annual", "pro"));
+    expect(paypal.openPayPalCheckout).toHaveBeenCalledWith("annual", "pro");
   });
 
-  it("shows an error message when PayPal checkout fails to open", async () => {
-    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
-      licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
-    });
-    vi.mocked(api.fetchBillingConfig).mockResolvedValue({
-      client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
-      price_id_advanced_monthly: null, price_id_advanced_annual: null, paypal_available: true,
-    });
-    vi.mocked(paypal.openPayPalCheckout).mockRejectedValue(new Error("PayPal isn't configured on this deployment."));
+  it("explains the emailed key if activation can't be confirmed", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
+    const fake = fakePayPal();
+    vi.mocked(paypal.loadPayPalSdk).mockResolvedValue(fake.namespace);
+    vi.mocked(api.activatePayPalSubscription).mockRejectedValue(new Error("PayPal subscription isn't active yet."));
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
+    await waitFor(() => expect(fake.options()).toBeDefined());
+    await fake.approve("I-1");
 
-    expect(await screen.findByText("PayPal isn't configured on this deployment.")).toBeInTheDocument();
+    expect(await screen.findByText(/emailed as soon as PayPal confirms/i)).toBeInTheDocument();
   });
 });
