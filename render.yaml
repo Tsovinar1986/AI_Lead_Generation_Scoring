@@ -36,21 +36,21 @@ services:
         sync: false
       - key: LICENSE_PUBLIC_KEY
         sync: false
-      - key: PADDLE_API_KEY
+      - key: PAYPAL_CLIENT_ID
         sync: false
-      - key: PADDLE_WEBHOOK_SECRET
+      - key: PAYPAL_CLIENT_SECRET
         sync: false
-      - key: PADDLE_CLIENT_TOKEN
-        sync: false
-      - key: PADDLE_ENVIRONMENT
+      - key: PAYPAL_ENVIRONMENT
         value: sandbox
-      - key: PADDLE_PRICE_ID_MONTHLY
+      - key: PAYPAL_CURRENCY
+        value: USD
+      - key: PAYPAL_PRICE_MONTHLY
         sync: false
-      - key: PADDLE_PRICE_ID_ANNUAL
+      - key: PAYPAL_PRICE_ANNUAL
         sync: false
-      - key: PADDLE_PRICE_ID_ADVANCED_MONTHLY
+      - key: PAYPAL_PRICE_ADVANCED_MONTHLY
         sync: false
-      - key: PADDLE_PRICE_ID_ADVANCED_ANNUAL
+      - key: PAYPAL_PRICE_ADVANCED_ANNUAL
         sync: false
       - key: SENDGRID_API_KEY
         sync: false

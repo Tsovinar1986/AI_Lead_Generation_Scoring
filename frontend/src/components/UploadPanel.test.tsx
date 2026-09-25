@@ -3,15 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UploadPanel } from "./UploadPanel";
 import * as api from "../api";
-import * as polar from "../polar";
+import * as paypal from "../paypal";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
   return { ...actual, uploadLeads: vi.fn(), fetchBillingConfig: vi.fn() };
 });
 
-vi.mock("../paddle", () => ({ openPaddleCheckout: vi.fn() }));
-vi.mock("../polar", () => ({ openPolarCheckout: vi.fn() }));
+vi.mock("../paypal", () => ({ openPayPalCheckout: vi.fn() }));
+vi.mock("../paypal", () => ({ openPayPalCheckout: vi.fn() }));
 
 function selectFile() {
   const file = new File(["company_name,domain\nAcme,acme.com"], "leads.csv", { type: "text/csv" });
@@ -23,7 +23,7 @@ describe("UploadPanel", () => {
   beforeEach(() => {
     vi.mocked(api.fetchBillingConfig).mockResolvedValue({
       client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
-      price_id_advanced_monthly: null, price_id_advanced_annual: null, polar_available: false,
+      price_id_advanced_monthly: null, price_id_advanced_annual: null, paypal_available: false,
     });
   });
 
@@ -69,18 +69,18 @@ describe("UploadPanel", () => {
     expect(screen.queryByText("No valid license found.")).not.toBeInTheDocument();
   });
 
-  it("shows Polar as an alternative to Paddle when configured, on the license-expired CTA", async () => {
+  it("shows PayPal checkout on the license-expired CTA", async () => {
     vi.mocked(api.fetchBillingConfig).mockResolvedValue({
       client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
-      price_id_advanced_monthly: null, price_id_advanced_annual: null, polar_available: true,
+      price_id_advanced_monthly: null, price_id_advanced_annual: null, paypal_available: true,
     });
     vi.mocked(api.uploadLeads).mockRejectedValue(new api.LicenseRequiredError("No valid license found."));
-    vi.mocked(polar.openPolarCheckout).mockResolvedValue(undefined);
+    vi.mocked(paypal.openPayPalCheckout).mockResolvedValue(undefined);
 
     render(<UploadPanel onUploaded={vi.fn()} />);
     await selectFile();
 
-    await userEvent.click(await screen.findByRole("button", { name: /pay with polar.*annual/i }));
-    await waitFor(() => expect(polar.openPolarCheckout).toHaveBeenCalledWith("annual"));
+    await userEvent.click(await screen.findByRole("button", { name: /buy annual/i }));
+    await waitFor(() => expect(paypal.openPayPalCheckout).toHaveBeenCalledWith("annual"));
   });
 });

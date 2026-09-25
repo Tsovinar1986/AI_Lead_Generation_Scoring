@@ -52,10 +52,8 @@ app.add_middleware(
     # Every route in this app is GET or POST -- see routers/*.py.
     allow_methods=["GET", "POST"],
     # Authorization: tenant API key. Content-Type: JSON bodies + multipart
-    # uploads. ngrok-skip-browser-warning: only needed by the GitHub Pages
-    # landing page (docs/index.html) calling billing endpoints through an
-    # ngrok tunnel; drop it once that's on real hosting.
-    allow_headers=["Authorization", "Content-Type", "ngrok-skip-browser-warning"],
+    # uploads.
+    allow_headers=["Authorization", "Content-Type"],
     # Browsers hide all response headers from JS by default except a small
     # built-in safelist -- these carry the trial upload cap so the frontend
     # can tell the user why their file got truncated.

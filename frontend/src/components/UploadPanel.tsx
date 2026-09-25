@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LicenseRequiredError, fetchBillingConfig, uploadLeads } from "../api";
-import { openPaddleCheckout } from "../paddle";
-import { openPolarCheckout } from "../polar";
+import { openPayPalCheckout } from "../paypal";
 import type { BillingInterval, ScoredLead } from "../types";
 
 interface Props {
@@ -10,8 +9,6 @@ interface Props {
 
 const btnPrimary =
   "rounded-md bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-sm";
-const btnSecondary =
-  "rounded-md border border-accent/40 bg-accent-soft px-4 py-2 text-sm font-medium text-accent transition-all hover:-translate-y-px hover:bg-accent/20 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0";
 
 function UploadCloudIcon({ className }: { className?: string }) {
   return (
@@ -41,14 +38,11 @@ export function UploadPanel({ onUploaded }: Props) {
   const [licenseRequired, setLicenseRequired] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [trialLimitNotice, setTrialLimitNotice] = useState<string | null>(null);
-  const [polarAvailable, setPolarAvailable] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const dragDepth = useRef(0);
 
   useEffect(() => {
-    fetchBillingConfig()
-      .then((config) => setPolarAvailable(config.polar_available))
-      .catch(() => setPolarAvailable(false));
+    fetchBillingConfig().catch(() => undefined);
   }, []);
 
   async function handleFile(file: File) {
@@ -79,18 +73,7 @@ export function UploadPanel({ onUploaded }: Props) {
   async function handleBuy(interval: BillingInterval) {
     setBusy(true);
     try {
-      await openPaddleCheckout(interval);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't start checkout");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleBuyWithPolar(interval: BillingInterval) {
-    setBusy(true);
-    try {
-      await openPolarCheckout(interval);
+      await openPayPalCheckout(interval);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start checkout");
     } finally {
@@ -188,16 +171,6 @@ export function UploadPanel({ onUploaded }: Props) {
           <button className={btnPrimary} disabled={busy} onClick={() => handleBuy("annual")}>
             Buy annual (save 20%)
           </button>
-          {polarAvailable && (
-            <>
-              <button className={btnSecondary} disabled={busy} onClick={() => handleBuyWithPolar("monthly")}>
-                Pay with Polar — $20/mo
-              </button>
-              <button className={btnSecondary} disabled={busy} onClick={() => handleBuyWithPolar("annual")}>
-                Pay with Polar — annual
-              </button>
-            </>
-          )}
         </div>
       )}
     </div>

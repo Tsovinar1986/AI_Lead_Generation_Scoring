@@ -3,24 +3,22 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LicenseBanner } from "./LicenseBanner";
 import * as api from "../api";
-import * as paddle from "../paddle";
-import * as polar from "../polar";
+import * as paypal from "../paypal";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
   return { ...actual, fetchLicenseStatus: vi.fn(), fetchBillingConfig: vi.fn() };
 });
 
-vi.mock("../paddle", () => ({ openPaddleCheckout: vi.fn() }));
-vi.mock("../polar", () => ({ openPolarCheckout: vi.fn() }));
+vi.mock("../paypal", () => ({ openPayPalCheckout: vi.fn() }));
 
 describe("LicenseBanner", () => {
   beforeEach(() => {
-    // Most tests don't care about Polar -- default it "off" so the extra
+    // Most tests don't care about PayPal -- default it "off" so the extra
     // buttons don't show up unless a test explicitly opts in.
     vi.mocked(api.fetchBillingConfig).mockResolvedValue({
       client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
-      price_id_advanced_monthly: null, price_id_advanced_annual: null, polar_available: false,
+      price_id_advanced_monthly: null, price_id_advanced_annual: null, paypal_available: false,
     });
   });
 
@@ -94,43 +92,43 @@ describe("LicenseBanner", () => {
     expect(screen.queryByText(/starter \(free\)/i)).not.toBeInTheDocument();
   });
 
-  it("opens the Paddle checkout overlay for the selected tier/interval when a buy button is clicked", async () => {
+  it("opens the PayPal checkout overlay for the selected tier/interval when a buy button is clicked", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
       licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
     });
-    vi.mocked(paddle.openPaddleCheckout).mockResolvedValue(undefined);
+    vi.mocked(paypal.openPayPalCheckout).mockResolvedValue(undefined);
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro annual/i }));
 
-    await waitFor(() => expect(paddle.openPaddleCheckout).toHaveBeenCalledWith("annual", "pro"));
+    await waitFor(() => expect(paypal.openPayPalCheckout).toHaveBeenCalledWith("annual", "pro"));
   });
 
-  it("opens the Paddle checkout overlay for Advanced when its buy button is clicked", async () => {
+  it("opens the PayPal checkout overlay for Advanced when its buy button is clicked", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
       licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
     });
-    vi.mocked(paddle.openPaddleCheckout).mockResolvedValue(undefined);
+    vi.mocked(paypal.openPayPalCheckout).mockResolvedValue(undefined);
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /advanced — \$40\/mo/i }));
 
-    await waitFor(() => expect(paddle.openPaddleCheckout).toHaveBeenCalledWith("monthly", "advanced"));
+    await waitFor(() => expect(paypal.openPayPalCheckout).toHaveBeenCalledWith("monthly", "advanced"));
   });
 
-  it("shows an error message when Paddle checkout fails to open", async () => {
+  it("shows an error message when PayPal checkout fails to open", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
       licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
     });
-    vi.mocked(paddle.openPaddleCheckout).mockRejectedValue(new Error("Paddle isn't configured on this deployment."));
+    vi.mocked(paypal.openPayPalCheckout).mockRejectedValue(new Error("PayPal isn't configured on this deployment."));
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
 
-    expect(await screen.findByText("Paddle isn't configured on this deployment.")).toBeInTheDocument();
+    expect(await screen.findByText("PayPal isn't configured on this deployment.")).toBeInTheDocument();
   });
 
-  it("does not show Polar buttons when Polar isn't configured on this deployment", async () => {
+  it("does not show PayPal buttons when PayPal isn't configured on this deployment", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
       licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
     });
@@ -138,38 +136,38 @@ describe("LicenseBanner", () => {
     render(<LicenseBanner />);
 
     await screen.findByRole("button", { name: /pro — \$20\/mo/i });
-    expect(screen.queryByRole("button", { name: /pay with polar/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /pay with paypal/i })).not.toBeInTheDocument();
   });
 
-  it("shows Polar buttons and opens Polar checkout when Polar is configured", async () => {
+  it("shows PayPal buttons and opens PayPal checkout when PayPal is configured", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
       licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
     });
     vi.mocked(api.fetchBillingConfig).mockResolvedValue({
       client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
-      price_id_advanced_monthly: null, price_id_advanced_annual: null, polar_available: true,
+      price_id_advanced_monthly: null, price_id_advanced_annual: null, paypal_available: true,
     });
-    vi.mocked(polar.openPolarCheckout).mockResolvedValue(undefined);
+    vi.mocked(paypal.openPayPalCheckout).mockResolvedValue(undefined);
 
     render(<LicenseBanner />);
-    await userEvent.click(await screen.findByRole("button", { name: /pay with polar.*annual/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /pro annual/i }));
 
-    await waitFor(() => expect(polar.openPolarCheckout).toHaveBeenCalledWith("annual"));
+    await waitFor(() => expect(paypal.openPayPalCheckout).toHaveBeenCalledWith("annual", "pro"));
   });
 
-  it("shows an error message when Polar checkout fails to open", async () => {
+  it("shows an error message when PayPal checkout fails to open", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
       licensed: false, reason: "trial", customer_email: null, plan: null, tier: "starter", trial_uploads_left: 5,
     });
     vi.mocked(api.fetchBillingConfig).mockResolvedValue({
       client_token: null, environment: "sandbox", price_id_monthly: null, price_id_annual: null,
-      price_id_advanced_monthly: null, price_id_advanced_annual: null, polar_available: true,
+      price_id_advanced_monthly: null, price_id_advanced_annual: null, paypal_available: true,
     });
-    vi.mocked(polar.openPolarCheckout).mockRejectedValue(new Error("Polar isn't configured on this deployment."));
+    vi.mocked(paypal.openPayPalCheckout).mockRejectedValue(new Error("PayPal isn't configured on this deployment."));
 
     render(<LicenseBanner />);
-    await userEvent.click(await screen.findByRole("button", { name: /pay with polar.*mo/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
 
-    expect(await screen.findByText("Polar isn't configured on this deployment.")).toBeInTheDocument();
+    expect(await screen.findByText("PayPal isn't configured on this deployment.")).toBeInTheDocument();
   });
 });

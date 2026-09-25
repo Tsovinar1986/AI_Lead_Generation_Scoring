@@ -1,192 +1,53 @@
 # Selling this as a self-hosted product
 
-Ed25519-signed license keys, verified offline by the app itself — no
-license server to run, no phone-home, works for a buyer who self-hosts on
-their own infra. Paddle handles payment; a webhook mints the key.
+The seller storefront uses PayPal's Orders API to take one-time payments.
+After PayPal redirects the buyer back to `thank-you.html`, the backend
+captures the order, signs an Ed25519 license key, records the order id for
+idempotency, and emails the key when email delivery is configured.
 
-Paddle (not Stripe) is deliberate: Paddle is a merchant-of-record, so it
-also handles sales tax/VAT globally for you, and its seller-eligibility
-list is broader than Stripe's — notably it works for sellers in countries
-Stripe doesn't support directly. Card, PayPal, Apple Pay, and Google Pay all
-show up automatically on Paddle's hosted checkout for eligible buyers —
-PayPal specifically may need enabling once under Paddle dashboard →
-Checkout → Payment methods if it isn't already on.
+## Setup
 
-## One-time setup (you, the seller)
+1. Generate the signing keypair once:
 
-1. **Generate your signing keypair** (do this once, ever):
-   ```
+   ```sh
    python licensing/generate_keypair.py
    ```
-   Keep `LICENSE_PRIVATE_KEY` secret (only your deployment needs it — put it
-   in your `.env`, never commit it, back it up somewhere safe: losing it
-   means you can't issue new licenses without invalidating every key
-   you've already sold). `LICENSE_PUBLIC_KEY` is safe to commit/ship; it can
-   only verify signatures, not create them.
 
-2. **Create a Paddle account** at paddle.com — you'll land in **Sandbox**
-   mode by default (a fully separate test account/API host, no real money),
-   which is what you want first. Production is a separate application/
-   approval step once you're ready to take real payments.
+   Keep `LICENSE_PRIVATE_KEY` only on the seller deployment. Ship the
+   corresponding `LICENSE_PUBLIC_KEY` with buyer deployments.
 
-3. **Create a product with two recurring prices** — monthly and annual, e.g.
-   $20/mo and $192/yr (20% off the monthly rate, i.e. 12 × $20 × 0.8). In
-   the Paddle dashboard:
-   Catalog → Products → your product → Add price, once for each interval —
-   each price ID looks like `pri_...`. Then set in your `.env`:
-   `PADDLE_API_KEY` (Developer Tools → Authentication → **API keys** tab —
-   the secret key, server-side only), `PADDLE_CLIENT_TOKEN` (same page,
-   **Client-side tokens** tab — a different, non-secret credential safe to
-   expose to the browser), `PADDLE_PRICE_ID_MONTHLY`, `PADDLE_PRICE_ID_ANNUAL`,
-   and `PADDLE_ENVIRONMENT=sandbox` while testing.
+2. Create a PayPal developer application. Start with Sandbox, then switch
+   `PAYPAL_ENVIRONMENT=production` after a complete test purchase.
 
-4. **Add a notification destination** in Paddle (Developer Tools →
-   Notifications → + New destination) pointing at
-   `https://www.crmscoring.com/api/billing/webhook` (or wherever this
-   backend ends up hosted), subscribed to
-   `transaction.completed` (fires for both the first payment and every
-   renewal — there's only one event to subscribe to, unlike Stripe's
-   separate checkout/invoice events). Copy the destination's signing secret
-   into `PADDLE_WEBHOOK_SECRET`. Since this needs a real HTTPS URL Paddle
-   can reach, it can't be set up against `localhost` — use a tunnel (e.g.
-   `ngrok http 8081`) for local testing, or wait until this is actually
-   deployed.
+3. Configure the seller deployment:
 
-5. Run this same app (`backend/`) as your storefront backend. The frontend
-   (`frontend/src/paddle.ts`) fetches `GET /api/billing/config` (the
-   non-secret client token + price ids) and opens **Paddle's overlay
-   checkout** directly in the browser via `Paddle.js` — deliberately not a
-   backend-generated redirect link. Paddle's transaction-creation API
-   returns a checkout URL on *your account's "Default Payment Link" domain*,
-   which has to be a real HTTPS origin approved in Paddle's dashboard
-   (Checkout settings) — that breaks against a local dev backend serving
-   plain HTTP on `localhost`. The overlay has no such requirement: it opens
-   as an in-page modal regardless of what domain/protocol hosts the page,
-   so it works identically in local dev and production. Once a full
-   sandbox purchase works end-to-end, switch `PADDLE_ENVIRONMENT=production`
-   and swap in your live API key/client token/prices.
+   ```dotenv
+   LICENSE_PRIVATE_KEY=
+   PAYPAL_CLIENT_ID=
+   PAYPAL_CLIENT_SECRET=
+   PAYPAL_ENVIRONMENT=sandbox
+   PAYPAL_CURRENCY=USD
+   PAYPAL_PRICE_MONTHLY=20.00
+   PAYPAL_PRICE_ANNUAL=192.00
+   PAYPAL_PRICE_ADVANCED_MONTHLY=40.00
+   PAYPAL_PRICE_ADVANCED_ANNUAL=384.00
+   APP_BASE_URL=https://www.example.com
+   ```
 
-## Polar — an alternative processor (optional, not a Paddle fallback)
+   Prices are decimal amounts in the configured currency. PayPal credentials
+   remain server-side; only the approval URL is sent to the browser.
 
-Paddle doesn't support sellers in every country. If you're one of the
-sellers it can't serve, **Polar** is worth checking: it's also a
-merchant-of-record, but pays out via Stripe Connect Express, whose
-supported *recipient* countries are broader than the countries Stripe
-supports for a direct merchant account — worth verifying by actually
-starting Polar's signup flow, since the only certain way to know is
-whether it accepts your business. This is additive, not a replacement:
-both processors can be live at once, each with its own buy button, sharing
-the same license-issuance logic.
+4. Run the storefront backend and frontend. The purchase buttons call
+   `POST /api/billing/paypal/checkout`, redirect the buyer to PayPal, and the
+   return page calls `POST /api/billing/paypal/capture`.
 
-1. **Create a Polar account** at polar.sh (sandbox by default —
-   `sandbox-api.polar.sh`, fully separate from production).
-2. **Create two Products**, one per plan (Polar models a plan as its own
-   Product, not one product with multiple Prices like Paddle) — set
-   `POLAR_PRODUCT_ID_MONTHLY` / `POLAR_PRODUCT_ID_ANNUAL` to their ids.
-3. **Create an Organization Access Token** (dashboard → Developer settings)
-   with `checkouts:write` — set as `POLAR_ACCESS_TOKEN`.
-4. **Add a webhook endpoint** pointing at
-   `https://www.crmscoring.com/api/billing/polar/webhook` (or wherever this
-   backend ends up hosted — same tunnel-for-local-testing caveat as
-   Paddle's webhook above), subscribed to `order.paid` (fires for both the
-   first payment and every renewal, same simple model as Paddle's
-   `transaction.completed`) and `subscription.canceled`. Copy the
-   destination's signing secret into `POLAR_WEBHOOK_SECRET`.
-5. Unlike Paddle.js, Polar has no client-side checkout overlay — the
-   backend creates the session itself (`POST /api/billing/polar/checkout`)
-   and hands back a URL to redirect the buyer to
-   (`frontend/src/polar.ts`). `GET /api/billing/config`'s `polar_available`
-   field controls whether the "Pay with Polar" buttons show up at all — set
-   all four `POLAR_*` variables above to reveal them; leave any unset to
-   keep them hidden.
+5. Configure SendGrid or SMTP if license keys should be delivered
+   automatically. Without email settings, keys are still appended to
+   `licensing/issued_licenses.jsonl` for manual delivery.
 
-Once a full sandbox purchase works end-to-end, switch
-`POLAR_ENVIRONMENT=production` and swap in your live token/product ids —
-same pattern as Paddle.
+## License validity
 
-## What happens on a sale
-
-Paddle fires `transaction.completed` → the webhook looks up the buyer's
-email via Paddle's customer API (the webhook payload only carries a
-`customer_id`), signs a license (`{customer_email, plan, issued_at,
-expires_at}`) with `LICENSE_PRIVATE_KEY` → appends it to
-`licensing/issued_licenses.jsonl` and emails it to the buyer
-(`backend/app/services/license_email.py`, SendGrid if `SENDGRID_API_KEY` is
-set, else plain SMTP if `SMTP_HOST` is set). With neither configured, it's
-still issued and logged/appended to that file — tail it and send the key by
-hand.
-
-Need a comp/manual license (a pilot customer, a partner)? Skip Paddle:
-```
-LICENSE_PRIVATE_KEY=... python licensing/issue_license.py --email x@y.com --plan pro --days 365
-```
-
-## What the buyer does
-
-Drop the license key you send them into their `.env`:
-```
-LICENSE_KEY=<the key you issued them>
-LICENSE_PUBLIC_KEY=<your public key, ship this with the product>
-```
-A fresh deployment gets the free Starter tier with no `LICENSE_KEY` set at
-all — permanent, not time-limited, capped at `TRIAL_MAX_UPLOADS` uploads of
-up to `TRIAL_MAX_LEADS_PER_UPLOAD` rows each — the whole point of shipping
-this as self-hosted software is that a prospect can run it unlocked to
-evaluate before you ever collect payment. Once that allowance is used up,
-`/api/leads/upload` 402s until a Pro or Advanced `LICENSE_KEY` is set. Set
-`LICENSE_REQUIRED=true` instead to disable Starter entirely and require a
-key from the first request (useful for your own storefront/demo instance,
-not typical for a buyer's copy).
-
----
-
-## Go-to-market strategy
-
-**Positioning**: not "another lead scoring tool" — a hybrid rule+LLM scorer
-a buyer can point at their own CRM export and get ranked, rationale-backed
-accounts in minutes, self-hosted so their lead data never leaves their
-infra. That data-residency angle is the differentiator against
-SaaS competitors for security-conscious B2B buyers (fintech, healthtech,
-anyone who'd balk at uploading a CRM export to a third party).
-
-**Who buys this**: a solo RevOps/sales-ops person or small GTM team at a
-company with an existing CRM export and no in-house scoring model — the
-"I have 5,000 rows, a Salesforce account, and no data scientist" buyer. Not
-large enterprise (no SSO yet) and not hobbyists (real integrations, real
-setup) — though multi-tenancy (`scripts/create_tenant.py`) now makes it
-viable to run one shared instance for several customers if you're selling
-it that way rather than self-hosted-per-buyer.
-
-**Sequencing** (cheapest/fastest validation first):
-
-1. **Direct sale via this Paddle flow, now.** Zero marketplace approval,
-   fastest to first dollar. Use it to find out whether "self-hosted lead
-   scorer" resonates at all before investing in channel-specific work.
-2. **RapidAPI**, once the direct-sale pitch is validated. The FastAPI
-   backend already is the product surface — wrapping it with API-key/quota
-   auth for a metered listing is the next-cheapest channel and reaches
-   buyers who want to call it, not run it.
-3. **Salesforce AppExchange** — only worth it once you have paying customers
-   on #1-2 validating demand; this is a multi-week review process and
-   requires a native (OAuth) integration, not the static access-token calls
-   this app makes today.
-4. **AWS Marketplace / AppSumo** — `storage.py` now supports multiple
-   isolated tenants on one deployment (`backend/scripts/create_tenant.py`),
-   so the technical blocker is gone; still hold until #1-2 validate demand,
-   since both are their own multi-week registration/review processes.
-
-**Pricing anchor**: price against the labor it replaces (an SDR/RevOps
-hour spent manually qualifying+drafting per lead), not against per-seat SaaS
-comps — a one-time or annual self-hosted license reads as "buy the tool,"
-which is a different (and for this buyer, often easier) purchase decision
-than "add another monthly subscription."
-
-**Current pricing**: three tiers -- Starter is free forever (no Paddle
-price, no card, permanently capped by `TRIAL_MAX_UPLOADS`/
-`TRIAL_MAX_LEADS_PER_UPLOAD`), Pro is $20/mo or $192/yr (20% off), and
-Advanced is $40/mo or $384/yr (same 20% off, functionally identical to Pro
-today -- priced for agency/multi-client framing). Pro/Advanced are each two
-recurring Paddle prices (`PADDLE_PRICE_ID_MONTHLY`/`_ANNUAL` and
-`PADDLE_PRICE_ID_ADVANCED_MONTHLY`/`_ANNUAL`), opened via Paddle's overlay
-checkout (`frontend/src/paddle.ts`). Starter needs no purchase at all, so a
-prospect always gets a no-card-required look before buying.
+Monthly and annual captures issue keys with the windows configured by
+`LICENSE_VALIDITY_DAYS_MONTHLY` and `LICENSE_VALIDITY_DAYS_ANNUAL`. Captures
+are idempotent by PayPal order id, so refreshing the return page cannot issue
+another key for the same payment.

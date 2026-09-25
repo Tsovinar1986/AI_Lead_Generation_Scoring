@@ -3,7 +3,7 @@ import {
   LicenseRequiredError,
   TenantAuthError,
   clearTenantApiKey,
-  createPolarCheckout,
+  createPayPalCheckout,
   fetchBillingConfig,
   fetchLeads,
   setTenantApiKey,
@@ -114,7 +114,7 @@ describe("fetchBillingConfig", () => {
       environment: "sandbox" as const,
       price_id_monthly: "pri_monthly",
       price_id_annual: "pri_annual",
-      polar_available: false,
+      paypal_available: false,
     };
     mockFetchOnce(200, config);
 
@@ -126,16 +126,16 @@ describe("fetchBillingConfig", () => {
   });
 });
 
-describe("createPolarCheckout", () => {
-  it("posts the interval to /billing/polar/checkout and returns the session url", async () => {
-    mockFetchOnce(200, { url: "https://sandbox.polar.sh/checkout/abc123" });
+describe("createPayPalCheckout", () => {
+  it("posts the interval to /billing/paypal/checkout and returns the session url", async () => {
+    mockFetchOnce(200, { url: "https://sandbox.paypal.com/checkout/abc123" });
 
-    const result = await createPolarCheckout("annual");
-    expect(result).toEqual({ url: "https://sandbox.polar.sh/checkout/abc123" });
+    const result = await createPayPalCheckout("annual");
+    expect(result).toEqual({ url: "https://sandbox.paypal.com/checkout/abc123" });
 
     const [url, options] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toContain("/billing/polar/checkout");
+    expect(url).toContain("/billing/paypal/checkout");
     expect(options?.method).toBe("POST");
-    expect(JSON.parse(options?.body as string)).toEqual({ interval: "annual" });
+    expect(JSON.parse(options?.body as string)).toEqual({ interval: "annual", tier: "pro" });
   });
 });

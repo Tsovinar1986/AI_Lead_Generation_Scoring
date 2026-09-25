@@ -198,7 +198,7 @@
     async function authRequest(path, body) {
       var res = await fetch(API_BASE + path, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       var data = await res.json().catch(function () { return null; });

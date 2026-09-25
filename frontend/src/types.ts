@@ -47,13 +47,18 @@ export type BillingInterval = "monthly" | "annual";
 export type PlanTier = "starter" | "pro" | "advanced";
 
 export interface BillingConfig {
-  client_token: string | null;
+  paypal_available: boolean;
+  currency?: string;
   environment: "sandbox" | "production";
-  price_id_monthly: string | null;
-  price_id_annual: string | null;
-  price_id_advanced_monthly: string | null;
-  price_id_advanced_annual: string | null;
-  polar_available: boolean;
+  price_monthly?: string | null;
+  price_annual?: string | null;
+  price_advanced_monthly?: string | null;
+  price_advanced_annual?: string | null;
+  client_token?: string | null;
+  price_id_monthly?: string | null;
+  price_id_annual?: string | null;
+  price_id_advanced_monthly?: string | null;
+  price_id_advanced_annual?: string | null;
 }
 
 export interface TenantAuth {

@@ -95,11 +95,14 @@ export async function fetchBillingConfig(): Promise<BillingConfig> {
   return handle(res);
 }
 
-export async function createPolarCheckout(interval: BillingInterval): Promise<{ url: string }> {
-  const res = await fetch(`${BASE}/billing/polar/checkout`, {
+export async function createPayPalCheckout(
+  interval: BillingInterval,
+  tier: "pro" | "advanced" = "pro",
+): Promise<{ url: string; order_id: string }> {
+  const res = await fetch(`${BASE}/billing/paypal/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ interval }),
+    body: JSON.stringify({ interval, tier }),
   });
   return handle(res);
 }

@@ -121,27 +121,26 @@ TRIAL_MAX_LEADS_PER_UPLOAD = int(os.getenv("TRIAL_MAX_LEADS_PER_UPLOAD", "10"))
 # once in Paddle's dashboard (Checkout > Payment methods) -- see
 # licensing/README.md.
 LICENSE_PRIVATE_KEY = os.getenv("LICENSE_PRIVATE_KEY", "")
-PADDLE_API_KEY = os.getenv("PADDLE_API_KEY", "")
-PADDLE_WEBHOOK_SECRET = os.getenv("PADDLE_WEBHOOK_SECRET", "")
+PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
+PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
+PAYPAL_ENVIRONMENT = os.getenv("PAYPAL_ENVIRONMENT", "sandbox")
+PAYPAL_CURRENCY = os.getenv("PAYPAL_CURRENCY", "USD")
+PAYPAL_PRICE_MONTHLY = os.getenv("PAYPAL_PRICE_MONTHLY", "20.00")
+PAYPAL_PRICE_ANNUAL = os.getenv("PAYPAL_PRICE_ANNUAL", "192.00")
+PAYPAL_PRICE_ADVANCED_MONTHLY = os.getenv("PAYPAL_PRICE_ADVANCED_MONTHLY", "40.00")
+PAYPAL_PRICE_ADVANCED_ANNUAL = os.getenv("PAYPAL_PRICE_ADVANCED_ANNUAL", "384.00")
 # Client-side token (Paddle dashboard: Developer Tools > Authentication >
 # Client-side tokens tab -- a different, non-secret credential from
-# PADDLE_API_KEY above). Only used to serve GET /api/billing/config, which
 # the frontend reads to initialize Paddle.js's overlay checkout. Safe to
 # expose to the browser; it can't create charges or read account data.
-PADDLE_CLIENT_TOKEN = os.getenv("PADDLE_CLIENT_TOKEN", "")
 # "sandbox" (default, for testing against a Paddle sandbox account -- a
 # completely separate account/API host from production) or "production".
-PADDLE_ENVIRONMENT = os.getenv("PADDLE_ENVIRONMENT", "sandbox")
 # Two recurring Paddle Prices (format pri_...) on the same product -- see
 # licensing/README.md for suggested amounts ($20/mo, 20% off annual) and
 # how to create them.
-PADDLE_PRICE_ID_MONTHLY = os.getenv("PADDLE_PRICE_ID_MONTHLY", "")
-PADDLE_PRICE_ID_ANNUAL = os.getenv("PADDLE_PRICE_ID_ANNUAL", "")
 # Advanced tier -- same feature set as the Pro prices above (no extra caps or
 # functionality yet), priced higher for agency/multi-client framing. See
 # licensing/README.md for how to create these in the Paddle dashboard.
-PADDLE_PRICE_ID_ADVANCED_MONTHLY = os.getenv("PADDLE_PRICE_ID_ADVANCED_MONTHLY", "")
-PADDLE_PRICE_ID_ADVANCED_ANNUAL = os.getenv("PADDLE_PRICE_ID_ADVANCED_ANNUAL", "")
 # Licenses are issued with an expiry this many days out, not a perpetual
 # one -- since an already-issued offline key can't be revoked if a payment
 # fails or a subscription is cancelled, this bounds how long a lapsed
@@ -161,15 +160,8 @@ LICENSE_VALIDITY_DAYS_ANNUAL = int(os.getenv("LICENSE_VALIDITY_DAYS_ANNUAL", "38
 # broader than the countries Stripe itself supports for a direct merchant
 # account (confirmed: Armenia is a supported Polar/Connect payout country
 # even though it isn't a Stripe merchant country). See licensing/README.md.
-POLAR_ACCESS_TOKEN = os.getenv("POLAR_ACCESS_TOKEN", "")
-POLAR_WEBHOOK_SECRET = os.getenv("POLAR_WEBHOOK_SECRET", "")
-# "sandbox" (default -- sandbox-api.polar.sh, a separate test org) or
-# "production" (api.polar.sh).
-POLAR_ENVIRONMENT = os.getenv("POLAR_ENVIRONMENT", "sandbox")
 # Polar models each plan as its own Product (rather than one product with
 # multiple Prices, as Paddle does) -- two Product ids here, one per plan.
-POLAR_PRODUCT_ID_MONTHLY = os.getenv("POLAR_PRODUCT_ID_MONTHLY", "")
-POLAR_PRODUCT_ID_ANNUAL = os.getenv("POLAR_PRODUCT_ID_ANNUAL", "")
 
 # --- Email delivery (seller side) ---
 # Sends issued license keys to buyers automatically. Without either of these

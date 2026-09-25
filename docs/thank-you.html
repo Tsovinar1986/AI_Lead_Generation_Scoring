@@ -143,5 +143,20 @@
       &nbsp;·&nbsp; <a href="guardrails.html">AI Guardrails</a>
     </div>
   </footer>
+  <script>
+    const token = new URLSearchParams(window.location.search).get("token");
+    if (token) {
+      fetch("https://ai-lead-generation-scoring.onrender.com/api/billing/paypal/capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: token })
+      }).then(function (response) {
+        if (!response.ok) throw new Error("capture failed");
+      }).catch(function () {
+        const message = document.querySelector(".card p");
+        if (message) message.textContent = "Payment received, but we could not finish issuing your license automatically. Please contact support.";
+      });
+    }
+  </script>
 </body>
 </html>

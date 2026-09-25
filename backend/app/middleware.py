@@ -37,17 +37,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # just be noise.
         if request.url.scheme == "https":
             response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
-        # Deliberately permissive on connect-src/frame-src for Paddle's and
-        # Polar's checkout overlays/redirects -- both need to load/frame
-        # their own domains from this app's pages. Tighten further if this
-        # deployment doesn't use one of them.
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            "script-src 'self' https://cdn.paddle.com; "
+            "script-src 'self'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; "
-            "connect-src 'self' https://*.paddle.com https://api.polar.sh https://sandbox-api.polar.sh; "
-            "frame-src https://*.paddle.com https://*.polar.sh; "
+            "connect-src 'self' https://api-m.paypal.com https://api-m.sandbox.paypal.com; "
+            "frame-src https://www.paypal.com https://www.sandbox.paypal.com; "
             "object-src 'none'; "
             "base-uri 'self'"
         )

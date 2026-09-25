@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { fetchBillingConfig, fetchLicenseStatus } from "../api";
-import { openPaddleCheckout, type PaidTier } from "../paddle";
-import { openPolarCheckout } from "../polar";
+import { openPayPalCheckout, type PaidTier } from "../paypal";
 import type { BillingInterval, LicenseStatus } from "../types";
 
-type BuyKey = `paddle-${PaidTier}-${BillingInterval}` | `polar-${BillingInterval}`;
+type BuyKey = `paypal-${PaidTier}-${BillingInterval}`;
 
 const btnPrimary =
   "rounded-md bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:-translate-y-px hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-sm";
@@ -50,7 +49,7 @@ function CheckBadgeIcon({ className }: { className?: string }) {
 
 export function LicenseBanner() {
   const [status, setStatus] = useState<LicenseStatus | null>(null);
-  const [polarAvailable, setPolarAvailable] = useState(false);
+  const [paypalAvailable, setPaypalAvailable] = useState(false);
   const [busyKey, setBusyKey] = useState<BuyKey | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,27 +67,15 @@ export function LicenseBanner() {
         })
       );
     fetchBillingConfig()
-      .then((config) => setPolarAvailable(config.polar_available))
-      .catch(() => setPolarAvailable(false));
+      .then((config) => setPaypalAvailable(config.paypal_available))
+      .catch(() => setPaypalAvailable(false));
   }, []);
 
   async function handleBuy(interval: BillingInterval, tier: PaidTier = "pro") {
-    setBusyKey(`paddle-${tier}-${interval}`);
+    setBusyKey(`paypal-${tier}-${interval}`);
     setError(null);
     try {
-      await openPaddleCheckout(interval, tier);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't start checkout");
-    } finally {
-      setBusyKey(null);
-    }
-  }
-
-  async function handleBuyWithPolar(interval: BillingInterval) {
-    setBusyKey(`polar-${interval}`);
-    setError(null);
-    try {
-      await openPolarCheckout(interval);
+      await openPayPalCheckout(interval, tier);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't start checkout");
     } finally {
@@ -162,43 +149,26 @@ export function LicenseBanner() {
         {showBuyButtons && (
           <>
             <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("monthly", "pro")}>
-              {busyKey === "paddle-pro-monthly" ? "Opening checkout…" : "Pro — $20/mo"}
+              {busyKey === "paypal-pro-monthly" ? "Opening checkout…" : "Pro — $20/mo"}
             </button>
             <button className={btnPrimary} disabled={busyKey !== null} onClick={() => handleBuy("annual", "pro")}>
-              {busyKey === "paddle-pro-annual" ? "Opening checkout…" : "Pro annual (save 20%)"}
+              {busyKey === "paypal-pro-annual" ? "Opening checkout…" : "Pro annual (save 20%)"}
             </button>
             <button
               className={btnSecondary}
               disabled={busyKey !== null}
               onClick={() => handleBuy("monthly", "advanced")}
             >
-              {busyKey === "paddle-advanced-monthly" ? "Opening checkout…" : "Advanced — $40/mo"}
+              {busyKey === "paypal-advanced-monthly" ? "Opening checkout…" : "Advanced — $40/mo"}
             </button>
             <button
               className={btnSecondary}
               disabled={busyKey !== null}
               onClick={() => handleBuy("annual", "advanced")}
             >
-              {busyKey === "paddle-advanced-annual" ? "Opening checkout…" : "Advanced annual (save 20%)"}
+              {busyKey === "paypal-advanced-annual" ? "Opening checkout…" : "Advanced annual (save 20%)"}
             </button>
-            {polarAvailable && (
-              <>
-                <button
-                  className={btnSecondary}
-                  disabled={busyKey !== null}
-                  onClick={() => handleBuyWithPolar("monthly")}
-                >
-                  {busyKey === "polar-monthly" ? "Opening checkout…" : "Pay with Polar — $20/mo"}
-                </button>
-                <button
-                  className={btnSecondary}
-                  disabled={busyKey !== null}
-                  onClick={() => handleBuyWithPolar("annual")}
-                >
-                  {busyKey === "polar-annual" ? "Opening checkout…" : "Pay with Polar — annual"}
-                </button>
-              </>
-            )}
+            {paypalAvailable && <span className="text-xs text-text/70">Secure checkout with PayPal</span>}
           </>
         )}
         {error && <span className="text-hot">{error}</span>}
