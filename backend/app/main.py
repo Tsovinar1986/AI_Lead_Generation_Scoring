@@ -94,8 +94,9 @@ def _license_status(tenant: storage.Tenant | None) -> dict:
                 "customer_email": tenant.email, "plan": None, "tier": "starter",
                 "trial_uploads_left": uploads_left}
     if tenant.plan is not None:
+        # expires_at is set only once the subscription was cancelled.
         return {"licensed": True, "customer_email": tenant.email or tenant.name, "plan": "subscription",
-                "tier": tenant.plan, "expires_at": None}
+                "tier": tenant.plan, "expires_at": tenant.plan_expires_at}
 
     check = check_license()
     if check.state == LicenseState.VALID:

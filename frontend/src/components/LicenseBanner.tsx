@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { fetchBillingConfig, fetchLicenseStatus, getTenantApiKey, setTenantApiKey, startFreeTrial } from "../api";
+import {
+  cancelWorkspaceSubscription,
+  fetchBillingConfig,
+  fetchLicenseStatus,
+  getTenantApiKey,
+  setTenantApiKey,
+  startFreeTrial,
+} from "../api";
 import type { BillingConfig, BillingInterval, LicenseStatus, PaidTier } from "../types";
 import { BraintreeSubscribe } from "./BraintreeSubscribe";
 
@@ -59,6 +66,24 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
   const [selected, setSelected] = useState<Selection | null>(null);
   const [startingTrial, setStartingTrial] = useState(false);
   const [trialError, setTrialError] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  async function cancelSubscription() {
+    if (!window.confirm("Cancel your subscription? You'll keep access until the end of the period you've paid for.")) {
+      return;
+    }
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await cancelWorkspaceSubscription();
+      onWorkspaceChange?.();
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Couldn't cancel. Email hello@crmscoring.com.");
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   async function beginTrial() {
     setStartingTrial(true);
@@ -121,15 +146,31 @@ export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
   }
 
   if (status.licensed) {
+    // A hosted workspace's own subscription: expires_at is only set once it
+    // was cancelled (access runs to the end of the paid period).
+    const hostedSubscription = status.hosted && status.plan === "subscription";
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-panel px-5 py-3 text-sm shadow-sm">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-panel px-5 py-3 text-sm shadow-sm">
         <CheckBadgeIcon className="h-4 w-4 shrink-0 text-accent" />
         <span className="text-text">
           Licensed to <strong className="text-heading">{status.customer_email}</strong> ({status.tier} plan)
           {status.expires_at && (
-            <span className="text-text/75"> — renews {new Date(status.expires_at * 1000).toLocaleDateString()}</span>
+            <span className="text-text/75">
+              {hostedSubscription ? " — cancelled, active until " : " — renews "}
+              {new Date(status.expires_at * 1000).toLocaleDateString()}
+            </span>
           )}
         </span>
+        {hostedSubscription && !status.expires_at && (
+          <button
+            className="ml-auto text-xs text-text/70 underline hover:text-heading disabled:opacity-50"
+            disabled={cancelling}
+            onClick={cancelSubscription}
+          >
+            {cancelling ? "Cancelling…" : "Cancel subscription"}
+          </button>
+        )}
+        {cancelError && <p className="w-full text-hot">{cancelError}</p>}
       </div>
     );
   }

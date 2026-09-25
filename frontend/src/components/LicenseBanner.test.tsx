@@ -15,6 +15,7 @@ vi.mock("../api", async (importActual) => {
     fetchBraintreeClientToken: vi.fn(),
     subscribeWithBraintree: vi.fn(),
     startFreeTrial: vi.fn(),
+    cancelWorkspaceSubscription: vi.fn(),
   };
 });
 
@@ -255,5 +256,46 @@ describe("LicenseBanner", () => {
     expect(screen.queryByText("LK")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(onWorkspaceChange).toHaveBeenCalled();
+  });
+
+  it("lets a hosted subscriber cancel, keeping access until the paid period ends", async () => {
+    api.setTenantApiKey("key");
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      hosted: true, licensed: true, customer_email: "Jane Doe", plan: "subscription", tier: "pro", expires_at: null,
+    });
+    vi.mocked(api.cancelWorkspaceSubscription).mockResolvedValue({ status: "cancelled", access_until: 1790000000 });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const onWorkspaceChange = vi.fn();
+
+    render(<LicenseBanner onWorkspaceChange={onWorkspaceChange} />);
+    await userEvent.click(await screen.findByRole("button", { name: /cancel subscription/i }));
+
+    expect(api.cancelWorkspaceSubscription).toHaveBeenCalled();
+    expect(onWorkspaceChange).toHaveBeenCalled();
+  });
+
+  it("doesn't cancel if the subscriber changes their mind", async () => {
+    api.setTenantApiKey("key");
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      hosted: true, licensed: true, customer_email: "Jane Doe", plan: "subscription", tier: "pro", expires_at: null,
+    });
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<LicenseBanner />);
+    await userEvent.click(await screen.findByRole("button", { name: /cancel subscription/i }));
+
+    expect(api.cancelWorkspaceSubscription).not.toHaveBeenCalled();
+  });
+
+  it("shows when a cancelled hosted subscription ends, with no cancel button", async () => {
+    api.setTenantApiKey("key");
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      hosted: true, licensed: true, customer_email: "Jane Doe", plan: "subscription", tier: "pro", expires_at: 1790000000,
+    });
+
+    render(<LicenseBanner />);
+
+    expect(await screen.findByText(/cancelled, active until/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /cancel subscription/i })).not.toBeInTheDocument();
   });
 });

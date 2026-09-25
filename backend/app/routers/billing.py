@@ -14,6 +14,7 @@ import json
 import sys
 import threading
 import time
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -25,7 +26,7 @@ from pydantic import BaseModel, EmailStr, Field
 from starlette.concurrency import run_in_threadpool
 
 from .. import storage
-from ..auth import get_optional_tenant
+from ..auth import get_current_tenant, get_optional_tenant
 from ..config import (
     BILLING_CURRENCY,
     BRAINTREE_ENVIRONMENT,
@@ -305,6 +306,44 @@ def braintree_subscribe(
     return {**result, "workspace_upgraded": workspace}
 
 
+def _paid_until(subscription) -> float | None:
+    """End of the last paid day, as epoch seconds (None if unknown)."""
+    paid_through = getattr(subscription, "paid_through_date", None)
+    if isinstance(paid_through, str):
+        paid_through = date.fromisoformat(paid_through)
+    if not isinstance(paid_through, date):
+        return None
+    day_after = datetime.combine(paid_through + timedelta(days=1), datetime.min.time(), tzinfo=timezone.utc)
+    return day_after.timestamp()
+
+
+@router.post("/subscription/cancel")
+def cancel_workspace_subscription(tenant: storage.Tenant = Depends(get_current_tenant)):
+    """Self-serve cancel for a hosted workspace. Stops future charges; the
+    workspace keeps its plan until the end of the period already paid for."""
+    subscription_id = storage.get_tenant_subscription_id(tenant.id)
+    if not subscription_id:
+        raise HTTPException(status_code=404, detail="This workspace has no active subscription.")
+    gateway = _gateway()
+    try:
+        subscription = gateway.subscription.find(subscription_id)
+        if subscription.status != braintree.Subscription.Status.Canceled:
+            result = gateway.subscription.cancel(subscription_id)
+            if not result.is_success:
+                logger.warning("Couldn't cancel {}: {}", subscription_id, result.message)
+                raise HTTPException(status_code=502, detail="Braintree couldn't cancel the subscription.")
+    except braintree.exceptions.NotFoundError:
+        subscription = None
+    except BraintreeError as exc:
+        logger.warning("Couldn't cancel {}: {!r}", subscription_id, exc)
+        raise HTTPException(status_code=502, detail="Couldn't connect to Braintree.")
+
+    access_until = _paid_until(subscription) if subscription is not None else None
+    storage.end_tenant_subscription(subscription_id, access_until)
+    logger.info("Workspace {} cancelled {} (access until {})", tenant.id, subscription_id, access_until)
+    return {"status": "cancelled", "access_until": access_until}
+
+
 @router.post("/braintree/webhook")
 async def braintree_webhook(request: Request):
     """Renewals, plus a fallback if the checkout response never reached the buyer.
@@ -334,9 +373,11 @@ def _handle_webhook(signature: str, payload: str) -> dict:
     kind = notification.kind
     Kind = braintree.WebhookNotification.Kind
     if kind in (Kind.SubscriptionCanceled, Kind.SubscriptionExpired):
-        # A hosted workspace drops back to Starter; a self-hosted buyer's
-        # last key just runs out, since no renewal will issue a new one.
-        storage.end_tenant_subscription(notification.subscription.id)
+        # A hosted workspace keeps its plan until the paid period ends (if
+        # cancelled early), then drops to Starter; a self-hosted buyer's last
+        # key just runs out, since no renewal will issue a new one.
+        until = _paid_until(notification.subscription) if kind == Kind.SubscriptionCanceled else None
+        storage.end_tenant_subscription(notification.subscription.id, until)
         logger.info("Braintree {} for subscription {}", kind, notification.subscription.id)
         return {"status": "ok"}
     if kind not in (Kind.SubscriptionChargedSuccessfully, Kind.SubscriptionWentActive):

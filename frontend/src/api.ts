@@ -96,6 +96,13 @@ export async function fetchLicenseStatus(): Promise<LicenseStatus> {
   return handle(res);
 }
 
+// Hosted deployment only: stops future charges; the workspace keeps its plan
+// until access_until (epoch seconds), the end of the period already paid for.
+export async function cancelWorkspaceSubscription(): Promise<{ status: "cancelled"; access_until: number | null }> {
+  const res = await fetch(`${BASE}/billing/subscription/cancel`, { method: "POST", headers: authHeaders() });
+  return handle(res);
+}
+
 // Hosted deployment only: a private Starter workspace, no signup needed.
 export async function startFreeTrial(): Promise<TenantAuth> {
   const res = await fetch(`${BASE}/accounts/trial`, { method: "POST" });

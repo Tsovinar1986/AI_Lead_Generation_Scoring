@@ -143,3 +143,53 @@ def test_hosted_signup_starts_on_starter(client, hosted, monkeypatch):
 def test_self_hosted_install_is_unchanged(client):
     assert client.get("/api/leads").status_code == 200
     assert client.get("/api/license").json()["hosted"] is False
+
+
+def _subscribed_workspace(client, monkeypatch, tmp_path, cancel_calls, paid_through):
+    headers = _trial(client)
+    tenant = storage.get_tenant_by_api_key(headers["Authorization"].removeprefix("Bearer "))
+    storage.set_tenant_subscription(tenant.id, "pro", "sub7")
+    subscription = SimpleNamespace(id="sub7", status="Active", paid_through_date=paid_through)
+    gateway = SimpleNamespace(subscription=SimpleNamespace(
+        find=lambda sub_id: subscription,
+        cancel=lambda sub_id: cancel_calls.append(sub_id) or SimpleNamespace(is_success=True),
+    ))
+    monkeypatch.setattr(billing, "_gateway", lambda: gateway)
+    return headers
+
+
+def test_cancel_keeps_access_until_the_paid_period_ends(client, hosted, monkeypatch, tmp_path):
+    from datetime import date, timedelta
+
+    cancels = []
+    headers = _subscribed_workspace(client, monkeypatch, tmp_path, cancels, date.today() + timedelta(days=10))
+
+    response = client.post("/api/billing/subscription/cancel", headers=headers)
+
+    assert response.json()["status"] == "cancelled"
+    assert cancels == ["sub7"]
+    status = client.get("/api/license", headers=headers).json()
+    assert status["tier"] == "pro"
+    assert status["expires_at"] == response.json()["access_until"]
+    # Cancelling twice isn't possible -- the subscription is detached.
+    assert client.post("/api/billing/subscription/cancel", headers=headers).status_code == 404
+
+
+def test_workspace_drops_to_starter_once_the_paid_period_is_over(client, hosted, monkeypatch, tmp_path):
+    from datetime import date, timedelta
+
+    headers = _subscribed_workspace(client, monkeypatch, tmp_path, [], date.today() - timedelta(days=2))
+
+    client.post("/api/billing/subscription/cancel", headers=headers)
+
+    status = client.get("/api/license", headers=headers).json()
+    assert status["tier"] == "starter"
+    assert status["licensed"] is False
+
+
+def test_cancel_needs_a_subscription(client, hosted):
+    assert client.post("/api/billing/subscription/cancel", headers=_trial(client)).status_code == 404
+
+
+def test_cancel_needs_a_workspace(client, hosted):
+    assert client.post("/api/billing/subscription/cancel").status_code == 401

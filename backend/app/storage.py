@@ -44,6 +44,8 @@ class Tenant:
     name: str
     plan: str | None = None
     email: str | None = None
+    # When a cancelled hosted subscription's paid period ends (epoch secs).
+    plan_expires_at: float | None = None
 
 
 # The few statements below genuinely differ between SQLite and Postgres
@@ -123,6 +125,11 @@ def _connect():
         conn.execute("ALTER TABLE tenants ADD COLUMN uploads_used INTEGER NOT NULL DEFAULT 0")
     if "subscription_id" not in existing_cols:
         conn.execute("ALTER TABLE tenants ADD COLUMN subscription_id TEXT")
+    if "plan_expires_at" not in existing_cols:
+        conn.execute(
+            "ALTER TABLE tenants ADD COLUMN plan_expires_at "
+            + ("DOUBLE PRECISION" if _db.IS_POSTGRES else "REAL")
+        )
     # Partial index: enforces uniqueness among real emails while still
     # allowing unlimited NULLs, since scripts/create_tenant.py-provisioned
     # tenants have no email/login of their own. Supported the same way on
@@ -172,9 +179,17 @@ def create_tenant(
 def get_tenant_by_api_key(api_key: str) -> Tenant | None:
     with _lock:
         row = _conn.execute(
-            "SELECT id, name, plan, email FROM tenants WHERE api_key_hash = ?", (_hash_key(api_key),)
+            "SELECT id, name, plan, email, plan_expires_at FROM tenants WHERE api_key_hash = ?",
+            (_hash_key(api_key),),
         ).fetchone()
-    return Tenant(id=row[0], name=row[1], plan=row[2], email=row[3]) if row else None
+    if row is None:
+        return None
+    plan, expires_at = row[2], row[4]
+    # A cancelled subscription keeps its plan until the paid period ends,
+    # then the workspace is simply back on Starter.
+    if plan not in (None, STARTER_PLAN) and expires_at is not None and time.time() >= expires_at:
+        plan, expires_at = STARTER_PLAN, None
+    return Tenant(id=row[0], name=row[1], plan=plan, email=row[3], plan_expires_at=expires_at)
 
 
 def get_tenant_by_id(tenant_id: str) -> Tenant | None:
@@ -374,19 +389,34 @@ def set_tenant_subscription(tenant_id: str, plan: str, subscription_id: str) -> 
     """Upgrades a hosted workspace after it subscribes from inside the app."""
     with _lock, _conn:
         _conn.execute(
-            "UPDATE tenants SET plan = ?, subscription_id = ? WHERE id = ?", (plan, subscription_id, tenant_id)
+            "UPDATE tenants SET plan = ?, subscription_id = ?, plan_expires_at = NULL WHERE id = ?",
+            (plan, subscription_id, tenant_id),
         )
 
 
-def end_tenant_subscription(subscription_id: str) -> None:
-    """Back to Starter once a hosted workspace's subscription is cancelled or
-    expires. Uploads already used stay used, so it's straight back to the
-    upgrade prompt rather than a fresh free allowance."""
+def get_tenant_subscription_id(tenant_id: str) -> str | None:
+    with _lock:
+        row = _conn.execute("SELECT subscription_id FROM tenants WHERE id = ?", (tenant_id,)).fetchone()
+    return row[0] if row else None
+
+
+def end_tenant_subscription(subscription_id: str, access_until: float | None = None) -> None:
+    """A hosted workspace's subscription was cancelled or expired. It keeps
+    its plan until access_until (the end of what was paid for), or drops to
+    Starter right away if that's None. Uploads already used stay used, so
+    it's straight back to the upgrade prompt, not a fresh free allowance."""
     with _lock, _conn:
-        _conn.execute(
-            "UPDATE tenants SET plan = ?, subscription_id = NULL WHERE subscription_id = ?",
-            (STARTER_PLAN, subscription_id),
-        )
+        if access_until is None:
+            _conn.execute(
+                "UPDATE tenants SET plan = ?, subscription_id = NULL, plan_expires_at = NULL "
+                "WHERE subscription_id = ?",
+                (STARTER_PLAN, subscription_id),
+            )
+        else:
+            _conn.execute(
+                "UPDATE tenants SET subscription_id = NULL, plan_expires_at = ? WHERE subscription_id = ?",
+                (access_until, subscription_id),
+            )
 
 
 def _reset_for_tests(path: str) -> None:
