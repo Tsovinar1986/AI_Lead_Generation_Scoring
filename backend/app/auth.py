@@ -12,11 +12,17 @@ accidentally leak into (or read) someone else's data.
 
 from fastapi import Header, HTTPException
 
-from . import storage
+from . import config, storage
+
+NO_WORKSPACE_DETAIL = "Start a free trial or log in to use this workspace."
 
 
 def get_current_tenant(authorization: str | None = Header(default=None)) -> storage.Tenant:
     if authorization is None:
+        if config.HOSTED_MODE:
+            # The default workspace on a public deployment belongs to the
+            # seller (and runs on their license) -- never hand it to visitors.
+            raise HTTPException(status_code=401, detail=NO_WORKSPACE_DETAIL)
         return storage.Tenant(id=storage.DEFAULT_TENANT_ID, name="default")
 
     if not authorization.startswith("Bearer "):
@@ -27,3 +33,11 @@ def get_current_tenant(authorization: str | None = Header(default=None)) -> stor
     if tenant is None:
         raise HTTPException(status_code=401, detail="Invalid API key")
     return tenant
+
+
+def get_optional_tenant(authorization: str | None = Header(default=None)) -> storage.Tenant | None:
+    """Like get_current_tenant, but None instead of 401 when there's no
+    workspace key -- for endpoints that also serve anonymous visitors."""
+    if authorization is None:
+        return None if config.HOSTED_MODE else storage.Tenant(id=storage.DEFAULT_TENANT_ID, name="default")
+    return get_current_tenant(authorization)

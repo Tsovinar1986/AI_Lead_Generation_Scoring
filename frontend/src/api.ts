@@ -89,11 +89,16 @@ export async function pushToCrm(
   return handle(res);
 }
 
-// Deployment-wide, not tenant-scoped -- licensing gates the whole self-hosted
-// instance, not an individual tenant within it, so these don't send the
-// tenant Authorization header.
+// Deployment-wide on a self-hosted install; on the hosted deployment it
+// reports the current workspace's own trial/subscription, hence the header.
 export async function fetchLicenseStatus(): Promise<LicenseStatus> {
-  const res = await fetch(`${BASE}/license`);
+  const res = await fetch(`${BASE}/license`, { headers: authHeaders() });
+  return handle(res);
+}
+
+// Hosted deployment only: a private Starter workspace, no signup needed.
+export async function startFreeTrial(): Promise<TenantAuth> {
+  const res = await fetch(`${BASE}/accounts/trial`, { method: "POST" });
   return handle(res);
 }
 
@@ -113,9 +118,10 @@ export async function fetchBraintreeClientToken(): Promise<string> {
 // subscription. Returns the license key; "duplicate" means a webhook got
 // there first and the key arrives by email instead.
 export async function subscribeWithBraintree(request: SubscribeRequest): Promise<SubscriptionActivation> {
+  // The workspace header lets the hosted deployment upgrade that workspace.
   const res = await fetch(`${BASE}/billing/braintree/subscribe`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(request),
   });
   return handle(res);

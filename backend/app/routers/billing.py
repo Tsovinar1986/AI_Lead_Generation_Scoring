@@ -19,11 +19,13 @@ from typing import Literal
 
 import braintree
 from braintree.exceptions.braintree_error import BraintreeError
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger
 from pydantic import BaseModel, EmailStr, Field
 from starlette.concurrency import run_in_threadpool
 
+from .. import storage
+from ..auth import get_optional_tenant
 from ..config import (
     BILLING_CURRENCY,
     BRAINTREE_ENVIRONMENT,
@@ -34,6 +36,7 @@ from ..config import (
     BRAINTREE_PLAN_PRO_MONTHLY,
     BRAINTREE_PRIVATE_KEY,
     BRAINTREE_PUBLIC_KEY,
+    HOSTED_MODE,
     LICENSE_PRIVATE_KEY,
     LICENSE_VALIDITY_DAYS_ANNUAL,
     LICENSE_VALIDITY_DAYS_MONTHLY,
@@ -255,8 +258,16 @@ def braintree_client_token():
 
 @router.post("/braintree/subscribe")
 @limiter.limit(RATE_LIMIT_AUTH)
-def braintree_subscribe(request: Request, payload: SubscribeRequest):
-    """Vault the buyer's card and start the subscription; returns the key."""
+def braintree_subscribe(
+    request: Request,
+    payload: SubscribeRequest,
+    tenant: storage.Tenant | None = Depends(get_optional_tenant),
+):
+    """Vault the buyer's card and start the subscription; returns the key.
+
+    On the hosted deployment, subscribing from inside a workspace also
+    upgrades that workspace (until the subscription ends -- see the webhook).
+    """
     plan_id = _plan_for(payload.tier, payload.interval)
     if not plan_id:
         raise HTTPException(status_code=503, detail="Billing plans aren't configured on this deployment.")
@@ -285,7 +296,13 @@ def braintree_subscribe(request: Request, payload: SubscribeRequest):
         logger.info("Braintree subscription create failed for {}: {}", payload.email or "(no email)", created.message)
         raise HTTPException(status_code=402, detail=_result_error(created))
 
-    return _fulfil(created.subscription, licensee=payload.email)
+    subscription = created.subscription
+    workspace = HOSTED_MODE and tenant is not None and tenant.id != storage.DEFAULT_TENANT_ID
+    if workspace:
+        storage.set_tenant_subscription(tenant.id, payload.tier, subscription.id)
+        logger.info("Workspace {} upgraded to {} ({})", tenant.id, payload.tier, subscription.id)
+    result = _fulfil(subscription, licensee=payload.email or (tenant.email if workspace else None))
+    return {**result, "workspace_upgraded": workspace}
 
 
 @router.post("/braintree/webhook")
@@ -316,11 +333,16 @@ def _handle_webhook(signature: str, payload: str) -> dict:
     notification = _parse_webhook(signature, payload)
     kind = notification.kind
     Kind = braintree.WebhookNotification.Kind
+    if kind in (Kind.SubscriptionCanceled, Kind.SubscriptionExpired):
+        # A hosted workspace drops back to Starter; a self-hosted buyer's
+        # last key just runs out, since no renewal will issue a new one.
+        storage.end_tenant_subscription(notification.subscription.id)
+        logger.info("Braintree {} for subscription {}", kind, notification.subscription.id)
+        return {"status": "ok"}
     if kind not in (Kind.SubscriptionChargedSuccessfully, Kind.SubscriptionWentActive):
         if kind == Kind.Check:
             return {"status": "ok"}  # the Control Panel's "Check URL" test
-        # Cancelled/past due/expired: nothing to revoke -- the last key just
-        # runs out, since no renewal will issue a new one.
+        # Past due etc.: nothing to do until it's charged or cancelled.
         subscription = getattr(notification, "subscription", None)
         logger.info("Braintree {} for subscription {}", kind, getattr(subscription, "id", None))
         return {"status": "ignored"}

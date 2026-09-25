@@ -32,16 +32,20 @@ export interface ScoredLead {
 
 export type LicenseTier = "starter" | "pro" | "advanced";
 
-export type LicenseStatus =
+// hosted: the seller's public deployment (backend HOSTED_MODE), where each
+// visitor gets a private free-trial workspace instead of the default one.
+export type LicenseStatus = { hosted?: boolean } & (
   | {
       licensed: false;
-      reason: "trial" | "trial_expired" | "invalid" | "expired";
+      // no_workspace: hosted deployment, visitor hasn't started a trial yet.
+      reason: "trial" | "trial_expired" | "invalid" | "expired" | "no_workspace";
       customer_email: string | null;
       plan: string | null;
       tier: LicenseTier;
       trial_uploads_left: number | null;
     }
-  | { licensed: true; customer_email: string; plan: string; tier: LicenseTier; expires_at: number | null };
+  | { licensed: true; customer_email: string; plan: string; tier: LicenseTier; expires_at: number | null }
+);
 
 export type BillingInterval = "monthly" | "annual";
 export type PlanTier = "starter" | "pro" | "advanced";
@@ -73,7 +77,15 @@ export interface SubscribeRequest {
 }
 
 export type SubscriptionActivation =
-  | { status: "ok"; email: string; tier: PaidTier; plan: BillingInterval; license_key: string }
+  | {
+      status: "ok";
+      email: string;
+      tier: PaidTier;
+      plan: BillingInterval;
+      license_key: string;
+      // Hosted deployment: the buyer's own workspace was upgraded in place.
+      workspace_upgraded?: boolean;
+    }
   | { status: "duplicate" };
 
 export interface TenantAuth {

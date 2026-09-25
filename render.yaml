@@ -36,6 +36,11 @@ services:
         sync: false
       - key: LICENSE_PUBLIC_KEY
         sync: false
+      # Public hosted app behind crmscoring.com's "Get started free": each
+      # visitor gets a private trial workspace; the default workspace (and
+      # this deployment's own LICENSE_KEY) is never exposed to them.
+      - key: HOSTED_MODE
+        value: "true"
       - key: BRAINTREE_ENVIRONMENT
         value: sandbox
       - key: BRAINTREE_MERCHANT_ID

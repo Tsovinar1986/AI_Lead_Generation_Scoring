@@ -97,6 +97,21 @@ LICENSE_PUBLIC_KEY = os.getenv("LICENSE_PUBLIC_KEY", "")
 # whoever runs this deployment, not a buyer of the software itself, so it's
 # never gated by this deployment's own license.
 LICENSE_REQUIRED = os.getenv("LICENSE_REQUIRED", "false").lower() == "true"
+# For the seller's own public deployment (the one crmscoring.com's "Get
+# started free" button opens). When true:
+# - requests with no workspace key are refused (401) instead of landing in
+#   the shared default workspace, which runs on the seller's own license --
+#   so visitors can neither see each other's leads nor use that license;
+# - POST /api/accounts/trial hands every visitor a private Starter workspace
+#   with its own TRIAL_MAX_UPLOADS/TRIAL_MAX_LEADS_PER_UPLOAD allowance;
+# - self-serve signups start on Starter too, and a workspace is upgraded by
+#   subscribing from inside it (routers/billing.py).
+# Leave false for a buyer's self-hosted install -- zero-config as before.
+HOSTED_MODE = os.getenv("HOSTED_MODE", "false").lower() == "true"
+# Per-IP limit on creating free trial workspaces (hosted mode only) -- each
+# one comes with a fresh upload allowance, and every scored lead costs an
+# LLM call.
+RATE_LIMIT_TRIAL = os.getenv("RATE_LIMIT_TRIAL", "3/hour")
 # How many total /api/leads/upload calls the free Starter tier (no
 # Pro/Advanced LICENSE_KEY) gets before it starts 402ing -- Starter has no
 # time limit, only this lifetime cap; buying Pro or Advanced removes it

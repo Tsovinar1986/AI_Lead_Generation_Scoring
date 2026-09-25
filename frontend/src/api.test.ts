@@ -5,6 +5,8 @@ import {
   clearTenantApiKey,
   fetchBillingConfig,
   fetchBraintreeClientToken,
+  fetchLicenseStatus,
+  startFreeTrial,
   fetchLeads,
   setTenantApiKey,
   subscribeWithBraintree,
@@ -154,5 +156,28 @@ describe("subscribeWithBraintree", () => {
     mockFetchOnce(402, { detail: "Your card was declined. Please try a different card." });
 
     await expect(subscribeWithBraintree(request)).rejects.toThrow("Your card was declined");
+  });
+});
+
+describe("free trial and workspace-aware license status", () => {
+  it("starts a trial with a POST to /accounts/trial", async () => {
+    mockFetchOnce(200, { tenant_id: "t1", name: "Free trial", api_key: "k" });
+
+    await expect(startFreeTrial()).resolves.toEqual({ tenant_id: "t1", name: "Free trial", api_key: "k" });
+
+    const [url, options] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toContain("/accounts/trial");
+    expect(options?.method).toBe("POST");
+  });
+
+  it("sends the workspace key when fetching license status", async () => {
+    setTenantApiKey("k");
+    mockFetchOnce(200, { licensed: false, reason: "trial" });
+
+    await fetchLicenseStatus();
+
+    const [, options] = vi.mocked(fetch).mock.calls[0];
+    expect(options?.headers).toEqual({ Authorization: "Bearer k" });
+    clearTenantApiKey();
   });
 });

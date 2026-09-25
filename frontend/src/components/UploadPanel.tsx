@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { LicenseRequiredError, fetchBillingConfig, uploadLeads } from "../api";
+import { LicenseRequiredError, TenantAuthError, fetchBillingConfig, uploadLeads } from "../api";
 import type { BillingConfig, BillingInterval, ScoredLead } from "../types";
 import { BraintreeSubscribe } from "./BraintreeSubscribe";
 
@@ -67,7 +67,13 @@ export function UploadPanel({ onUploaded }: Props) {
       if (err instanceof LicenseRequiredError) {
         setLicenseRequired(true);
       } else {
-        setError(err instanceof Error ? err.message : "Upload failed");
+        setError(
+          err instanceof TenantAuthError
+            ? "Start a free trial above to upload your leads."
+            : err instanceof Error
+              ? err.message
+              : "Upload failed"
+        );
       }
     } finally {
       setBusy(false);

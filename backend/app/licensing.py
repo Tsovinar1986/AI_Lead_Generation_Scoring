@@ -93,6 +93,12 @@ def verify_license() -> LicenseInfo | None:
     return check.info if check.state == LicenseState.VALID else None
 
 
+def workspace_uploads_left(tenant_id: str) -> int:
+    """trial_uploads_left for one hosted Starter workspace (HOSTED_MODE),
+    counted per workspace instead of per deployment."""
+    return max(0, TRIAL_MAX_UPLOADS - storage.get_tenant_uploads_used(tenant_id))
+
+
 def trial_uploads_left() -> int:
     """Uploads remaining on the permanent free Starter tier, floored at 0.
     Only meaningful when there's no valid Pro/Advanced license -- callers gate

@@ -28,7 +28,7 @@ from loguru import logger
 from pydantic import BaseModel, EmailStr, Field
 
 from .. import storage
-from ..config import APP_BASE_URL, PASSWORD_RESET_TTL_MINUTES, RATE_LIMIT_AUTH
+from ..config import APP_BASE_URL, HOSTED_MODE, PASSWORD_RESET_TTL_MINUTES, RATE_LIMIT_AUTH, RATE_LIMIT_TRIAL
 from ..licensing import verify_license
 from ..middleware import limiter
 from ..services.password import hash_password, validate_password_strength, verify_password
@@ -80,9 +80,27 @@ def signup(request: Request, payload: SignupRequest):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     tenant, api_key = storage.create_tenant(
-        payload.name, email=payload.email, password_hash=hash_password(payload.password)
+        payload.name,
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        # On the public hosted deployment a signup is just a free trial with
+        # a login -- metered until it subscribes (see config.HOSTED_MODE).
+        plan=storage.STARTER_PLAN if HOSTED_MODE else None,
     )
     logger.info("New self-serve signup: {} ({})", tenant.name, payload.email)
+    return TenantAuthResponse(tenant_id=tenant.id, name=tenant.name, api_key=api_key)
+
+
+@router.post("/trial", response_model=TenantAuthResponse)
+@limiter.limit(RATE_LIMIT_TRIAL)
+def start_trial(request: Request):
+    """One-click private Starter workspace for crmscoring.com's "Get started
+    free" -- no email or password. Hosted mode only: a self-hosted install
+    already has its own free tier on the default workspace."""
+    if not HOSTED_MODE:
+        raise HTTPException(status_code=404, detail="Free trials aren't offered on this deployment.")
+    tenant, api_key = storage.create_tenant("Free trial", plan=storage.STARTER_PLAN)
+    logger.info("New free trial workspace {}", tenant.id)
     return TenantAuthResponse(tenant_id=tenant.id, name=tenant.name, api_key=api_key)
 
 

@@ -14,6 +14,7 @@ vi.mock("../api", async (importActual) => {
     fetchBillingConfig: vi.fn(),
     fetchBraintreeClientToken: vi.fn(),
     subscribeWithBraintree: vi.fn(),
+    startFreeTrial: vi.fn(),
   };
 });
 
@@ -26,6 +27,7 @@ const trial = {
 describe("LicenseBanner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     // Most tests don't care about checkout -- default it "off" unless a test
     // explicitly opts in.
     vi.mocked(api.fetchBillingConfig).mockResolvedValue({ environment: "sandbox", checkout_available: false });
@@ -175,5 +177,83 @@ describe("LicenseBanner", () => {
 
     expect(await screen.findByText("Please complete your card details.")).toBeInTheDocument();
     expect(api.subscribeWithBraintree).not.toHaveBeenCalled();
+  });
+
+  it("offers a one-click free trial to a new visitor on the hosted deployment", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      hosted: true, licensed: false, reason: "no_workspace", customer_email: null, plan: null, tier: "starter", trial_uploads_left: null,
+    });
+    vi.mocked(api.startFreeTrial).mockResolvedValue({ tenant_id: "t1", name: "Free trial", api_key: "trial-key" });
+    const onWorkspaceChange = vi.fn();
+
+    render(<LicenseBanner onWorkspaceChange={onWorkspaceChange} />);
+    await userEvent.click(await screen.findByRole("button", { name: /start free trial/i }));
+
+    expect(api.getTenantApiKey()).toBe("trial-key");
+    expect(onWorkspaceChange).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /pro — \$20\/mo/i })).not.toBeInTheDocument();
+  });
+
+  it("shows why a free trial couldn't start", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({
+      hosted: true, licensed: false, reason: "no_workspace", customer_email: null, plan: null, tier: "starter", trial_uploads_left: null,
+    });
+    vi.mocked(api.startFreeTrial).mockRejectedValue(new Error("Rate limit exceeded"));
+
+    render(<LicenseBanner />);
+    await userEvent.click(await screen.findByRole("button", { name: /start free trial/i }));
+
+    expect(await screen.findByText("Rate limit exceeded")).toBeInTheDocument();
+    expect(api.getTenantApiKey()).toBeNull();
+  });
+
+  it("shows a hosted trial workspace its own uploads left", async () => {
+    api.setTenantApiKey("trial-key");
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({ ...trial, hosted: true, trial_uploads_left: 7 });
+
+    render(<LicenseBanner />);
+
+    expect(await screen.findByText(/7 of 10 uploads left/i)).toBeInTheDocument();
+  });
+
+  it("asks a hosted trial that ran out to subscribe, not to self-host", async () => {
+    api.setTenantApiKey("trial-key");
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({ ...trial, hosted: true, reason: "trial_expired", trial_uploads_left: 0 });
+
+    render(<LicenseBanner />);
+
+    expect(await screen.findByText("Your free trial has ended — subscribe to keep scoring leads.")).toBeInTheDocument();
+  });
+
+  it("stays hidden for a workspace on a self-hosted install", async () => {
+    api.setTenantApiKey("client-key");
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
+
+    const { container } = render(<LicenseBanner />);
+
+    await waitFor(() => expect(api.fetchLicenseStatus).toHaveBeenCalled());
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("upgrades a hosted workspace in place after paying", async () => {
+    api.setTenantApiKey("trial-key");
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue({ ...trial, hosted: true });
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
+    vi.mocked(braintree.loadDropin).mockResolvedValue(fakeDropin().namespace);
+    vi.mocked(api.subscribeWithBraintree).mockResolvedValue({
+      status: "ok", email: "Jane Doe", tier: "pro", plan: "monthly", license_key: "LK", workspace_upgraded: true,
+    });
+    const onWorkspaceChange = vi.fn();
+
+    render(<LicenseBanner onWorkspaceChange={onWorkspaceChange} />);
+    await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
+    const pay = await screen.findByRole("button", { name: /subscribe — \$20\/month/i });
+    await waitFor(() => expect(pay).toBeEnabled());
+    await userEvent.click(pay);
+
+    expect(await screen.findByText(/this workspace is now on pro/i)).toBeInTheDocument();
+    expect(screen.queryByText("LK")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(onWorkspaceChange).toHaveBeenCalled();
   });
 });

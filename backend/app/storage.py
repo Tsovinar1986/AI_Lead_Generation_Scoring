@@ -31,10 +31,19 @@ DEFAULT_TENANT_ID = "default"
 _lock = Lock()
 
 
+# Tenant plans. None is an unmetered workspace -- anything provisioned by
+# scripts/create_tenant.py, or signed up while HOSTED_MODE is off. "starter"
+# workspaces (hosted free trials and hosted signups) are capped like the
+# free tier; "pro"/"advanced" are hosted workspaces with a live subscription.
+STARTER_PLAN = "starter"
+
+
 @dataclass
 class Tenant:
     id: str
     name: str
+    plan: str | None = None
+    email: str | None = None
 
 
 # The few statements below genuinely differ between SQLite and Postgres
@@ -106,6 +115,14 @@ def _connect():
         conn.execute("ALTER TABLE tenants ADD COLUMN email TEXT")
     if "password_hash" not in existing_cols:
         conn.execute("ALTER TABLE tenants ADD COLUMN password_hash TEXT")
+    # Hosted-mode plan metering (see config.HOSTED_MODE); NULL plan =
+    # unmetered, so every tenant that existed before this keeps working.
+    if "plan" not in existing_cols:
+        conn.execute("ALTER TABLE tenants ADD COLUMN plan TEXT")
+    if "uploads_used" not in existing_cols:
+        conn.execute("ALTER TABLE tenants ADD COLUMN uploads_used INTEGER NOT NULL DEFAULT 0")
+    if "subscription_id" not in existing_cols:
+        conn.execute("ALTER TABLE tenants ADD COLUMN subscription_id TEXT")
     # Partial index: enforces uniqueness among real emails while still
     # allowing unlimited NULLs, since scripts/create_tenant.py-provisioned
     # tenants have no email/login of their own. Supported the same way on
@@ -128,7 +145,7 @@ def _hash_key(api_key: str) -> str:
 
 
 def create_tenant(
-    name: str, email: str | None = None, password_hash: str | None = None
+    name: str, email: str | None = None, password_hash: str | None = None, plan: str | None = None
 ) -> tuple[Tenant, str]:
     """Provisions a new tenant with a fresh API key. The plaintext key is
     returned once, here, and never stored -- only its hash is. Give it to
@@ -138,25 +155,26 @@ def create_tenant(
 
     email/password_hash are set for a self-serve signup
     (routers/accounts.py); left None for the manual
-    scripts/create_tenant.py flow, which has no login of its own.
+    scripts/create_tenant.py flow, which has no login of its own. plan is
+    STARTER_PLAN for hosted-mode trials/signups, None (unmetered) otherwise.
     """
     tenant_id = secrets.token_hex(8)
     api_key = secrets.token_urlsafe(32)
     with _lock, _conn:
         _conn.execute(
-            "INSERT INTO tenants (id, name, api_key_hash, created_at, email, password_hash) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (tenant_id, name, _hash_key(api_key), time.time(), email, password_hash),
+            "INSERT INTO tenants (id, name, api_key_hash, created_at, email, password_hash, plan) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (tenant_id, name, _hash_key(api_key), time.time(), email, password_hash, plan),
         )
-    return Tenant(id=tenant_id, name=name), api_key
+    return Tenant(id=tenant_id, name=name, plan=plan, email=email), api_key
 
 
 def get_tenant_by_api_key(api_key: str) -> Tenant | None:
     with _lock:
         row = _conn.execute(
-            "SELECT id, name FROM tenants WHERE api_key_hash = ?", (_hash_key(api_key),)
+            "SELECT id, name, plan, email FROM tenants WHERE api_key_hash = ?", (_hash_key(api_key),)
         ).fetchone()
-    return Tenant(id=row[0], name=row[1]) if row else None
+    return Tenant(id=row[0], name=row[1], plan=row[2], email=row[3]) if row else None
 
 
 def get_tenant_by_id(tenant_id: str) -> Tenant | None:
@@ -335,6 +353,40 @@ def get_trial_uploads_used() -> int:
     with _lock:
         row = _conn.execute("SELECT value FROM app_meta WHERE key = 'trial_uploads_used'").fetchone()
     return int(row[0]) if row else 0
+
+
+def get_tenant_uploads_used(tenant_id: str) -> int:
+    with _lock:
+        row = _conn.execute("SELECT uploads_used FROM tenants WHERE id = ?", (tenant_id,)).fetchone()
+    return int(row[0]) if row else 0
+
+
+def increment_tenant_uploads(tenant_id: str) -> int:
+    """Per-workspace counterpart of increment_trial_uploads, for hosted
+    Starter workspaces (see routers/leads.py). Returns the new total."""
+    with _lock, _conn:
+        _conn.execute("UPDATE tenants SET uploads_used = uploads_used + 1 WHERE id = ?", (tenant_id,))
+        row = _conn.execute("SELECT uploads_used FROM tenants WHERE id = ?", (tenant_id,)).fetchone()
+    return int(row[0]) if row else 0
+
+
+def set_tenant_subscription(tenant_id: str, plan: str, subscription_id: str) -> None:
+    """Upgrades a hosted workspace after it subscribes from inside the app."""
+    with _lock, _conn:
+        _conn.execute(
+            "UPDATE tenants SET plan = ?, subscription_id = ? WHERE id = ?", (plan, subscription_id, tenant_id)
+        )
+
+
+def end_tenant_subscription(subscription_id: str) -> None:
+    """Back to Starter once a hosted workspace's subscription is cancelled or
+    expires. Uploads already used stay used, so it's straight back to the
+    upgrade prompt rather than a fresh free allowance."""
+    with _lock, _conn:
+        _conn.execute(
+            "UPDATE tenants SET plan = ?, subscription_id = NULL WHERE subscription_id = ?",
+            (STARTER_PLAN, subscription_id),
+        )
 
 
 def _reset_for_tests(path: str) -> None:

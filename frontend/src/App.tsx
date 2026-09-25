@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { TenantAuthError, clearTenantApiKey, fetchLeads, getTenantApiKey } from "./api";
+import { TenantAuthError, clearTenantApiKey, fetchLeads, getTenantApiKey, setTenantApiKey } from "./api";
 import { LeadDetail } from "./components/LeadDetail";
 import { LeadsTable } from "./components/LeadsTable";
 import { LicenseBanner } from "./components/LicenseBanner";
@@ -9,6 +9,18 @@ import { UploadPanel } from "./components/UploadPanel";
 import { PurchaseComplete } from "./pages/PurchaseComplete";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import type { ScoredLead } from "./types";
+
+// crmscoring.com's "Get started free" opens the app with #workspace=<key>
+// for the trial workspace it just created -- keep the key, drop it from the
+// URL so it isn't left in history or a copied link.
+function adoptWorkspaceFromUrl() {
+  const match = window.location.hash.match(/^#workspace=([\w-]+)$/);
+  if (!match) return;
+  setTenantApiKey(match[1]);
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
+adoptWorkspaceFromUrl();
 
 function LeadScoringApp() {
   const [leads, setLeads] = useState<ScoredLead[]>([]);
@@ -21,9 +33,12 @@ function LeadScoringApp() {
     fetchLeads()
       .then(setLeads)
       .catch((err) => {
-        if (err instanceof TenantAuthError) {
+        // No key at all on the hosted deployment is just a new visitor --
+        // the banner offers a free trial. Only a rejected key is an error.
+        if (err instanceof TenantAuthError && getTenantApiKey()) {
           clearTenantApiKey();
-          setAuthError("That workspace key was rejected — disconnected, showing the default workspace.");
+          setAuthError("That workspace key was rejected — disconnected.");
+          setWorkspaceGeneration((n) => n + 1);
         }
       });
   }, [workspaceGeneration]);
@@ -43,12 +58,6 @@ function LeadScoringApp() {
   }
 
   const selectedLead = leads.find((l) => l.id === selectedId) ?? null;
-  // The license belongs to whoever runs this deployment, not to a
-  // self-serve tenant using it -- a signed-up workspace is that operator's
-  // customer, not a buyer of the software, so it never sees license/trial
-  // messaging. workspaceGeneration in the effect above already re-renders
-  // this on connect/disconnect, so re-reading the key here stays in sync.
-  const isDefaultWorkspace = !getTenantApiKey();
 
   return (
     <div className="min-h-screen bg-bg font-sans text-text antialiased">
@@ -76,11 +85,11 @@ function LeadScoringApp() {
           {authError && <p className="mt-3 text-sm text-hot">{authError}</p>}
         </header>
 
-        {isDefaultWorkspace && (
-          <div className="animate-fade-in-up mb-5" style={{ animationDelay: "60ms" }}>
-            <LicenseBanner />
-          </div>
-        )}
+        {/* Decides for itself whether to show (see LicenseBanner). Keyed on
+            the workspace so it re-reads status after connect/disconnect. */}
+        <div className="animate-fade-in-up mb-5 empty:hidden" style={{ animationDelay: "60ms" }}>
+          <LicenseBanner key={workspaceGeneration} onWorkspaceChange={handleWorkspaceChange} />
+        </div>
 
         <main className="flex flex-col gap-5">
           <div className="animate-fade-in-up" style={{ animationDelay: "110ms" }}>

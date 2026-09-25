@@ -129,6 +129,7 @@ def test_subscribe_vaults_card_and_returns_license(client, braintree_stub):
         "tier": "advanced",
         "plan": "annual",
         "license_key": "key",
+        "workspace_upgraded": False,
     }
     assert braintree_stub.customer_params == {
         "email": "buyer@example.com",
@@ -248,7 +249,7 @@ def test_webhook_requires_form_fields(client, braintree_stub):
 
 
 def test_webhook_ignores_other_events(client, monkeypatch, braintree_stub):
-    response = _webhook(client, monkeypatch, Kind.SubscriptionCanceled)
+    response = _webhook(client, monkeypatch, Kind.SubscriptionWentPastDue)
 
     assert response.json() == {"status": "ignored"}
     assert braintree_stub.issued == []

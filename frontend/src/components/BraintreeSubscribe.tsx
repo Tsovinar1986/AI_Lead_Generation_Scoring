@@ -8,6 +8,8 @@ interface Props {
   tier: PaidTier;
   interval: BillingInterval;
   onClose: () => void;
+  // Hosted deployment: the current workspace was upgraded in place.
+  onUpgraded?: () => void;
 }
 
 type Phase =
@@ -28,7 +30,7 @@ function priceFor(config: BillingConfig, tier: PaidTier, interval: BillingInterv
 // own iframes and hands back a one-time nonce; the backend starts the
 // subscription with it and returns the license key -- the buyer never leaves
 // the app, and card details never touch our servers.
-export function BraintreeSubscribe({ config, tier, interval, onClose }: Props) {
+export function BraintreeSubscribe({ config, tier, interval, onClose, onUpgraded }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dropinRef = useRef<DropinInstance | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
@@ -126,7 +128,19 @@ export function BraintreeSubscribe({ config, tier, interval, onClose }: Props) {
 
       {phase.kind === "done" && (
         <div className="mt-3 space-y-2" role="status">
-          {phase.result.status === "ok" ? (
+          {phase.result.status === "ok" && phase.result.workspace_upgraded ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-heading">
+                You're subscribed — this workspace is now on {TIER_LABEL[tier]} with unlimited uploads.
+              </p>
+              <button
+                className="rounded-md bg-accent px-3 py-1 text-xs font-medium text-white"
+                onClick={() => (onUpgraded ?? onClose)()}
+              >
+                Continue
+              </button>
+            </div>
+          ) : phase.result.status === "ok" ? (
             <>
               <p className="text-heading">
                 You're subscribed. Your license key

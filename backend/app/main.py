@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import FileResponse
@@ -10,8 +10,10 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from .config import CORS_ALLOWED_ORIGINS, FORCE_HTTPS
-from .licensing import LicenseState, check_license, trial_uploads_left, verify_license
+from . import storage
+from .auth import get_optional_tenant
+from .config import CORS_ALLOWED_ORIGINS, FORCE_HTTPS, HOSTED_MODE
+from .licensing import LicenseState, check_license, trial_uploads_left, verify_license, workspace_uploads_left
 from .logging_config import configure_logging
 from .middleware import SecurityHeadersMiddleware, limiter
 from .routers import accounts, actions, billing, churn, leads
@@ -76,7 +78,25 @@ def health():
 
 
 @app.get("/api/license")
-def license_status():
+def license_status(tenant: storage.Tenant | None = Depends(get_optional_tenant)):
+    return {"hosted": HOSTED_MODE, **_license_status(tenant)}
+
+
+def _license_status(tenant: storage.Tenant | None) -> dict:
+    # Hosted mode: report the visitor's own workspace, never the seller's
+    # deployment license.
+    if tenant is None:
+        return {"licensed": False, "reason": "no_workspace", "customer_email": None, "plan": None,
+                "tier": "starter", "trial_uploads_left": None}
+    if tenant.plan == storage.STARTER_PLAN:
+        uploads_left = workspace_uploads_left(tenant.id)
+        return {"licensed": False, "reason": "trial" if uploads_left > 0 else "trial_expired",
+                "customer_email": tenant.email, "plan": None, "tier": "starter",
+                "trial_uploads_left": uploads_left}
+    if tenant.plan is not None:
+        return {"licensed": True, "customer_email": tenant.email or tenant.name, "plan": "subscription",
+                "tier": tenant.plan, "expires_at": None}
+
     check = check_license()
     if check.state == LicenseState.VALID:
         return {

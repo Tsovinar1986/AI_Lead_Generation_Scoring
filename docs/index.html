@@ -287,7 +287,7 @@
             <li>Hybrid rule + Claude lead scoring</li>
             <li>Hot / Warm / Cold ranking with rationale</li>
           </ul>
-          <a class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" href="https://github.com/Tsovinar1986/AI_Lead_Generation_Scoring">Get started free</a>
+          <button class="btn btn-secondary" style="width:100%; text-align:center; display:block; font: inherit;" onclick="openTrial()">Get started free</button>
         </div>
         <div class="plan featured">
           <span class="badge">Most popular</span>
@@ -318,6 +318,15 @@
         </div>
       </div>
       <p id="checkout-error" class="caption" style="display:none; color: var(--hot);"></p>
+      <div id="trial" class="checkout" hidden>
+        <div class="checkout-head">
+          <h3>Try CRM Scoring free</h3>
+          <button type="button" class="link-btn" onclick="closeTrial()">Cancel</button>
+        </div>
+        <p class="fine">Your own private workspace — no card, no signup. Includes 10 uploads of up to 10 leads each. Upgrade to Pro or Advanced any time from inside the app.</p>
+        <p id="trial-error" class="error" hidden></p>
+        <button type="button" id="trial-start" class="btn btn-primary" style="width:100%; font: inherit;" onclick="startTrial()">Start free trial</button>
+      </div>
       <div id="checkout" class="checkout" hidden>
         <div class="checkout-head">
           <h3 id="checkout-title">Subscribe</h3>
@@ -392,9 +401,36 @@
       $("dropin").innerHTML = "";
       return instance ? instance.teardown().catch(function () {}) : Promise.resolve();
     }
+    // "Get started free": creates a private trial workspace on the hosted app
+    // and opens it; the app picks the key up from #workspace=... .
+    var APP_URL = API_BASE.replace(/\/api$/, "/");
+    function openTrial() {
+      clearError();
+      closeCheckout();
+      $("trial").hidden = false;
+      $("trial-error").hidden = true;
+      $("trial-start").disabled = false;
+      $("trial-start").textContent = "Start free trial";
+      $("trial").scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    function closeTrial() { $("trial").hidden = true; }
+    function startTrial() {
+      $("trial-start").disabled = true;
+      $("trial-start").textContent = "Setting up your workspace…";
+      $("trial-error").hidden = true;
+      api("/accounts/trial", { method: "POST" }).then(function (body) {
+        window.location.href = APP_URL + "#workspace=" + encodeURIComponent(body.api_key);
+      }, function (err) {
+        $("trial-start").disabled = false;
+        $("trial-start").textContent = "Start free trial";
+        $("trial-error").textContent = /rate limit/i.test(err.message) ? "Too many trials started from your network — please try again later." : err.message;
+        $("trial-error").hidden = false;
+      });
+    }
     function closeCheckout() { teardown(); $("checkout").hidden = true; checkoutPlan = null; }
     function buyPlan(tier) {
       clearError();
+      closeTrial();
       var plan = { tier: tier, interval: currentInterval };
       checkoutPlan = plan;
       $("checkout").hidden = false;

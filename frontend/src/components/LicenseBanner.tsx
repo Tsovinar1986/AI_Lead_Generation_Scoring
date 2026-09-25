@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchBillingConfig, fetchLicenseStatus } from "../api";
+import { fetchBillingConfig, fetchLicenseStatus, getTenantApiKey, setTenantApiKey, startFreeTrial } from "../api";
 import type { BillingConfig, BillingInterval, LicenseStatus, PaidTier } from "../types";
 import { BraintreeSubscribe } from "./BraintreeSubscribe";
 
@@ -47,10 +47,31 @@ function CheckBadgeIcon({ className }: { className?: string }) {
   );
 }
 
-export function LicenseBanner() {
+interface Props {
+  // Called after a free trial starts or a workspace is upgraded, so the app
+  // reloads the workspace (and this banner) with the new state.
+  onWorkspaceChange?: () => void;
+}
+
+export function LicenseBanner({ onWorkspaceChange }: Props = {}) {
   const [status, setStatus] = useState<LicenseStatus | null>(null);
   const [billing, setBilling] = useState<BillingConfig | null>(null);
   const [selected, setSelected] = useState<Selection | null>(null);
+  const [startingTrial, setStartingTrial] = useState(false);
+  const [trialError, setTrialError] = useState<string | null>(null);
+
+  async function beginTrial() {
+    setStartingTrial(true);
+    setTrialError(null);
+    try {
+      const auth = await startFreeTrial();
+      setTenantApiKey(auth.api_key);
+      onWorkspaceChange?.();
+    } catch (err) {
+      setTrialError(err instanceof Error ? err.message : "Couldn't start your trial. Please try again.");
+      setStartingTrial(false);
+    }
+  }
 
   useEffect(() => {
     fetchLicenseStatus()
@@ -75,6 +96,29 @@ export function LicenseBanner() {
   }
 
   if (status === null) return null;
+
+  // On a self-hosted install the license belongs to whoever runs it, not to
+  // a self-serve workspace using it -- those never see license messaging.
+  // The hosted deployment reports each workspace's own plan, so show it.
+  if (!status.hosted && getTenantApiKey()) return null;
+
+  if (!status.licensed && status.reason === "no_workspace") {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent-soft px-5 py-4 text-sm shadow-sm">
+        <div>
+          <p className="font-medium text-heading">Try it free — no card, no signup.</p>
+          <p className="text-text/80">
+            Your own private workspace with 10 uploads (up to 10 leads each). Already have an account? Log in at the top
+            right.
+          </p>
+          {trialError && <p className="mt-1 text-hot">{trialError}</p>}
+        </div>
+        <button className={btnPrimary} disabled={startingTrial} onClick={beginTrial}>
+          {startingTrial ? "Starting…" : "Start free trial"}
+        </button>
+      </div>
+    );
+  }
 
   if (status.licensed) {
     return (
@@ -108,8 +152,9 @@ export function LicenseBanner() {
           }
         : status.reason === "trial_expired"
           ? {
-              message:
-                "Your free trial has ended — buy a license to keep scoring leads, or sign up for your own workspace (top right) to start fresh.",
+              message: status.hosted
+                ? "Your free trial has ended — subscribe to keep scoring leads."
+                : "Your free trial has ended — buy a license to keep scoring leads, or sign up for your own workspace (top right) to start fresh.",
               showBuyButtons: true,
             }
           : {
@@ -170,6 +215,7 @@ export function LicenseBanner() {
           tier={selected.tier}
           interval={selected.interval}
           onClose={() => setSelected(null)}
+          onUpgraded={onWorkspaceChange}
         />
       )}
     </div>

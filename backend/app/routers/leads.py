@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, Upload
 from .. import storage
 from ..auth import get_current_tenant
 from ..config import LICENSE_REQUIRED, RATE_LIMIT_UPLOAD, TRIAL_MAX_LEADS_PER_UPLOAD
-from ..licensing import trial_uploads_left, verify_license
+from ..licensing import trial_uploads_left, verify_license, workspace_uploads_left
 from ..middleware import limiter
 from ..models import ScoredLead
 from ..services.alerts import maybe_alert
@@ -33,16 +33,28 @@ async def upload_leads(
     # free Starter tier -- permanently capped by TRIAL_MAX_UPLOADS/
     # TRIAL_MAX_LEADS_PER_UPLOAD below, no time limit. A valid Pro or
     # Advanced license removes both caps entirely.
-    license_info = verify_license()
-    tier = license_info.tier if license_info else "starter"
-    gated = tenant.id == storage.DEFAULT_TENANT_ID and tier == "starter"
-    if gated and (LICENSE_REQUIRED or trial_uploads_left() <= 0):
-        raise HTTPException(
-            status_code=402,
-            detail="Starter's free upload allowance is used up. "
-            "Upgrade to Pro or Advanced at /api/billing/checkout and set LICENSE_KEY in .env, "
-            "or sign up for your own workspace at /api/accounts/signup.",
-        )
+    #
+    # Hosted mode (config.HOSTED_MODE) adds per-workspace metering: a
+    # "starter" workspace (a free trial or hosted signup) gets the same caps,
+    # counted per workspace, until it subscribes.
+    if tenant.plan == storage.STARTER_PLAN:
+        gated = True
+        if workspace_uploads_left(tenant.id) <= 0:
+            raise HTTPException(
+                status_code=402,
+                detail="Your free trial's uploads are used up. Subscribe to Pro or Advanced to keep scoring leads.",
+            )
+    else:
+        license_info = verify_license()
+        tier = license_info.tier if license_info else "starter"
+        gated = tenant.id == storage.DEFAULT_TENANT_ID and tier == "starter"
+        if gated and (LICENSE_REQUIRED or trial_uploads_left() <= 0):
+            raise HTTPException(
+                status_code=402,
+                detail="Starter's free upload allowance is used up. "
+                "Upgrade to Pro or Advanced at /api/billing/checkout and set LICENSE_KEY in .env, "
+                "or sign up for your own workspace at /api/accounts/signup.",
+            )
 
     content = await file.read()
     validate_upload_file(file.filename, content)
@@ -64,7 +76,9 @@ async def upload_leads(
         response.headers["X-Trial-Total-Rows"] = str(len(raw_leads))
         raw_leads = raw_leads[:TRIAL_MAX_LEADS_PER_UPLOAD]
 
-    if gated:
+    if tenant.plan == storage.STARTER_PLAN:
+        storage.increment_tenant_uploads(tenant.id)
+    elif gated:
         storage.increment_trial_uploads()
 
     scored: list[ScoredLead] = []
