@@ -144,14 +144,14 @@
     </div>
   </footer>
   <script>
-    // The backend activates the PayPal subscription before redirecting here
-    // with ?status=ok|pending|failed.
+    // Checkout now completes in-page (Braintree Drop-in); this page is kept
+    // for old links and still understands ?status=ok|pending|failed.
     const status = new URLSearchParams(window.location.search).get("status");
     const message = document.querySelector(".card p");
     if (message && status === "pending") {
-      message.textContent = "Thanks! PayPal is still confirming your subscription. Your license key will be emailed to you within a few minutes.";
+      message.textContent = "Thanks! Your payment is still being confirmed. Your license key will be emailed to you within a few minutes.";
     } else if (message && status === "failed") {
-      message.textContent = "We couldn't confirm your PayPal subscription automatically. If you were charged, email hello@crmscoring.com and we'll sort it out.";
+      message.textContent = "We couldn't confirm your subscription automatically. If you were charged, email hello@crmscoring.com and we'll sort it out.";
     }
   </script>
 </body>

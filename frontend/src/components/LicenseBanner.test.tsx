@@ -3,8 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LicenseBanner } from "./LicenseBanner";
 import * as api from "../api";
-import * as paypal from "../paypal";
-import { configured, fakePayPal } from "../test/paypalFixtures";
+import * as braintree from "../braintree";
+import { configured, fakeDropin } from "../test/braintreeFixtures";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
@@ -12,11 +12,12 @@ vi.mock("../api", async (importActual) => {
     ...actual,
     fetchLicenseStatus: vi.fn(),
     fetchBillingConfig: vi.fn(),
-    activatePayPalSubscription: vi.fn(),
+    fetchBraintreeClientToken: vi.fn(),
+    subscribeWithBraintree: vi.fn(),
   };
 });
 
-vi.mock("../paypal", () => ({ loadPayPalSdk: vi.fn(), openPayPalCheckout: vi.fn() }));
+vi.mock("../braintree", () => ({ loadDropin: vi.fn() }));
 
 const trial = {
   licensed: false as const, reason: "trial" as const, customer_email: null, plan: null, tier: "starter" as const, trial_uploads_left: 5,
@@ -25,9 +26,10 @@ const trial = {
 describe("LicenseBanner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Most tests don't care about PayPal -- default it "off" so the extra
-    // buttons don't show up unless a test explicitly opts in.
-    vi.mocked(api.fetchBillingConfig).mockResolvedValue({ environment: "sandbox", paypal_available: false });
+    // Most tests don't care about checkout -- default it "off" unless a test
+    // explicitly opts in.
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({ environment: "sandbox", checkout_available: false });
+    vi.mocked(api.fetchBraintreeClientToken).mockResolvedValue("client-token");
   });
 
   it("renders nothing until the license status has loaded", () => {
@@ -100,12 +102,12 @@ describe("LicenseBanner", () => {
     expect(screen.queryByText(/starter \(free\)/i)).not.toBeInTheDocument();
   });
 
-  it("renders PayPal subscription buttons for the chosen plan and shows the key on approval", async () => {
+  it("renders the card form for the chosen plan and shows the key after paying", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
     vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
-    const fake = fakePayPal();
-    vi.mocked(paypal.loadPayPalSdk).mockResolvedValue(fake.namespace);
-    vi.mocked(api.activatePayPalSubscription).mockResolvedValue({
+    const fake = fakeDropin();
+    vi.mocked(braintree.loadDropin).mockResolvedValue(fake.namespace);
+    vi.mocked(api.subscribeWithBraintree).mockResolvedValue({
       status: "ok", email: "buyer@example.com", tier: "advanced", plan: "annual", license_key: "LK-123",
     });
 
@@ -113,53 +115,68 @@ describe("LicenseBanner", () => {
     await userEvent.click(await screen.findByRole("button", { name: /advanced annual/i }));
 
     expect(await screen.findByText(/advanced — \$384\/year/i)).toBeInTheDocument();
-    await waitFor(() => expect(fake.options()).toBeDefined());
-    expect(paypal.loadPayPalSdk).toHaveBeenCalledWith("client-123", "USD");
-    await expect(fake.createSubscription()).resolves.toBe("I-NEW");
-    expect(fake.createdWith()).toEqual({ plan_id: "P-ADV-A" });
+    await waitFor(() => expect(fake.options()?.authorization).toBe("client-token"));
+    await userEvent.type(screen.getByLabelText(/email for your license key/i), "buyer@example.com");
+    await userEvent.click(await screen.findByRole("button", { name: /subscribe — \$384\/year/i }));
 
-    await fake.approve("I-NEW");
-
-    expect(api.activatePayPalSubscription).toHaveBeenCalledWith("I-NEW");
+    expect(api.subscribeWithBraintree).toHaveBeenCalledWith({
+      tier: "advanced", interval: "annual", email: "buyer@example.com", payment_method_nonce: "nonce-1", device_data: "dd",
+    });
     expect(await screen.findByText("LK-123")).toBeInTheDocument();
     expect(screen.getByText("buyer@example.com")).toBeInTheDocument();
   });
 
-  it("says PayPal isn't configured instead of loading PayPal when plans are missing", async () => {
+  it("says checkout isn't configured instead of loading Braintree when it's unavailable", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
 
-    expect(await screen.findByText("PayPal isn't configured on this deployment.")).toBeInTheDocument();
-    expect(paypal.loadPayPalSdk).not.toHaveBeenCalled();
+    expect(await screen.findByText("Checkout isn't configured on this deployment.")).toBeInTheDocument();
+    expect(braintree.loadDropin).not.toHaveBeenCalled();
   });
 
-  it("offers the redirect checkout when PayPal's script can't load", async () => {
+  it("shows a load error when Drop-in's script can't load", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
     vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
-    vi.mocked(paypal.loadPayPalSdk).mockRejectedValue(new Error("Couldn't load PayPal."));
-    vi.mocked(paypal.openPayPalCheckout).mockResolvedValue(undefined);
+    vi.mocked(braintree.loadDropin).mockRejectedValue(new Error("Couldn't load the payment form."));
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro annual/i }));
-    await userEvent.click(await screen.findByRole("button", { name: /continue on paypal/i }));
 
-    expect(paypal.openPayPalCheckout).toHaveBeenCalledWith("annual", "pro");
+    expect(await screen.findByText("Couldn't load the payment form.")).toBeInTheDocument();
   });
 
-  it("explains the emailed key if activation can't be confirmed", async () => {
+  it("keeps the form open with the reason when the card is declined", async () => {
     vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
     vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
-    const fake = fakePayPal();
-    vi.mocked(paypal.loadPayPalSdk).mockResolvedValue(fake.namespace);
-    vi.mocked(api.activatePayPalSubscription).mockRejectedValue(new Error("PayPal subscription isn't active yet."));
+    vi.mocked(braintree.loadDropin).mockResolvedValue(fakeDropin().namespace);
+    vi.mocked(api.subscribeWithBraintree).mockRejectedValue(new Error("Your card was declined. Please try a different card."));
 
     render(<LicenseBanner />);
     await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
-    await waitFor(() => expect(fake.options()).toBeDefined());
-    await fake.approve("I-1");
+    await userEvent.type(await screen.findByLabelText(/email for your license key/i), "buyer@example.com");
+    const pay = await screen.findByRole("button", { name: /subscribe — \$20\/month/i });
+    await waitFor(() => expect(pay).toBeEnabled());
+    await userEvent.click(pay);
 
-    expect(await screen.findByText(/emailed as soon as PayPal confirms/i)).toBeInTheDocument();
+    expect(await screen.findByText(/your card was declined/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /subscribe — \$20\/month/i })).toBeEnabled();
+  });
+
+  it("doesn't charge when the card form is incomplete", async () => {
+    vi.mocked(api.fetchLicenseStatus).mockResolvedValue(trial);
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
+    vi.mocked(braintree.loadDropin).mockResolvedValue(fakeDropin(new Error("No payment method is available.")).namespace);
+
+    render(<LicenseBanner />);
+    await userEvent.click(await screen.findByRole("button", { name: /pro — \$20\/mo/i }));
+    await userEvent.type(await screen.findByLabelText(/email for your license key/i), "buyer@example.com");
+    const pay = await screen.findByRole("button", { name: /subscribe — \$20\/month/i });
+    await waitFor(() => expect(pay).toBeEnabled());
+    await userEvent.click(pay);
+
+    expect(await screen.findByText("Please complete your card details.")).toBeInTheDocument();
+    expect(api.subscribeWithBraintree).not.toHaveBeenCalled();
   });
 });

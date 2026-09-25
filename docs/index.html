@@ -147,7 +147,7 @@
   section.pricing > .wrap > p.lede { color: var(--text-muted); margin: 0 0 28px; }
 
   /* Monthly/yearly toggle -- one shared control above all three cards, since
-     all three tiers check out against the same two PayPal prices. */
+     all three tiers check out against the same two billing intervals. */
   .billing-toggle {
     display: inline-flex; align-items: center; gap: 2px; padding: 4px;
     border: 1px solid var(--border); border-radius: 999px; background: var(--bg-alt);
@@ -188,6 +188,23 @@
   .plan .features { list-style: none; margin: 4px 0 22px; padding: 0; font-size: 0.86rem; flex: 1; }
   .plan .features li { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 9px; color: var(--text); }
   .plan .features li::before { content: "✓"; color: var(--accent); font-weight: 700; flex-shrink: 0; }
+
+  .checkout {
+    max-width: 440px; margin: 28px auto 0; padding: 24px; text-align: left;
+    border: 1px solid var(--accent); border-radius: 10px; background: var(--bg-alt);
+  }
+  .checkout-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .checkout h3 { margin: 0; font-size: 1.05rem; }
+  .checkout .link-btn { background: none; border: 0; padding: 0; font: inherit; font-size: 0.85rem; color: var(--text-muted); text-decoration: underline; cursor: pointer; }
+  .checkout .fine { font-size: 0.8rem; color: var(--text-muted); margin: 4px 0 14px; }
+  .checkout label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-h); margin-bottom: 10px; }
+  .checkout input[type=email] {
+    display: block; width: 100%; box-sizing: border-box; margin-top: 4px; padding: 9px 10px; font: inherit;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text-h);
+  }
+  .checkout .key { display: block; word-break: break-all; font-family: "IBM Plex Mono", monospace; font-size: 0.75rem; background: var(--accent-bg); color: var(--text-h); padding: 8px 10px; border-radius: 6px; margin: 8px 0; }
+  .checkout .error { color: var(--hot); font-size: 0.85rem; }
+  .checkout button[type=submit]:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
   footer { padding: 36px 0 48px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 0.85rem; }
   footer a { color: var(--text-muted); }
@@ -254,7 +271,7 @@
         <button type="button" class="toggle-btn" id="toggle-annual" onclick="selectInterval('annual')">Yearly <span class="save-chip">Save 20%</span></button>
       </div>
 
-      <!-- Three real tiers. Starter has no PayPal price at all -- it's the
+      <!-- Three real tiers. Starter has no Braintree plan at all -- it's the
            unlicensed default (app/licensing.py), permanently capped at
            TRIAL_MAX_UPLOADS/TRIAL_MAX_LEADS_PER_UPLOAD. Pro and Advanced are
            functionally identical (no extra caps/features on Advanced yet) --
@@ -301,6 +318,27 @@
         </div>
       </div>
       <p id="checkout-error" class="caption" style="display:none; color: var(--hot);"></p>
+      <div id="checkout" class="checkout" hidden>
+        <div class="checkout-head">
+          <h3 id="checkout-title">Subscribe</h3>
+          <button type="button" class="link-btn" id="checkout-cancel" onclick="closeCheckout()">Cancel</button>
+        </div>
+        <p class="fine" id="checkout-fine">Billed by card through Braintree. Cancel anytime by emailing hello@crmscoring.com.</p>
+        <form id="checkout-form" onsubmit="return pay(event)">
+          <label>Email for your license key
+            <input type="email" id="checkout-email" required autocomplete="email">
+          </label>
+          <p id="checkout-loading" class="fine">Loading secure checkout…</p>
+          <div id="dropin"></div>
+          <p id="checkout-form-error" class="error" hidden></p>
+          <button type="submit" id="checkout-pay" class="btn btn-primary" style="width:100%; font: inherit;" disabled>Subscribe</button>
+        </form>
+        <div id="checkout-done" hidden>
+          <p style="color: var(--text-h); margin: 0;">You're subscribed! Your license key (also emailed to <strong id="done-email"></strong>):</p>
+          <code class="key" id="done-key"></code>
+          <p class="fine">Set it as <code>LICENSE_KEY</code> in your <code>.env</code> and restart. A fresh key is emailed on every renewal.</p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -325,12 +363,102 @@
       document.getElementById("toggle-annual").classList.toggle("active", interval === "annual");
       ["pro", "advanced"].forEach(function (tier) { var el = document.getElementById("price-" + tier); el.textContent = interval === "annual" ? (tier === "pro" ? "$192" : "$384") : (tier === "pro" ? "$20" : "$40"); });
     }
+    // In-page card checkout with Braintree Drop-in: the card is tokenized in
+    // Braintree's own iframes and only a one-time nonce reaches our backend.
+    var DROPIN_SRC = "https://js.braintreegateway.com/web/dropin/1.48.0/js/dropin.min.js";
+    var PRICES = { pro: { monthly: "$20/month", annual: "$192/year" }, advanced: { monthly: "$40/month", annual: "$384/year" } };
+    var dropinScript = null, dropinInstance = null, checkoutPlan = null;
+    function $(id) { return document.getElementById(id); }
+    function api(path, options) {
+      return fetch(API_BASE + path, options).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (body) {
+          if (!res.ok) throw new Error(body.detail || "Something went wrong. Please try again.");
+          return body;
+        });
+      });
+    }
+    function loadDropin() {
+      if (!dropinScript) {
+        dropinScript = new Promise(function (resolve, reject) {
+          var script = document.createElement("script");
+          script.src = DROPIN_SRC;
+          script.onload = function () { window.braintree && window.braintree.dropin ? resolve(window.braintree.dropin) : reject(new Error("The payment form failed to load.")); };
+          script.onerror = function () { dropinScript = null; reject(new Error("Couldn't load the payment form. Check your connection or ad blocker.")); };
+          document.head.appendChild(script);
+        });
+      }
+      return dropinScript;
+    }
+    function formError(msg) { var el = $("checkout-form-error"); el.textContent = msg || ""; el.hidden = !msg; }
+    function teardown() {
+      var instance = dropinInstance; dropinInstance = null;
+      $("dropin").innerHTML = "";
+      return instance ? instance.teardown().catch(function () {}) : Promise.resolve();
+    }
+    function closeCheckout() { teardown(); $("checkout").hidden = true; checkoutPlan = null; }
     function buyPlan(tier) {
       clearError();
-      fetch(API_BASE + "/billing/paypal/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ interval: currentInterval, tier: tier }) })
-        .then(function (res) { return res.json().then(function (body) { if (!res.ok) throw new Error(body.detail || "Couldn't start PayPal checkout."); return body; }); })
-        .then(function (body) { window.location.href = body.url; })
-        .catch(function (err) { showError(err.message || "Couldn't reach the checkout backend."); });
+      var plan = { tier: tier, interval: currentInterval };
+      checkoutPlan = plan;
+      $("checkout").hidden = false;
+      $("checkout-form").hidden = false;
+      $("checkout-done").hidden = true;
+      $("checkout-cancel").textContent = "Cancel";
+      $("checkout-title").textContent = (tier === "pro" ? "Pro" : "Advanced") + " — " + PRICES[tier][currentInterval];
+      $("checkout-pay").textContent = "Subscribe — " + PRICES[tier][currentInterval];
+      $("checkout-pay").disabled = true;
+      $("checkout-loading").hidden = false;
+      formError("");
+      $("checkout").scrollIntoView({ behavior: "smooth", block: "center" });
+      teardown().then(function () {
+        return Promise.all([loadDropin(), api("/billing/config"), api("/billing/braintree/client-token")]);
+      }).then(function (r) {
+        if (checkoutPlan !== plan) return;
+        if (!r[1].checkout_available) throw new Error("Checkout isn't available right now. Email hello@crmscoring.com and we'll set you up.");
+        if (r[1].environment === "sandbox") $("checkout-fine").textContent = "Test mode — no real charges. Use card 4111 1111 1111 1111, any future date, any CVV.";
+        return r[0].create({ authorization: r[2].client_token, container: $("dropin"), card: { cardholderName: { required: true } }, dataCollector: true })
+          .then(function (instance) {
+            if (checkoutPlan !== plan) { instance.teardown().catch(function () {}); return; }
+            dropinInstance = instance;
+            $("checkout-loading").hidden = true;
+            $("checkout-pay").disabled = false;
+          });
+      }).catch(function (err) {
+        if (checkoutPlan !== plan) return;
+        $("checkout-loading").hidden = true;
+        formError(err.message || "Couldn't load checkout.");
+      });
+    }
+    function pay(event) {
+      event.preventDefault();
+      if (!dropinInstance || !checkoutPlan) return false;
+      var plan = checkoutPlan, email = $("checkout-email").value.trim();
+      formError("");
+      dropinInstance.requestPaymentMethod().then(function (method) {
+        $("checkout-pay").disabled = true;
+        $("checkout-pay").textContent = "Processing…";
+        $("checkout-cancel").hidden = true;
+        return api("/billing/braintree/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tier: plan.tier, interval: plan.interval, email: email, payment_method_nonce: method.nonce, device_data: method.deviceData })
+        }).then(function (result) {
+          teardown();
+          $("checkout-form").hidden = true;
+          $("checkout-done").hidden = false;
+          $("checkout-cancel").hidden = false;
+          $("checkout-cancel").textContent = "Close";
+          $("done-email").textContent = result.email || email;
+          if (result.license_key) { $("done-key").textContent = result.license_key; $("done-key").hidden = false; }
+          else { $("done-key").hidden = true; $("done-key").previousElementSibling.textContent = "You're subscribed! Your license key has been emailed to you."; }
+        }, function (err) {
+          $("checkout-cancel").hidden = false;
+          $("checkout-pay").disabled = false;
+          $("checkout-pay").textContent = "Subscribe — " + PRICES[plan.tier][plan.interval];
+          formError(err.message);
+        });
+      }, function () { formError("Please complete your card details."); });
+      return false;
     }
     selectInterval("monthly");
   </script>

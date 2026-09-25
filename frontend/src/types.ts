@@ -50,10 +50,8 @@ export type PaidTier = "pro" | "advanced";
 export type PlanKey = `${PaidTier}_${BillingInterval}`;
 
 export interface BillingConfig {
-  paypal_available: boolean;
-  // Public PayPal client id for the JS SDK -- never the secret.
-  client_id?: string | null;
-  // PayPal billing plan id (P-...) per paid tier/interval. Starter is free.
+  checkout_available: boolean;
+  // Braintree plan id per paid tier/interval. Starter is free.
   plans?: Partial<Record<PlanKey, string | null>>;
   currency?: string;
   environment: "sandbox" | "production";
@@ -61,6 +59,16 @@ export interface BillingConfig {
   price_annual?: string | null;
   price_advanced_monthly?: string | null;
   price_advanced_annual?: string | null;
+}
+
+export interface SubscribeRequest {
+  tier: PaidTier;
+  interval: BillingInterval;
+  email: string;
+  // From Braintree Drop-in's requestPaymentMethod() -- a one-time token for
+  // the card, never the card details themselves.
+  payment_method_nonce: string;
+  device_data?: string;
 }
 
 export type SubscriptionActivation =

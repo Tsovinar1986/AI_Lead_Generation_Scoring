@@ -1,9 +1,12 @@
-"""PayPal Subscriptions and license delivery for the seller storefront.
+"""Braintree subscriptions and license delivery for the seller storefront.
 
-Starter is free (no PayPal plan). Pro and Advanced each have a monthly and an
-annual PayPal billing plan (create them with backend/scripts/create_paypal_plans.py).
-A license key is issued when a subscription activates and again on every
-renewal payment, each one valid a little past the next billing date -- so a
+Starter is free (no plan). Pro and Advanced each have a monthly and an annual
+Braintree plan (create them with backend/scripts/create_braintree_plans.py).
+Checkout happens in-page with Braintree's Drop-in card form: the browser gets
+a client token from /braintree/client-token, tokenizes the card, and posts the
+nonce to /braintree/subscribe, which creates the customer and subscription and
+returns the license key straight away. A fresh key is issued on every renewal
+(via the webhook), each one valid a little past the next billing date -- so a
 cancelled subscription simply stops getting fresh keys.
 """
 
@@ -14,32 +17,33 @@ import time
 from pathlib import Path
 from typing import Literal
 
-import requests
+import braintree
+from braintree.exceptions.braintree_error import BraintreeError
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import RedirectResponse
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 from starlette.concurrency import run_in_threadpool
 
 from ..config import (
+    BILLING_CURRENCY,
+    BRAINTREE_ENVIRONMENT,
+    BRAINTREE_MERCHANT_ID,
+    BRAINTREE_PLAN_ADVANCED_ANNUAL,
+    BRAINTREE_PLAN_ADVANCED_MONTHLY,
+    BRAINTREE_PLAN_PRO_ANNUAL,
+    BRAINTREE_PLAN_PRO_MONTHLY,
+    BRAINTREE_PRIVATE_KEY,
+    BRAINTREE_PUBLIC_KEY,
     LICENSE_PRIVATE_KEY,
     LICENSE_VALIDITY_DAYS_ANNUAL,
     LICENSE_VALIDITY_DAYS_MONTHLY,
-    PAYPAL_CLIENT_ID,
-    PAYPAL_CLIENT_SECRET,
-    PAYPAL_CURRENCY,
-    PAYPAL_ENVIRONMENT,
-    PAYPAL_PLAN_ADVANCED_ANNUAL,
-    PAYPAL_PLAN_ADVANCED_MONTHLY,
-    PAYPAL_PLAN_PRO_ANNUAL,
-    PAYPAL_PLAN_PRO_MONTHLY,
-    PAYPAL_PRICE_ADVANCED_ANNUAL,
-    PAYPAL_PRICE_ADVANCED_MONTHLY,
-    PAYPAL_PRICE_ANNUAL,
-    PAYPAL_PRICE_MONTHLY,
-    PAYPAL_WEBHOOK_ID,
-    STOREFRONT_URL,
+    PRICE_ADVANCED_ANNUAL,
+    PRICE_ADVANCED_MONTHLY,
+    PRICE_PRO_ANNUAL,
+    PRICE_PRO_MONTHLY,
+    RATE_LIMIT_AUTH,
 )
+from ..middleware import limiter
 from ..services.license_email import send_license_email
 
 _LICENSING_DIR = Path(__file__).resolve().parents[3] / "licensing"
@@ -48,49 +52,38 @@ from issue_license import issue_license  # noqa: E402
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
 _ISSUED_LICENSES_LOG = _LICENSING_DIR / "issued_licenses.jsonl"
-# The in-page approval, the return redirect and the webhooks can all try to
-# fulfil the same billing period at nearly the same moment -- serialise the
-# check-then-issue so one payment never produces two keys.
+# The in-page checkout and the webhooks can both try to fulfil the same
+# billing period at nearly the same moment -- serialise the check-then-issue
+# so one payment never produces two keys.
 _fulfil_lock = threading.Lock()
 
 Tier = Literal["pro", "advanced"]
 Interval = Literal["monthly", "annual"]
 
 
-def _paypal_api_base() -> str:
-    return "https://api-m.sandbox.paypal.com" if PAYPAL_ENVIRONMENT == "sandbox" else "https://api-m.paypal.com"
+def _configured() -> bool:
+    return bool(BRAINTREE_MERCHANT_ID and BRAINTREE_PUBLIC_KEY and BRAINTREE_PRIVATE_KEY)
 
 
-def _storefront(path: str) -> str:
-    return f"{STOREFRONT_URL.rstrip('/')}/{path}"
-
-
-def _paypal_access_token() -> str:
-    if not PAYPAL_CLIENT_ID or not PAYPAL_CLIENT_SECRET:
-        raise HTTPException(status_code=503, detail="PayPal isn't configured on this deployment.")
-    response = requests.post(
-        f"{_paypal_api_base()}/v1/oauth2/token",
-        auth=(PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET),
-        headers={"Accept": "application/json"},
-        data={"grant_type": "client_credentials"},
-        timeout=10,
+def _gateway() -> braintree.BraintreeGateway:
+    if not _configured():
+        raise HTTPException(status_code=503, detail="Braintree isn't configured on this deployment.")
+    return braintree.BraintreeGateway(
+        braintree.Configuration(
+            environment=braintree.Environment.parse_environment(BRAINTREE_ENVIRONMENT),
+            merchant_id=BRAINTREE_MERCHANT_ID,
+            public_key=BRAINTREE_PUBLIC_KEY,
+            private_key=BRAINTREE_PRIVATE_KEY,
+        )
     )
-    if not response.ok:
-        logger.warning("Couldn't obtain PayPal access token: {} {}", response.status_code, response.text)
-        raise HTTPException(status_code=502, detail="Couldn't connect to PayPal.")
-    return response.json()["access_token"]
-
-
-def _paypal_headers() -> dict:
-    return {"Authorization": f"Bearer {_paypal_access_token()}", "Content-Type": "application/json"}
 
 
 def _plans() -> dict[tuple[str, str], str]:
     return {
-        ("pro", "monthly"): PAYPAL_PLAN_PRO_MONTHLY,
-        ("pro", "annual"): PAYPAL_PLAN_PRO_ANNUAL,
-        ("advanced", "monthly"): PAYPAL_PLAN_ADVANCED_MONTHLY,
-        ("advanced", "annual"): PAYPAL_PLAN_ADVANCED_ANNUAL,
+        ("pro", "monthly"): BRAINTREE_PLAN_PRO_MONTHLY,
+        ("pro", "annual"): BRAINTREE_PLAN_PRO_ANNUAL,
+        ("advanced", "monthly"): BRAINTREE_PLAN_ADVANCED_MONTHLY,
+        ("advanced", "annual"): BRAINTREE_PLAN_ADVANCED_ANNUAL,
     }
 
 
@@ -99,7 +92,7 @@ def _plan_for(tier: str, interval: str) -> str:
 
 
 def _tier_for_plan(plan_id: str) -> tuple[str, str] | None:
-    """Map a PayPal plan id back to (tier, interval); None if it isn't ours."""
+    """Map a Braintree plan id back to (tier, interval); None if it isn't ours."""
     for key, value in _plans().items():
         if value and value == plan_id:
             return key
@@ -158,39 +151,49 @@ def _issue_and_deliver(email: str, interval: str, tier: str, transaction_id: str
     return license_key
 
 
-def _get_subscription(subscription_id: str) -> dict:
-    response = requests.get(
-        f"{_paypal_api_base()}/v1/billing/subscriptions/{subscription_id}", headers=_paypal_headers(), timeout=10
-    )
-    if not response.ok:
-        logger.warning("Couldn't fetch PayPal subscription {}: {} {}", subscription_id, response.status_code, response.text)
-        raise HTTPException(status_code=502, detail="Couldn't look up the PayPal subscription.")
-    return response.json()
+def _get_subscription(subscription_id: str):
+    try:
+        return _gateway().subscription.find(subscription_id)
+    except braintree.exceptions.NotFoundError:
+        raise HTTPException(status_code=404, detail="Braintree subscription not found.")
+    except BraintreeError as exc:
+        logger.warning("Couldn't fetch Braintree subscription {}: {!r}", subscription_id, exc)
+        raise HTTPException(status_code=502, detail="Couldn't look up the Braintree subscription.")
 
 
-def _fulfil(subscription: dict) -> dict:
+def _subscriber_email(subscription) -> str | None:
+    """The buyer's email, stored on the Braintree customer at checkout."""
+    try:
+        gateway = _gateway()
+        payment_method = gateway.payment_method.find(subscription.payment_method_token)
+        return gateway.customer.find(payment_method.customer_id).email
+    except BraintreeError as exc:
+        logger.warning("Couldn't look up the customer for subscription {}: {!r}", subscription.id, exc)
+        raise HTTPException(status_code=502, detail="Couldn't look up the Braintree customer.")
+
+
+def _fulfil(subscription, email: str | None = None) -> dict:
     """Issue a key for the subscription's current billing period, at most once.
 
-    A period is identified by (subscription id, next billing time): activation
-    and the first PAYMENT.SALE.COMPLETED share one, and each renewal moves
-    next_billing_time forward, so it gets a fresh key.
+    A period is identified by (subscription id, paid-through date): checkout
+    and the first SubscriptionChargedSuccessfully webhook share one, and each
+    successful renewal charge moves paid_through_date forward, so it gets a
+    fresh key.
     """
-    subscription_id = subscription.get("id", "")
-    if subscription.get("status") != "ACTIVE":
-        raise HTTPException(status_code=409, detail="PayPal subscription isn't active yet.")
+    if subscription.status != braintree.Subscription.Status.Active:
+        raise HTTPException(status_code=409, detail="Braintree subscription isn't active.")
 
-    plan = _tier_for_plan(subscription.get("plan_id", ""))
+    plan = _tier_for_plan(subscription.plan_id)
     if plan is None:
-        logger.error("PayPal subscription {} is on unknown plan {}.", subscription_id, subscription.get("plan_id"))
-        raise HTTPException(status_code=400, detail="PayPal subscription is for an unknown plan.")
+        logger.error("Braintree subscription {} is on unknown plan {}.", subscription.id, subscription.plan_id)
+        raise HTTPException(status_code=400, detail="Braintree subscription is for an unknown plan.")
     tier, interval = plan
 
-    email = (subscription.get("subscriber") or {}).get("email_address")
+    email = email or _subscriber_email(subscription)
     if not email:
-        raise HTTPException(status_code=400, detail="PayPal did not provide a subscriber email address.")
+        raise HTTPException(status_code=400, detail="The Braintree customer has no email address.")
 
-    period = (subscription.get("billing_info") or {}).get("next_billing_time", "")
-    transaction_id = f"{subscription_id}@{period}"
+    transaction_id = f"{subscription.id}@{subscription.paid_through_date}"
     with _fulfil_lock:
         if _already_issued(transaction_id):
             return {"status": "duplicate"}
@@ -198,160 +201,131 @@ def _fulfil(subscription: dict) -> dict:
     return {"status": "ok", "email": email, "tier": tier, "plan": interval, "license_key": license_key}
 
 
-class SubscriptionCheckoutRequest(BaseModel):
+def _result_error(result) -> str:
+    """A buyer-safe explanation of a failed Braintree call."""
+    verification = getattr(result, "credit_card_verification", None)
+    if verification is not None and verification.status == "processor_declined":
+        return "Your card was declined. Please try a different card."
+    if verification is not None and verification.status == "gateway_rejected":
+        return "Your card couldn't be verified. Check the CVV and postal code and try again."
+    return result.message or "Braintree couldn't process the payment."
+
+
+class SubscribeRequest(BaseModel):
     interval: Interval
     tier: Tier = "pro"
-
-
-class SubscriptionActivateRequest(BaseModel):
-    subscription_id: str
+    email: EmailStr
+    payment_method_nonce: str = Field(min_length=1, max_length=512)
+    device_data: str | None = Field(default=None, max_length=10_000)
 
 
 @router.get("/config")
 def billing_config():
     plans = {f"{tier}_{interval}": plan_id or None for (tier, interval), plan_id in _plans().items()}
     return {
-        "paypal_available": bool(PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET and all(plans.values())),
-        # Public by design -- PayPal's JS SDK needs it in the browser to
-        # render the in-page buttons. The secret never leaves the server.
-        "client_id": PAYPAL_CLIENT_ID or None,
+        "checkout_available": _configured() and all(plans.values()),
         "plans": plans,
-        "currency": PAYPAL_CURRENCY,
-        "environment": PAYPAL_ENVIRONMENT,
-        "price_monthly": PAYPAL_PRICE_MONTHLY or None,
-        "price_annual": PAYPAL_PRICE_ANNUAL or None,
-        "price_advanced_monthly": PAYPAL_PRICE_ADVANCED_MONTHLY or None,
-        "price_advanced_annual": PAYPAL_PRICE_ADVANCED_ANNUAL or None,
+        "currency": BILLING_CURRENCY,
+        "environment": BRAINTREE_ENVIRONMENT,
+        "price_monthly": PRICE_PRO_MONTHLY or None,
+        "price_annual": PRICE_PRO_ANNUAL or None,
+        "price_advanced_monthly": PRICE_ADVANCED_MONTHLY or None,
+        "price_advanced_annual": PRICE_ADVANCED_ANNUAL or None,
     }
 
 
-@router.post("/paypal/checkout")
-def create_paypal_subscription(payload: SubscriptionCheckoutRequest, request: Request):
-    """Redirect-style checkout, for the static storefront (docs/index.html).
+@router.get("/braintree/client-token")
+def braintree_client_token():
+    # Short-lived and public by design -- Drop-in needs it in the browser to
+    # tokenize the card. The private key never leaves the server.
+    try:
+        return {"client_token": _gateway().client_token.generate()}
+    except BraintreeError as exc:
+        logger.warning("Couldn't generate a Braintree client token: {!r}", exc)
+        raise HTTPException(status_code=502, detail="Couldn't connect to Braintree.")
 
-    The in-app React frontend uses PayPal's JS SDK buttons instead and calls
-    /paypal/subscription/activate itself.
-    """
+
+@router.post("/braintree/subscribe")
+@limiter.limit(RATE_LIMIT_AUTH)
+def braintree_subscribe(request: Request, payload: SubscribeRequest):
+    """Vault the buyer's card and start the subscription; returns the key."""
     plan_id = _plan_for(payload.tier, payload.interval)
     if not plan_id:
-        raise HTTPException(status_code=503, detail="PayPal plans aren't configured on this deployment.")
+        raise HTTPException(status_code=503, detail="Billing plans aren't configured on this deployment.")
+    gateway = _gateway()
 
-    response = requests.post(
-        f"{_paypal_api_base()}/v1/billing/subscriptions",
-        headers=_paypal_headers(),
-        json={
-            "plan_id": plan_id,
-            "application_context": {
-                "brand_name": "CRM Scoring",
-                "user_action": "SUBSCRIBE_NOW",
-                "shipping_preference": "NO_SHIPPING",
-                # Back to this backend, so activation is handled server-side
-                # before the buyer lands on the storefront's thank-you page.
-                "return_url": str(request.url_for("paypal_return")),
-                "cancel_url": _storefront("index.html#pricing"),
-            },
-        },
-        timeout=10,
-    )
-    if not response.ok:
-        logger.warning("Couldn't create PayPal subscription: {} {}", response.status_code, response.text)
-        raise HTTPException(status_code=502, detail="Couldn't create a PayPal checkout.")
-
-    subscription = response.json()
-    approval = next((link["href"] for link in subscription.get("links", []) if link.get("rel") == "approve"), None)
-    if not approval:
-        logger.error("PayPal subscription {} did not include an approval URL.", subscription.get("id"))
-        raise HTTPException(status_code=502, detail="PayPal returned an invalid checkout.")
-    return {"url": approval, "subscription_id": subscription["id"]}
-
-
-@router.get("/paypal/return", name="paypal_return")
-def paypal_return(subscription_id: str = ""):
-    """PayPal sends the buyer here after approving (?subscription_id=...)."""
-    status = "failed"
-    if subscription_id:
-        try:
-            _fulfil(_get_subscription(subscription_id))
-            status = "ok"
-        except HTTPException as exc:
-            # 409 = approved but PayPal hasn't activated it yet; the
-            # BILLING.SUBSCRIPTION.ACTIVATED webhook will issue the key.
-            status = "pending" if exc.status_code == 409 else "failed"
-            logger.warning("PayPal return for subscription {}: {}", subscription_id, exc.detail)
-    return RedirectResponse(_storefront(f"thank-you.html?status={status}"), status_code=303)
-
-
-@router.post("/paypal/subscription/activate")
-def activate_paypal_subscription(payload: SubscriptionActivateRequest):
-    # Returns the key only to the first caller -- the buyer's own browser in
-    # the in-page flow. Repeat calls just say "duplicate".
-    return _fulfil(_get_subscription(payload.subscription_id))
-
-
-def _verify_webhook(request: Request, event: dict) -> bool:
-    if not PAYPAL_WEBHOOK_ID:
-        logger.error("PayPal webhook received but PAYPAL_WEBHOOK_ID isn't set; rejecting.")
-        return False
-    h = request.headers
-    response = requests.post(
-        f"{_paypal_api_base()}/v1/notifications/verify-webhook-signature",
-        headers=_paypal_headers(),
-        json={
-            "auth_algo": h.get("paypal-auth-algo"),
-            "cert_url": h.get("paypal-cert-url"),
-            "transmission_id": h.get("paypal-transmission-id"),
-            "transmission_sig": h.get("paypal-transmission-sig"),
-            "transmission_time": h.get("paypal-transmission-time"),
-            "webhook_id": PAYPAL_WEBHOOK_ID,
-            "webhook_event": event,
-        },
-        timeout=10,
-    )
-    return response.ok and response.json().get("verification_status") == "SUCCESS"
-
-
-@router.post("/paypal/webhook")
-async def paypal_webhook(request: Request):
-    """Activation fallback and renewals.
-
-    Subscribe the webhook (PayPal developer dashboard -> your app ->
-    Webhooks) to BILLING.SUBSCRIPTION.ACTIVATED and PAYMENT.SALE.COMPLETED.
-    """
+    customer_params = {
+        "email": payload.email,
+        "payment_method_nonce": payload.payment_method_nonce,
+        "credit_card": {"options": {"verify_card": True}},
+    }
+    if payload.device_data:
+        customer_params["device_data"] = payload.device_data
     try:
-        event = await request.json()
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid JSON.")
-    # Everything below makes blocking PayPal API calls -- keep them off the
-    # event loop.
-    return await run_in_threadpool(_handle_webhook, request, event)
+        customer = gateway.customer.create(customer_params)
+        if not customer.is_success:
+            logger.info("Braintree customer create failed for {}: {}", payload.email, customer.message)
+            raise HTTPException(status_code=402, detail=_result_error(customer))
+
+        token = customer.customer.payment_methods[0].token
+        created = gateway.subscription.create({"payment_method_token": token, "plan_id": plan_id})
+    except BraintreeError as exc:
+        logger.warning("Braintree checkout failed for {}: {!r}", payload.email, exc)
+        raise HTTPException(status_code=502, detail="Couldn't connect to Braintree.")
+    if not created.is_success:
+        logger.info("Braintree subscription create failed for {}: {}", payload.email, created.message)
+        raise HTTPException(status_code=402, detail=_result_error(created))
+
+    return _fulfil(created.subscription, email=payload.email)
 
 
-def _handle_webhook(request: Request, event: dict) -> dict:
-    if not _verify_webhook(request, event):
-        raise HTTPException(status_code=400, detail="Invalid PayPal webhook signature.")
+@router.post("/braintree/webhook")
+async def braintree_webhook(request: Request):
+    """Renewals, plus a fallback if the checkout response never reached the buyer.
 
-    event_type = event.get("event_type")
-    resource = event.get("resource") or {}
-    if event_type == "BILLING.SUBSCRIPTION.ACTIVATED":
-        subscription_id = resource.get("id")
-    elif event_type == "PAYMENT.SALE.COMPLETED":
-        subscription_id = resource.get("billing_agreement_id")
-    else:
-        if event_type and event_type.startswith("BILLING.SUBSCRIPTION."):
-            # Cancelled/suspended/expired: nothing to revoke -- the last key
-            # just runs out, since no renewal will issue a new one.
-            logger.info("PayPal {} for subscription {}", event_type, resource.get("id"))
+    Add https://<backend>/api/billing/braintree/webhook in the Braintree
+    Control Panel (Settings -> Webhooks) for "Subscription Charged
+    Successfully" and "Subscription Went Active".
+    """
+    form = await request.form()
+    signature, payload = form.get("bt_signature"), form.get("bt_payload")
+    if not isinstance(signature, str) or not isinstance(payload, str):
+        raise HTTPException(status_code=400, detail="Missing Braintree webhook signature or payload.")
+    # Everything below makes blocking Braintree API calls -- keep them off
+    # the event loop.
+    return await run_in_threadpool(_handle_webhook, signature, payload)
+
+
+def _parse_webhook(signature: str, payload: str):
+    try:
+        return _gateway().webhook_notification.parse(signature, payload)
+    except braintree.exceptions.InvalidSignatureError:
+        raise HTTPException(status_code=400, detail="Invalid Braintree webhook signature.")
+
+
+def _handle_webhook(signature: str, payload: str) -> dict:
+    notification = _parse_webhook(signature, payload)
+    kind = notification.kind
+    Kind = braintree.WebhookNotification.Kind
+    if kind not in (Kind.SubscriptionChargedSuccessfully, Kind.SubscriptionWentActive):
+        if kind == Kind.Check:
+            return {"status": "ok"}  # the Control Panel's "Check URL" test
+        # Cancelled/past due/expired: nothing to revoke -- the last key just
+        # runs out, since no renewal will issue a new one.
+        subscription = getattr(notification, "subscription", None)
+        logger.info("Braintree {} for subscription {}", kind, getattr(subscription, "id", None))
         return {"status": "ignored"}
-    if not subscription_id:
-        return {"status": "ignored"}
 
+    # Re-read the subscription rather than trusting the payload's snapshot, so
+    # paid_through_date reflects the charge that was just made.
+    subscription_id = notification.subscription.id
     try:
         result = _fulfil(_get_subscription(subscription_id))
     except HTTPException as exc:
         # 4xx here means the subscription itself is unusable -- acknowledge
-        # it so PayPal stops retrying. 5xx/502s propagate and PayPal retries.
+        # it so Braintree stops retrying. 5xx/502s propagate and it retries.
         if exc.status_code < 500:
-            logger.warning("PayPal webhook {} for {} not fulfilled: {}", event_type, subscription_id, exc.detail)
+            logger.warning("Braintree webhook {} for {} not fulfilled: {}", kind, subscription_id, exc.detail)
             return {"status": "rejected"}
         raise
     return {"status": result["status"]}

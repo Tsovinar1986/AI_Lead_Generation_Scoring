@@ -113,33 +113,32 @@ TRIAL_MAX_LEADS_PER_UPLOAD = int(os.getenv("TRIAL_MAX_LEADS_PER_UPLOAD", "10"))
 # --- Licensing (seller side) ---
 # Only used by routers/billing.py, which the seller runs on their own
 # storefront deployment -- buyers' self-hosted instances never need these.
-# PayPal Subscriptions: Pro and Advanced each have a monthly and an annual
-# billing plan; Starter is free and has none. Every activation/renewal
+# Braintree subscriptions: Pro and Advanced each have a monthly and an annual
+# billing plan; Starter is free and has none. Every successful charge
 # issues a fresh expiring license key. See licensing/README.md for setup.
 LICENSE_PRIVATE_KEY = os.getenv("LICENSE_PRIVATE_KEY", "")
-PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
-PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
-# "sandbox" (default, no real charges) or "production". Prices are decimal
-# amounts in PAYPAL_CURRENCY, used for display and by
-# scripts/create_paypal_plans.py; what's actually charged is set on each
-# PayPal plan. Advanced is functionally identical to Pro today, priced
+# "sandbox" (default, no real charges) or "production" -- sandbox and
+# production accounts have separate keys, so set the matching three.
+BRAINTREE_ENVIRONMENT = os.getenv("BRAINTREE_ENVIRONMENT", "sandbox")
+BRAINTREE_MERCHANT_ID = os.getenv("BRAINTREE_MERCHANT_ID", "")
+BRAINTREE_PUBLIC_KEY = os.getenv("BRAINTREE_PUBLIC_KEY", "")
+BRAINTREE_PRIVATE_KEY = os.getenv("BRAINTREE_PRIVATE_KEY", "")
+# Prices are decimal amounts in BILLING_CURRENCY, used for display and by
+# scripts/create_braintree_plans.py; what's actually charged is set on each
+# Braintree plan. Advanced is functionally identical to Pro today, priced
 # higher for agency/multi-client framing.
-PAYPAL_ENVIRONMENT = os.getenv("PAYPAL_ENVIRONMENT", "sandbox")
-PAYPAL_CURRENCY = os.getenv("PAYPAL_CURRENCY", "USD")
-PAYPAL_PRICE_MONTHLY = os.getenv("PAYPAL_PRICE_MONTHLY", "20.00")
-PAYPAL_PRICE_ANNUAL = os.getenv("PAYPAL_PRICE_ANNUAL", "192.00")
-PAYPAL_PRICE_ADVANCED_MONTHLY = os.getenv("PAYPAL_PRICE_ADVANCED_MONTHLY", "40.00")
-PAYPAL_PRICE_ADVANCED_ANNUAL = os.getenv("PAYPAL_PRICE_ADVANCED_ANNUAL", "384.00")
-# PayPal billing plan ids (P-...), printed by scripts/create_paypal_plans.py.
-# Sandbox and production plans are different -- set the matching four.
-PAYPAL_PLAN_PRO_MONTHLY = os.getenv("PAYPAL_PLAN_PRO_MONTHLY", "")
-PAYPAL_PLAN_PRO_ANNUAL = os.getenv("PAYPAL_PLAN_PRO_ANNUAL", "")
-PAYPAL_PLAN_ADVANCED_MONTHLY = os.getenv("PAYPAL_PLAN_ADVANCED_MONTHLY", "")
-PAYPAL_PLAN_ADVANCED_ANNUAL = os.getenv("PAYPAL_PLAN_ADVANCED_ANNUAL", "")
-# Webhook ID shown in the PayPal developer dashboard (your app -> Webhooks)
-# after adding https://<backend>/api/billing/paypal/webhook. Used to verify
-# each event's signature; webhooks are rejected while it's unset.
-PAYPAL_WEBHOOK_ID = os.getenv("PAYPAL_WEBHOOK_ID", "")
+BILLING_CURRENCY = os.getenv("BILLING_CURRENCY", "USD")
+PRICE_PRO_MONTHLY = os.getenv("PRICE_PRO_MONTHLY", "20.00")
+PRICE_PRO_ANNUAL = os.getenv("PRICE_PRO_ANNUAL", "192.00")
+PRICE_ADVANCED_MONTHLY = os.getenv("PRICE_ADVANCED_MONTHLY", "40.00")
+PRICE_ADVANCED_ANNUAL = os.getenv("PRICE_ADVANCED_ANNUAL", "384.00")
+# Braintree plan ids. We choose these ourselves, so the defaults are the ids
+# scripts/create_braintree_plans.py creates -- only override them if you
+# made the plans by hand in the Braintree Control Panel.
+BRAINTREE_PLAN_PRO_MONTHLY = os.getenv("BRAINTREE_PLAN_PRO_MONTHLY", "crm-scoring-pro-monthly")
+BRAINTREE_PLAN_PRO_ANNUAL = os.getenv("BRAINTREE_PLAN_PRO_ANNUAL", "crm-scoring-pro-annual")
+BRAINTREE_PLAN_ADVANCED_MONTHLY = os.getenv("BRAINTREE_PLAN_ADVANCED_MONTHLY", "crm-scoring-advanced-monthly")
+BRAINTREE_PLAN_ADVANCED_ANNUAL = os.getenv("BRAINTREE_PLAN_ADVANCED_ANNUAL", "crm-scoring-advanced-annual")
 # Public marketing site (docs/) -- buyers land on its thank-you.html after
 # paying and on its pricing section if they cancel.
 STOREFRONT_URL = os.getenv("STOREFRONT_URL", "https://crmscoring.com")
@@ -147,7 +146,7 @@ STOREFRONT_URL = os.getenv("STOREFRONT_URL", "https://crmscoring.com")
 # one -- an already-issued offline key can't be revoked, so this bounds
 # how long a cancelled subscriber keeps working. Every renewal issues a
 # fresh key, so the windows only need to run a little past one billing
-# period (to allow for PayPal's payment retries).
+# period (to allow for Braintree's payment retries).
 LICENSE_VALIDITY_DAYS_MONTHLY = int(os.getenv("LICENSE_VALIDITY_DAYS_MONTHLY", "35"))
 LICENSE_VALIDITY_DAYS_ANNUAL = int(os.getenv("LICENSE_VALIDITY_DAYS_ANNUAL", "380"))
 

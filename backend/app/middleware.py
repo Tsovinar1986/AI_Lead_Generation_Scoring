@@ -39,13 +39,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
-            # PayPal's JS SDK (in-page checkout buttons) loads its script,
-            # button images and popup/iframe from these PayPal hosts.
-            "script-src 'self' https://www.paypal.com https://www.sandbox.paypal.com; "
+            # Braintree Drop-in (in-page card checkout) loads its script from
+            # js.braintreegateway.com, renders the card fields in iframes from
+            # assets.braintreegateway.com, and tokenizes via Braintree's APIs.
+            "script-src 'self' https://js.braintreegateway.com https://assets.braintreegateway.com; "
             "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https://*.paypal.com https://*.paypalobjects.com; "
-            "connect-src 'self' https://*.paypal.com; "
-            "frame-src https://*.paypal.com; "
+            "img-src 'self' data: https://assets.braintreegateway.com; "
+            "connect-src 'self' https://api.braintreegateway.com https://api.sandbox.braintreegateway.com "
+            "https://client-analytics.braintreegateway.com https://client-analytics.sandbox.braintreegateway.com "
+            "https://payments.braintree-api.com https://payments.sandbox.braintree-api.com; "
+            "frame-src https://assets.braintreegateway.com; "
             "object-src 'none'; "
             "base-uri 'self'"
         )

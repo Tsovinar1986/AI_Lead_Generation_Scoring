@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { LicenseRequiredError, fetchBillingConfig, uploadLeads } from "../api";
 import type { BillingConfig, BillingInterval, ScoredLead } from "../types";
-import { PayPalSubscribe } from "./PayPalSubscribe";
+import { BraintreeSubscribe } from "./BraintreeSubscribe";
 
 interface Props {
   onUploaded: (leads: ScoredLead[]) => void;
@@ -46,7 +46,7 @@ export function UploadPanel({ onUploaded }: Props) {
   useEffect(() => {
     fetchBillingConfig()
       .then(setBilling)
-      .catch(() => setBilling({ paypal_available: false, environment: "sandbox" }));
+      .catch(() => setBilling({ checkout_available: false, environment: "sandbox" }));
   }, []);
 
   async function handleFile(file: File) {
@@ -165,7 +165,7 @@ export function UploadPanel({ onUploaded }: Props) {
             Buy annual (save 20%)
           </button>
           {buyInterval && billing && (
-            <PayPalSubscribe
+            <BraintreeSubscribe
               key={buyInterval}
               config={billing}
               tier="pro"

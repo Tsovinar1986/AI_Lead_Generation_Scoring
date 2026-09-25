@@ -1,9 +1,8 @@
 import type {
   BillingConfig,
-  BillingInterval,
   LicenseStatus,
-  PaidTier,
   ScoredLead,
+  SubscribeRequest,
   SubscriptionActivation,
   TenantAuth,
 } from "./types";
@@ -103,29 +102,21 @@ export async function fetchBillingConfig(): Promise<BillingConfig> {
   return handle(res);
 }
 
-// Redirect-style fallback: creates the subscription server-side and returns
-// PayPal's approval URL. The in-page SDK buttons (PayPalSubscribe) are the
-// normal path; this is used only if PayPal's script can't load.
-export async function createPayPalCheckout(
-  interval: BillingInterval,
-  tier: PaidTier = "pro",
-): Promise<{ url: string; subscription_id: string }> {
-  const res = await fetch(`${BASE}/billing/paypal/checkout`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ interval, tier }),
-  });
-  return handle(res);
+// Short-lived token Braintree's Drop-in needs to tokenize the buyer's card.
+export async function fetchBraintreeClientToken(): Promise<string> {
+  const res = await fetch(`${BASE}/billing/braintree/client-token`);
+  const body = await handle<{ client_token: string }>(res);
+  return body.client_token;
 }
 
-// Called after the buyer approves in PayPal's popup. Returns the license key
-// the first time; later calls (or the webhook having got there first) say
-// "duplicate" and the key arrives by email instead.
-export async function activatePayPalSubscription(subscriptionId: string): Promise<SubscriptionActivation> {
-  const res = await fetch(`${BASE}/billing/paypal/subscription/activate`, {
+// Sends the tokenized card (never the card number itself) to start the
+// subscription. Returns the license key; "duplicate" means a webhook got
+// there first and the key arrives by email instead.
+export async function subscribeWithBraintree(request: SubscribeRequest): Promise<SubscriptionActivation> {
+  const res = await fetch(`${BASE}/billing/braintree/subscribe`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ subscription_id: subscriptionId }),
+    body: JSON.stringify(request),
   });
   return handle(res);
 }

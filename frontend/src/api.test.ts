@@ -3,11 +3,11 @@ import {
   LicenseRequiredError,
   TenantAuthError,
   clearTenantApiKey,
-  activatePayPalSubscription,
-  createPayPalCheckout,
   fetchBillingConfig,
+  fetchBraintreeClientToken,
   fetchLeads,
   setTenantApiKey,
+  subscribeWithBraintree,
   uploadLeads,
 } from "./api";
 
@@ -112,9 +112,8 @@ describe("fetchBillingConfig", () => {
   it("gets /billing/config and returns the parsed billing config", async () => {
     const config = {
       environment: "sandbox" as const,
-      client_id: "client-123",
-      plans: { pro_monthly: "P-PRO-M" },
-      paypal_available: false,
+      plans: { pro_monthly: "crm-scoring-pro-monthly" },
+      checkout_available: false,
     };
     mockFetchOnce(200, config);
 
@@ -126,29 +125,34 @@ describe("fetchBillingConfig", () => {
   });
 });
 
-describe("createPayPalCheckout", () => {
-  it("posts the interval to /billing/paypal/checkout and returns the approval url", async () => {
-    mockFetchOnce(200, { url: "https://sandbox.paypal.com/checkout/abc123", subscription_id: "I-1" });
+describe("fetchBraintreeClientToken", () => {
+  it("gets /billing/braintree/client-token and returns the token", async () => {
+    mockFetchOnce(200, { client_token: "tok" });
 
-    const result = await createPayPalCheckout("annual");
-    expect(result).toEqual({ url: "https://sandbox.paypal.com/checkout/abc123", subscription_id: "I-1" });
+    await expect(fetchBraintreeClientToken()).resolves.toBe("tok");
 
-    const [url, options] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toContain("/billing/paypal/checkout");
-    expect(options?.method).toBe("POST");
-    expect(JSON.parse(options?.body as string)).toEqual({ interval: "annual", tier: "pro" });
+    const [url] = vi.mocked(fetch).mock.calls[0];
+    expect(url).toContain("/billing/braintree/client-token");
   });
 });
 
-describe("activatePayPalSubscription", () => {
-  it("posts the subscription id and returns the activation result", async () => {
+describe("subscribeWithBraintree", () => {
+  const request = { tier: "pro" as const, interval: "annual" as const, email: "b@example.com", payment_method_nonce: "n1" };
+
+  it("posts the nonce and plan to /billing/braintree/subscribe and returns the result", async () => {
     mockFetchOnce(200, { status: "duplicate" });
 
-    const result = await activatePayPalSubscription("I-1");
-    expect(result).toEqual({ status: "duplicate" });
+    await expect(subscribeWithBraintree(request)).resolves.toEqual({ status: "duplicate" });
 
     const [url, options] = vi.mocked(fetch).mock.calls[0];
-    expect(url).toContain("/billing/paypal/subscription/activate");
-    expect(JSON.parse(options?.body as string)).toEqual({ subscription_id: "I-1" });
+    expect(url).toContain("/billing/braintree/subscribe");
+    expect(options?.method).toBe("POST");
+    expect(JSON.parse(options?.body as string)).toEqual(request);
+  });
+
+  it("surfaces a declined card's message", async () => {
+    mockFetchOnce(402, { detail: "Your card was declined. Please try a different card." });
+
+    await expect(subscribeWithBraintree(request)).rejects.toThrow("Your card was declined");
   });
 });

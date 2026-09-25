@@ -36,32 +36,16 @@ services:
         sync: false
       - key: LICENSE_PUBLIC_KEY
         sync: false
-      - key: PAYPAL_CLIENT_ID
-        sync: false
-      - key: PAYPAL_CLIENT_SECRET
-        sync: false
-      - key: PAYPAL_ENVIRONMENT
+      - key: BRAINTREE_ENVIRONMENT
         value: sandbox
-      - key: PAYPAL_CURRENCY
+      - key: BRAINTREE_MERCHANT_ID
+        sync: false
+      - key: BRAINTREE_PUBLIC_KEY
+        sync: false
+      - key: BRAINTREE_PRIVATE_KEY
+        sync: false
+      - key: BILLING_CURRENCY
         value: USD
-      - key: PAYPAL_PRICE_MONTHLY
-        sync: false
-      - key: PAYPAL_PRICE_ANNUAL
-        sync: false
-      - key: PAYPAL_PRICE_ADVANCED_MONTHLY
-        sync: false
-      - key: PAYPAL_PRICE_ADVANCED_ANNUAL
-        sync: false
-      - key: PAYPAL_PLAN_PRO_MONTHLY
-        sync: false
-      - key: PAYPAL_PLAN_PRO_ANNUAL
-        sync: false
-      - key: PAYPAL_PLAN_ADVANCED_MONTHLY
-        sync: false
-      - key: PAYPAL_PLAN_ADVANCED_ANNUAL
-        sync: false
-      - key: PAYPAL_WEBHOOK_ID
-        sync: false
       - key: STOREFRONT_URL
         value: https://crmscoring.com
       - key: SENDGRID_API_KEY

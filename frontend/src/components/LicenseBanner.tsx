@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchBillingConfig, fetchLicenseStatus } from "../api";
 import type { BillingConfig, BillingInterval, LicenseStatus, PaidTier } from "../types";
-import { PayPalSubscribe } from "./PayPalSubscribe";
+import { BraintreeSubscribe } from "./BraintreeSubscribe";
 
 type Selection = { tier: PaidTier; interval: BillingInterval };
 
@@ -67,7 +67,7 @@ export function LicenseBanner() {
       );
     fetchBillingConfig()
       .then(setBilling)
-      .catch(() => setBilling({ paypal_available: false, environment: "sandbox" }));
+      .catch(() => setBilling({ checkout_available: false, environment: "sandbox" }));
   }, []);
 
   function isSelected(tier: PaidTier, interval: BillingInterval) {
@@ -159,12 +159,12 @@ export function LicenseBanner() {
             >
               Advanced annual (save 20%)
             </button>
-            {billing?.paypal_available && <span className="text-xs text-text/70">Secure checkout with PayPal</span>}
+            {billing?.checkout_available && <span className="text-xs text-text/70">Secure card checkout by Braintree</span>}
           </>
         )}
       </div>
       {showBuyButtons && selected && billing && (
-        <PayPalSubscribe
+        <BraintreeSubscribe
           key={`${selected.tier}-${selected.interval}`}
           config={billing}
           tier={selected.tier}

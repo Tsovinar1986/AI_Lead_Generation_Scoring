@@ -3,15 +3,21 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UploadPanel } from "./UploadPanel";
 import * as api from "../api";
-import * as paypal from "../paypal";
-import { configured, fakePayPal } from "../test/paypalFixtures";
+import * as braintree from "../braintree";
+import { configured, fakeDropin } from "../test/braintreeFixtures";
 
 vi.mock("../api", async (importActual) => {
   const actual = await importActual<typeof api>();
-  return { ...actual, uploadLeads: vi.fn(), fetchBillingConfig: vi.fn() };
+  return {
+    ...actual,
+    uploadLeads: vi.fn(),
+    fetchBillingConfig: vi.fn(),
+    fetchBraintreeClientToken: vi.fn(),
+    subscribeWithBraintree: vi.fn(),
+  };
 });
 
-vi.mock("../paypal", () => ({ loadPayPalSdk: vi.fn(), openPayPalCheckout: vi.fn() }));
+vi.mock("../braintree", () => ({ loadDropin: vi.fn() }));
 
 function selectFile() {
   const file = new File(["company_name,domain\nAcme,acme.com"], "leads.csv", { type: "text/csv" });
@@ -22,7 +28,7 @@ function selectFile() {
 describe("UploadPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(api.fetchBillingConfig).mockResolvedValue({ environment: "sandbox", paypal_available: false });
+    vi.mocked(api.fetchBillingConfig).mockResolvedValue({ environment: "sandbox", checkout_available: false });
   });
 
   it("calls onUploaded with the scored leads on success", async () => {
@@ -67,18 +73,23 @@ describe("UploadPanel", () => {
     expect(screen.queryByText("No valid license found.")).not.toBeInTheDocument();
   });
 
-  it("shows PayPal subscription buttons for the Pro annual plan on the license-expired CTA", async () => {
+  it("opens card checkout for the Pro annual plan on the license-expired CTA", async () => {
     vi.mocked(api.fetchBillingConfig).mockResolvedValue(configured);
+    vi.mocked(api.fetchBraintreeClientToken).mockResolvedValue("client-token");
     vi.mocked(api.uploadLeads).mockRejectedValue(new api.LicenseRequiredError("No valid license found."));
-    const fake = fakePayPal();
-    vi.mocked(paypal.loadPayPalSdk).mockResolvedValue(fake.namespace);
+    vi.mocked(braintree.loadDropin).mockResolvedValue(fakeDropin().namespace);
+    vi.mocked(api.subscribeWithBraintree).mockResolvedValue({ status: "duplicate" });
 
     render(<UploadPanel onUploaded={vi.fn()} />);
     await selectFile();
 
     await userEvent.click(await screen.findByRole("button", { name: /buy annual/i }));
-    await waitFor(() => expect(fake.options()).toBeDefined());
-    await fake.createSubscription();
-    expect(fake.createdWith()).toEqual({ plan_id: "P-PRO-A" });
+    await userEvent.type(await screen.findByLabelText(/email for your license key/i), "buyer@example.com");
+    const pay = await screen.findByRole("button", { name: /subscribe — \$192\/year/i });
+    await waitFor(() => expect(pay).toBeEnabled());
+    await userEvent.click(pay);
+
+    expect(api.subscribeWithBraintree).toHaveBeenCalledWith(expect.objectContaining({ tier: "pro", interval: "annual" }));
+    expect(await screen.findByText(/license key has been emailed/i)).toBeInTheDocument();
   });
 });
