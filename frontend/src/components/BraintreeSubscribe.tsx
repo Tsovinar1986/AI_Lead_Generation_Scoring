@@ -115,7 +115,6 @@ export function BraintreeSubscribe({ config, tier, interval, onClose }: Props) {
           </p>
           <p className="text-xs text-text/75">
             Billed every {period} by card. Cancel anytime by emailing hello@crmscoring.com.
-            {config.environment === "sandbox" && " Test mode — no real charges."}
           </p>
         </div>
         {phase.kind !== "paying" && (

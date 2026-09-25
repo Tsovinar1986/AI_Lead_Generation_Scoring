@@ -412,7 +412,6 @@
       }).then(function (r) {
         if (checkoutPlan !== plan) return;
         if (!r[1].checkout_available) throw new Error("Checkout isn't available right now. Email hello@crmscoring.com and we'll set you up.");
-        if (r[1].environment === "sandbox") $("checkout-fine").textContent = "Test mode — no real charges. Use card 4111 1111 1111 1111, any future date, any CVV.";
         return r[0].create({ authorization: r[2].client_token, container: $("dropin"), card: { cardholderName: { required: true } }, dataCollector: true })
           .then(function (instance) {
             if (checkoutPlan !== plan) { instance.teardown().catch(function () {}); return; }
